@@ -149,6 +149,189 @@ agent-foreman is also available as a Claude Code plugin:
 | `/init-harness` | Initialize the harness |
 | `/feature-step` | Work on features |
 
+## Using with Claude Code (Detailed Guide)
+
+This section explains how to use agent-foreman with Claude Code to complete tasks one by one in a structured workflow.
+
+> 本节介绍如何使用 agent-foreman 与 Claude Code 配合，逐个完成任务。
+
+### Step 1: Initialize the Harness
+
+First, initialize the harness in your project:
+
+```bash
+# For new projects - specify your project goal
+agent-foreman init "Build a REST API for user management"
+
+# For existing projects - scan first, then init with merge mode
+agent-foreman survey
+agent-foreman init "Your project goal" --mode merge
+```
+
+This creates:
+- `ai/feature_list.json` - Your feature backlog
+- `ai/progress.log` - Session handoff log
+- `ai/init.sh` - Bootstrap script
+
+### Step 2: Check Project Status
+
+Ask Claude Code to check the current status:
+
+```
+> Use foreman to check the current project status
+> 使用 foreman 检查当前项目状态
+```
+
+Or run directly:
+
+```bash
+agent-foreman status
+```
+
+Output example:
+```
+📊 Project Status
+   ✓ Passing: 5
+   ✗ Failing: 18
+   ⚠ Needs Review: 0
+
+   Completion: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 22%
+```
+
+### Step 3: Get Next Task
+
+Ask Claude Code to find the next priority task:
+
+```
+> Use foreman to get the next task to work on
+> 使用 foreman 获取下一个需要完成的任务
+```
+
+Or run directly:
+
+```bash
+agent-foreman step
+```
+
+Output example:
+```
+═══════════════════════════════════════════════════════════════
+                     NEXT TASK
+═══════════════════════════════════════════════════════════════
+
+📋 Feature: cli.survey
+   Module: cli | Priority: 10
+   Status: failing
+
+   Description:
+   Generate AI-powered project survey report
+
+   Acceptance Criteria:
+   1. Generate AI-powered project survey report works as expected
+
+═══════════════════════════════════════════════════════════════
+   When done, run: agent-foreman complete cli.survey
+═══════════════════════════════════════════════════════════════
+```
+
+### Step 4: Implement the Feature
+
+Work on implementing the feature. Claude Code will help you with the implementation based on the acceptance criteria.
+
+### Step 5: Mark Task as Complete
+
+After implementing and testing the feature:
+
+```bash
+agent-foreman complete <feature_id>
+```
+
+Example:
+```bash
+agent-foreman complete cli.survey
+```
+
+Output:
+```
+✓ Marked 'cli.survey' as passing
+
+📝 Suggested commit:
+   git add -A && git commit -m "feat(cli): Generate AI-powered project survey report"
+
+  Next up: cli.init
+```
+
+### Step 6: Repeat Until Done
+
+Continue the cycle:
+
+```
+step → implement → complete → step → implement → complete → ...
+```
+
+When all features are complete:
+```
+🎉 All features are now passing!
+
+📊 Regenerating project survey...
+✓ Updated docs/PROJECT_SURVEY.md (100% complete)
+```
+
+### Complete Workflow Example
+
+Here's a complete example of using agent-foreman with Claude Code:
+
+```
+User: Use foreman to check and analyze the current project
+Claude: [Runs foreman status and analysis]
+
+User: What's the next task to complete?
+Claude: [Runs agent-foreman step, shows next feature]
+
+User: Complete this task
+Claude: [Implements the feature, runs tests]
+Claude: [Runs agent-foreman complete <feature_id>]
+
+User: Continue to the next task
+Claude: [Runs agent-foreman step for next feature]
+... repeat until all tasks are done ...
+```
+
+### Batch Completion (for already implemented features)
+
+If your features are already implemented but not marked as passing:
+
+```bash
+# Complete features one by one
+agent-foreman complete cli.survey
+agent-foreman complete cli.init
+agent-foreman complete cli.step
+# ... continue until all done
+```
+
+### Using the Foreman Agent
+
+You can also use the specialized foreman agent in Claude Code:
+
+```
+User: Use the foreman agent to analyze the project and complete all tasks
+Claude: [Spawns foreman agent to handle the workflow]
+```
+
+The foreman agent will:
+1. Read `ai/feature_list.json` and `ai/progress.log`
+2. Identify the next priority feature
+3. Help implement and test it
+4. Mark it complete and move to the next
+
+### Tips for Success
+
+1. **One task at a time** - Focus on completing one feature before moving to the next
+2. **Check acceptance criteria** - Make sure you meet all criteria before marking complete
+3. **Run tests** - Use `./ai/init.sh check` to verify your implementation
+4. **Commit often** - Create atomic commits for each completed feature
+5. **Review impact** - Run `agent-foreman impact <id>` after making changes
+
 ## Supported Tech Stacks
 
 | Language | Frameworks |
