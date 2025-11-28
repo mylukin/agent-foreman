@@ -62,7 +62,7 @@ agent-foreman init "构建一个任务管理的 REST API" --mode new
 **Claude Code 提示词：**
 
 ```text
-为这个空项目初始化 agent-foreman 框架。
+使用 foreman 初始化这个项目。
 目标：构建一个任务管理的 REST API
 ```
 
@@ -78,7 +78,7 @@ agent-foreman init "你的项目目标"
 **Claude Code 提示词：**
 
 ```text
-使用 foreman Agent 为这个项目初始化 agent-foreman 框架。
+使用 foreman 初始化这个项目。
 ```
 
 ---

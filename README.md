@@ -62,7 +62,7 @@ agent-foreman init "Build a REST API for task management" --mode new
 **Prompt for Claude Code:**
 
 ```text
-Initialize a new agent-foreman harness for this empty project.
+Use foreman to initialize this project.
 Goal: Build a REST API for task management
 ```
 
@@ -78,7 +78,7 @@ agent-foreman init "Your project goal"
 **Prompt for Claude Code:**
 
 ```text
-Use the foreman agent to initialize the agent-foreman harness for this project.
+Use foreman to initialize this project.
 ```
 
 ---
