@@ -2,7 +2,7 @@
 
 ## Summary
 
-Agent-foreman is a specialized CLI tool designed to act as a harness for AI coding agents. It solves the problem of context loss and lack of direction in long-running tasks by maintaining an external 'memory' (feature list and progress log) and enforcing a strict feature-driven development workflow. The project is well-structured with clear separation of concerns between CLI handling, state management, and AI interaction.
+Agent Foreman is a CLI harness designed to facilitate long-running, feature-driven development tasks for AI agents. It maintains an external memory (feature list, progress log) and orchestrates AI agents (Gemini, Claude, Codex) to autonomously survey, plan, and implement features while tracking dependencies and impact.
 
 > Analyzed by: gemini
 
@@ -11,9 +11,9 @@ Agent-foreman is a specialized CLI tool designed to act as a harness for AI codi
 | Aspect | Value |
 |--------|-------|
 | Language | TypeScript |
-| Framework | Node.js (CLI) |
+| Framework | Node.js |
 | Build Tool | tsc |
-| Test Framework | vitest |
+| Test Framework | Vitest |
 | Package Manager | npm |
 
 ## Directory Structure
@@ -26,88 +26,74 @@ Agent-foreman is a specialized CLI tool designed to act as a harness for AI codi
 
 ## Modules
 
-### CLI Core
+### cli
 - **Path**: `src/index.ts`
 - **Status**: complete
-- **Description**: Main entry point and command routing using yargs
+- **Description**: Main CLI entry point and command orchestration
 
-### Agent Manager
-- **Path**: `src/agents.ts`
-- **Status**: complete
-- **Description**: Manages execution of external AI agents (Claude, Gemini, Codex) via child processes
-
-### Feature Manager
-- **Path**: `src/feature-list.ts`
-- **Status**: complete
-- **Description**: Handles CRUD operations for the feature list JSON, including selection logic and status updates
-
-### Progress Logger
-- **Path**: `src/progress-log.ts`
-- **Status**: complete
-- **Description**: Manages the persistent audit log of session handoffs and actions
-
-### Project Scanner
-- **Path**: `src/project-scanner.ts`
-- **Status**: complete
-- **Description**: Analyzes file system structure to detect project layout and emptiness
-
-### AI Scanner
+### ai-scanner
 - **Path**: `src/ai-scanner.ts`
 - **Status**: complete
-- **Description**: Orchestrates AI agents to perform deep analysis of the codebase
+- **Description**: AI-powered project analysis using external agents (Gemini, Codex, Claude)
 
-### Impact Analyzer
+### feature-list
+- **Path**: `src/feature-list.ts`
+- **Status**: complete
+- **Description**: Manages the JSON-based feature backlog and status tracking
+
+### progress-log
+- **Path**: `src/progress-log.ts`
+- **Status**: complete
+- **Description**: Handles the append-only markdown audit log
+
+### impact-analyzer
 - **Path**: `src/impact-analyzer.ts`
 - **Status**: complete
-- **Description**: Calculates dependency graphs to identify features affected by changes
+- **Description**: Analyzes dependency graphs to predict impact of changes
 
-### Init Generator
-- **Path**: `src/init-script.ts`
+### agents
+- **Path**: `src/agents.ts`
 - **Status**: complete
-- **Description**: Generates the bootstrap shell script (init.sh) for project lifecycle management
+- **Description**: Abstraction layer for spawning and managing AI subprocesses
 
-## Feature Completion Status
+### project-scanner
+- **Path**: `src/project-scanner.ts`
+- **Status**: complete
+- **Description**: File system scanning and structure detection
 
-| ID | Description | Module | Status |
-|----|-------------|--------|--------|
-| cli.survey | Generate AI-powered project survey report | cli | ✅ passing |
-| cli.init | Initialize or upgrade the long-task harness in a project | cli | ✅ passing |
-| cli.step | Select and display the next high-priority feature to work on | cli | ✅ passing |
-| cli.status | Show current project status including feature counts and recent logs | cli | ✅ passing |
-| core.goal_detection | Auto-detect project goal from package.json or README | cli | ✅ passing |
-| core.feature.select | Algorithm to prioritize features based on status (needs_review > failing) and priority | feature-manager | ✅ passing |
-| core.impact.analyze | Identify directly dependent and same-module features affected by a change | impact-analyzer | ✅ passing |
-| core.agent.spawn | Spawn AI CLI tools with appropriate flags (yolo/danger modes) for automated tasks | agent-runner | ✅ passing |
-| feature.select | Algorithm to pick highest priority feature (review > failing > priority) | Feature Management | ✅ passing |
-| agent.spawn | Spawn AI agent processes with configurable permissions | Agent Execution | ✅ passing |
-| impact.analyze | Calculate cascade effects of feature changes | Impact Analysis | ✅ passing |
-| scan.directory | Recursively scan directory structure for context | AI Integration | ✅ passing |
-| cli.impact | Analyze impact of changes on other features | cli | ✅ passing |
-| cli.complete | Mark a feature as complete | cli | ✅ passing |
-| agents.execution | Spawn and manage AI subprocesses with timeout and output handling | agents | ✅ passing |
-| scanner.structure | Scan directory structure for entry points, src, tests, and config | scanner | ✅ passing |
-| scanner.ai_analysis | Use AI agents to analyze code context and extract tech stack/features | scanner | ✅ passing |
-| core.features.validate | Validate feature list JSON against schema | core.data | ✅ passing |
-| analysis.impact | Calculate dependency chain and recommend status updates | analysis | ✅ passing |
-| feature.crud | Load, save, and update feature list JSON | Feature Management | ✅ passing |
-| feature.validation | JSON Schema validation for feature files | Feature Management | ✅ passing |
-| scan.structure | Scan directory structure and identify entry points | Project Scanner | ✅ passing |
-| init.generate | Generate bootstrap shell scripts | CLI Core | ✅ passing |
+## Discovered Features
+
+| ID | Description | Module | Source | Confidence |
+|----|-------------|--------|--------|------------|
+| cli.survey | Generate AI-powered project survey report | cli | code | 100% |
+| cli.init | Initialize harness (feature list, progress log, init script) | cli | code | 100% |
+| cli.step | Select and present the next high-priority feature to work on | cli | code | 100% |
+| cli.status | Display current project health and feature completion stats | cli | code | 100% |
+| cli.impact | Analyze dependent features for a specific change | cli | code | 100% |
+| cli.complete | Mark a feature as passing and update logs | cli | code | 100% |
+| scanner.autonomous_exploration | Agent autonomously explores codebase to discover features | ai-scanner | code | 100% |
+| scanner.generate_from_goal | Generate initial feature list from a text goal for empty projects | ai-scanner | code | 100% |
+| agents.abstraction | Unified interface for Gemini, Claude, and Codex CLIs | agents | code | 100% |
+| agents.retry | Retry logic for failed AI agent calls | agents | code | 100% |
+| features.dependency_graph | Build and traverse feature dependency graph | impact-analyzer | code | 100% |
+| features.circular_check | Detect circular dependencies in features | impact-analyzer | code | 100% |
+| logging.audit | Structured logging of all harness actions to markdown | progress-log | code | 100% |
+| init.script_gen | Generate project-specific 'ai/init.sh' bootstrap script | init-script | code | 100% |
 
 ## Completion Assessment
 
-**Overall: 100%**
+**Overall: 90%**
 
 **Notes:**
-- All features are passing
-- Completed 23/23 features
-- Last updated: 2025-11-28
+- Core functionality is implemented and tested.
+- Plugin system structure exists but implementation details are minimal in the source scan.
+- High test coverage for core logic.
 
 ## Recommendations
 
-- Implement end-to-end integration tests to verify the interaction between the CLI and the generated init.sh script.
-- Add configuration options to customize the AI agent commands (e.g., custom model names or flags) via a config file.
-- Enhance the `survey` command to support more languages/frameworks by expanding the pattern matching in `project-scanner.ts`.
+- Formalize the plugin system architecture which currently appears as a folder structure.
+- Add more robust error handling for missing external CLI tools.
+- Consider adding a visual reporter or web UI for the status.
 
 ## Commands
 
@@ -116,13 +102,13 @@ Agent-foreman is a specialized CLI tool designed to act as a harness for AI codi
 npm install
 
 # Start development server
-npm run dev
+tsx src/index.ts
 
 # Build for production
-npm run build
+tsc && chmod +x dist/index.js
 
 # Run tests
-npm test
+vitest run
 ```
 
 ---
