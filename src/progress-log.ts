@@ -1,12 +1,12 @@
 /**
- * Progress log operations for ai/progress.log
+ * Progress log operations for ai/progress.md
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ProgressLogEntry, ProgressLogType, FeatureStatus } from "./types.js";
 
 /** Default path for progress log file */
-export const PROGRESS_LOG_PATH = "ai/progress.log";
+export const PROGRESS_LOG_PATH = "ai/progress.md";
 
 /**
  * Format a progress log entry as a single line

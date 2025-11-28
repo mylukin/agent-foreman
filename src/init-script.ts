@@ -79,10 +79,10 @@ status() {
   fi
 
   # Show recent progress log entries
-  if [ -f "ai/progress.log" ]; then
+  if [ -f "ai/progress.md" ]; then
     echo ""
     echo "Recent Progress:"
-    tail -5 ai/progress.log
+    tail -5 ai/progress.md
   fi
 }
 

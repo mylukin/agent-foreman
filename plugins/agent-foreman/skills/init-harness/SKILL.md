@@ -120,7 +120,7 @@ Feature backlog with schema validation:
 }
 ```
 
-### 2. `ai/progress.log`
+### 2. `ai/progress.md`
 
 Session handoff audit log:
 
@@ -162,7 +162,7 @@ After creating all files, `init` suggests a git commit command:
 ✓ Feature list saved with 15 features
 ✓ Generated ai/init.sh
 ✓ Generated CLAUDE.md
-✓ Updated ai/progress.log
+✓ Updated ai/progress.md
 
 📝 Suggested git commit:
    git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"
@@ -207,7 +207,7 @@ agent-foreman init "Build a REST API for task management"
 # ✓ Feature list saved with 12 features
 # ✓ Generated ai/init.sh
 # ✓ Generated CLAUDE.md
-# ✓ Updated ai/progress.log
+# ✓ Updated ai/progress.md
 # 📝 Suggested git commit:
 #    git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"
 # 🎉 Harness initialized successfully!

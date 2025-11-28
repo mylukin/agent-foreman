@@ -279,7 +279,7 @@ one by one until all are passing.
 | File | Purpose |
 |------|---------|
 | `ai/feature_list.json` | Feature backlog with status |
-| `ai/progress.log` | Session handoff audit log |
+| `ai/progress.md` | Session handoff audit log |
 | `ai/init.sh` | Environment bootstrap script |
 | `docs/PROJECT_SURVEY.md` | AI-generated project survey |
 

@@ -276,7 +276,7 @@ agent-foreman init "你的项目目标"
 | 文件 | 用途 |
 |------|------|
 | `ai/feature_list.json` | 带状态的功能积压 |
-| `ai/progress.log` | 会话交接审计日志 |
+| `ai/progress.md` | 会话交接审计日志 |
 | `ai/init.sh` | 环境启动脚本 |
 | `docs/PROJECT_SURVEY.md` | AI 生成的项目调查 |
 

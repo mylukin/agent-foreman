@@ -21,7 +21,7 @@ This project uses the **agent-foreman** harness for feature-driven development w
 | File | Purpose |
 |------|---------|
 | \`ai/feature_list.json\` | Feature backlog with status tracking |
-| \`ai/progress.log\` | Session handoff audit log |
+| \`ai/progress.md\` | Session handoff audit log |
 | \`ai/init.sh\` | Bootstrap script (install/dev/check) |
 
 ### Feature Status Values
@@ -34,7 +34,7 @@ This project uses the **agent-foreman** harness for feature-driven development w
 
 ### Workflow for Each Session
 
-1. **Start** - Read \`ai/feature_list.json\` and recent \`ai/progress.log\`
+1. **Start** - Read \`ai/feature_list.json\` and recent \`ai/progress.md\`
 2. **Select** - Pick the highest priority feature (\`needs_review\` > \`failing\`)
 3. **Plan** - Review acceptance criteria before coding
 4. **Implement** - Work on ONE feature at a time

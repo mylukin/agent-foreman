@@ -26,7 +26,7 @@
 
 所以整体分三层：
 
-1. **文件层 harness**：`ai/feature_list.json` / `ai/progress.log` / `ai/init.sh` / 文档
+1. **文件层 harness**：`ai/feature_list.json` / `ai/progress.md` / `ai/init.sh` / 文档
 2. **流程层**：怎么用这些文件去驱动任务分解、执行、交接
 3. **工具层**：Claude Code 插件，把流程变成 `/command`，融入你日常开发
 
@@ -43,7 +43,7 @@
 
 基本结构：JSON 数组，每一个元素是一个独立功能（Feature）。
 
-### 2.2 `ai/progress.log` —— 交接 & 审计日志
+### 2.2 `ai/progress.md` —— 交接 & 审计日志
 
 作用：
 
@@ -98,7 +98,7 @@ check() {
 * 面向「AI + 新工程师」的使用说明书：
 
   * feature_list 各字段含义 & 禁止/允许的操作
-  * progress.log 的格式示例
+  * progress.md 的格式示例
   * init.sh 各个命令的用途
   * 推荐的开发工作流（/init-harness → /feature-step 等）
 
@@ -172,7 +172,7 @@ Rules：
   * 指定合理 `priority` / `module`
   * 写好 `acceptance`
   * `status` 初始为 `failing`
-* 在 `progress.log` 写一条 `CHANGE` 或 `REPLAN`，说明原因（比如“产品会议新增：导出聊天记录为 PDF”）
+* 在 `progress.md` 写一条 `CHANGE` 或 `REPLAN`，说明原因（比如“产品会议新增：导出聊天记录为 PDF”）
 
 **2）现有需求被替代 / 大改：**
 
@@ -183,7 +183,7 @@ Rules：
   2. 新建一个 Feature，描述新的行为
   3. 在新 Feature 的 `supersedes` 数组里列出旧的 id
   4. `version` 从 1 开始，后续修改描述时 +1
-  5. 在 `progress.log` 写一条 CHANGE 记录，解释“为什么废弃 + 新旧关系”
+  5. 在 `progress.md` 写一条 CHANGE 记录，解释“为什么废弃 + 新旧关系”
 
 **3）部分模块受影响但还没想清楚怎么改**
 
@@ -206,7 +206,7 @@ Rules：
    `/init-harness "一句话项目目标"`
 
    * 如果没有 `ai/feature_list.json` → 自动创建
-   * 自动生成 `ai/progress.log`（INIT 记录）
+   * 自动生成 `ai/progress.md`（INIT 记录）
    * 自动生成 `ai/init.sh`
    * 自动生成/更新 `CLAUDE.md`
 3. 人工快速 review 一遍 `feature_list.json`：
@@ -252,7 +252,7 @@ Rules：
 
 1. **同步上下文**
 
-   * 读 `ai/feature_list.json` / `ai/progress.log` / `CLAUDE.md`
+   * 读 `ai/feature_list.json` / `ai/progress.md` / `CLAUDE.md`
    * 读最近的 `git log -N --oneline`
 
 2. **选目标 Feature**
@@ -278,7 +278,7 @@ Rules：
 
    * 按计划修改代码
    * 控制 scope，不随便大面积重构
-   * 如需重构，必须在 notes / progress.log 里说明
+   * 如需重构，必须在 notes / progress.md 里说明
 
 5. **验证**
 
@@ -302,7 +302,7 @@ Rules：
      * 明显受影响 → 标记为 `needs_review` + 补 notes
      * 被完全取代 → 改为 `deprecated`，新 Feature 的 `supersedes` 写上它
 
-8. **追加 `ai/progress.log`**
+8. **追加 `ai/progress.md`**
 
    * 一条 `STEP` 记录，包含：
 
@@ -334,7 +334,7 @@ Rules：
    * 不再做 → `deprecated`
    * 被替代 → 新 Feature + `supersedes` 旧 Feature
    * 需要适配新方向 → `needs_review`
-4. 在 `ai/progress.log` 写一条 `REPLAN` 记录：
+4. 在 `ai/progress.md` 写一条 `REPLAN` 记录：
 
    * 概述本次规划变更
    * 统计有多少 Feature 状态被改
@@ -382,7 +382,7 @@ Rules：
 * 无 feature_list → 视为首次引入
 
   * 生成 `ai/feature_list.json`（从路由 & 测试推导 + 你的 goal）
-  * 生成 `ai/progress.log`（INIT）
+  * 生成 `ai/progress.md`（INIT）
   * 生成/更新 `ai/init.sh` & `CLAUDE.md`
 * 已有 feature_list：
 
@@ -401,7 +401,7 @@ Rules：
 5. 做 IMPACT REVIEW：
 
    * 对潜在被影响的 Features 标记 `needs_review` 或 `deprecated`
-6. 写 `ai/progress.log`
+6. 写 `ai/progress.md`
 7. 给出 commit 建议 & 下一个推荐 Feature
 
 ---
@@ -459,4 +459,4 @@ Rules：
 3. **和团队协作结合：**
 
    * 为 Feature 加上 `owner` 字段，与 Notion / issue 系统做轻量同步
-   * `progress.log` 导入到你自己的可视化后台（Elastic + Grafana）
+   * `progress.md` 导入到你自己的可视化后台（Elastic + Grafana）

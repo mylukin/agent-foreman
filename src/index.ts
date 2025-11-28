@@ -383,7 +383,7 @@ async function runInit(goal: string, mode: InitMode, verbose: boolean) {
       cwd,
       createInitEntry(goal, `mode=${mode}, features=${featureList.features.length}`)
     );
-    console.log(chalk.green("✓ Updated ai/progress.log"));
+    console.log(chalk.green("✓ Updated ai/progress.md"));
   }
 
   // Step 9: Suggest git commit (changed from auto-commit to suggestion)
