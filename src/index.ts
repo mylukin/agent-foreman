@@ -218,7 +218,7 @@ async function main() {
 async function runSurvey(outputPath: string, verbose: boolean) {
   const cwd = process.cwd();
 
-  console.log(chalk.blue("🤖 AI-powered project scan (priority: Gemini > Codex > Claude)"));
+  console.log(chalk.blue("🤖 AI-powered project scan (priority: Codex > Gemini > Claude)"));
   if (verbose) {
     printAgentStatus();
   }

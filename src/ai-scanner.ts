@@ -165,7 +165,7 @@ function parseAIResponse(response: string): AIAnalysisResult {
  * The agent explores the project itself using its own tools,
  * rather than us collecting context and passing it to the agent.
  *
- * Priority order: Gemini > Codex > Claude
+ * Priority order: Codex > Gemini > Claude
  */
 export async function aiScanProject(
   basePath: string,
@@ -196,7 +196,7 @@ export async function aiScanProject(
   console.log(chalk.gray("  [2/2] Agent exploring project..."));
 
   const result = await callAnyAvailableAgent(prompt, {
-    preferredOrder: ["gemini", "codex", "claude"],
+    preferredOrder: ["codex", "gemini", "claude"],
     verbose,
     cwd: basePath, // Run agent in project directory so it can explore
   });
@@ -282,7 +282,7 @@ Extract all information directly from the survey document. Generate feature IDs 
   console.log(chalk.gray("  Generating features from survey..."));
 
   const result = await callAnyAvailableAgent(prompt, {
-    preferredOrder: ["gemini", "codex", "claude"],
+    preferredOrder: ["codex", "gemini", "claude"],
     verbose: true,
   });
 
@@ -374,7 +374,7 @@ Guidelines:
   console.log(chalk.gray("  Generating features from goal description..."));
 
   const result = await callAnyAvailableAgent(prompt, {
-    preferredOrder: ["gemini", "codex", "claude"],
+    preferredOrder: ["codex", "gemini", "claude"],
     verbose: true,
   });
 
