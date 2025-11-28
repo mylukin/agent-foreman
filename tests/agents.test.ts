@@ -111,9 +111,9 @@ describe("Agents", () => {
         return { status: 1 } as any;
       });
 
-      // Default order: gemini > codex > claude
+      // Default order: codex > gemini > claude
       const agent1 = getAvailableAgent();
-      expect(agent1?.name).toBe("claude"); // First in default order that's available
+      expect(agent1?.name).toBe("codex"); // First in default order that's available
 
       // When gemini is preferred first
       const agent2 = getAvailableAgent(["gemini", "codex", "claude"]);

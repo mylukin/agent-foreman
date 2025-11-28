@@ -66,7 +66,7 @@ export function commandExists(cmd: string): boolean {
 /**
  * Get the first available AI agent
  */
-export function getAvailableAgent(preferredOrder: string[] = ["claude", "gemini", "codex"]): AgentConfig | null {
+export function getAvailableAgent(preferredOrder: string[] = ["codex", "gemini", "claude"]): AgentConfig | null {
   for (const name of preferredOrder) {
     const agent = DEFAULT_AGENTS.find((a) => a.name === name);
     if (agent && commandExists(agent.command[0])) {
@@ -255,7 +255,7 @@ export async function callAgentWithRetry(
 
 /**
  * Try multiple agents in order until one succeeds
- * Default priority: Gemini > Codex > Claude
+ * Default priority: Codex > Gemini > Claude
  * No timeout by default - let the AI agent complete
  */
 export async function callAnyAvailableAgent(
@@ -267,7 +267,7 @@ export async function callAnyAvailableAgent(
     cwd?: string;
   } = {}
 ): Promise<{ success: boolean; output: string; agentUsed?: string; error?: string }> {
-  const { preferredOrder = ["gemini", "codex", "claude"], timeoutMs, verbose = false, cwd } = options;
+  const { preferredOrder = ["codex", "gemini", "claude"], timeoutMs, verbose = false, cwd } = options;
 
   for (const name of preferredOrder) {
     const agent = DEFAULT_AGENTS.find((a) => a.name === name);
