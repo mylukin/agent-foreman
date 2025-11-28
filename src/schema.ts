@@ -31,8 +31,8 @@ export const featureListSchema = {
         properties: {
           id: {
             type: "string",
-            pattern: "^[a-z][a-z0-9_.]*$",
-            description: "Unique identifier using dot notation (e.g., chat.message.edit)",
+            pattern: "^[a-zA-Z][a-zA-Z0-9_.]*$",
+            description: "Unique identifier using dot notation (e.g., chat.message.edit, core.app.initSentry)",
           },
           description: {
             type: "string",
@@ -191,7 +191,7 @@ export function parseFeatureList(data: unknown): FeatureList | null {
  * Validate a single feature ID format
  */
 export function isValidFeatureId(id: string): boolean {
-  return /^[a-z][a-z0-9_.]*$/.test(id);
+  return /^[a-zA-Z][a-zA-Z0-9_.]*$/.test(id);
 }
 
 /**
