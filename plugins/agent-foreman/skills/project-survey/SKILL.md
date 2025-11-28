@@ -115,7 +115,7 @@ Running `survey` before `init` is recommended for existing projects because:
 │              ↓                                               │
 │  agent-foreman init     →  ai/feature_list.json             │
 │         (~5 seconds)        Uses survey (fast!)              │
-│                             + git commit (auto)              │
+│                             + git commit (suggested)         │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```

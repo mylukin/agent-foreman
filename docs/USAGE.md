@@ -358,7 +358,7 @@ agent-foreman agents
 │           ↓                                                  │
 │  agent-foreman init       →  Reads survey + generates       │
 │                              ai/feature_list.json            │
-│                              + git commit (auto)             │
+│                              + git commit (suggested)        │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -563,13 +563,12 @@ Check that your AI CLI is working:
 agent-foreman agents
 ```
 
-### "Could not create git commit"
+### Git commit after init
 
-Make sure you're in a git repository:
+After initialization, run the suggested git commit command:
 
 ```bash
-git init
-agent-foreman init "Your project goal"
+git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"
 ```
 
 ---

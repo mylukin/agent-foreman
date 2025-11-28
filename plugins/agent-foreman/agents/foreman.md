@@ -48,7 +48,7 @@ git init
 agent-foreman init "Build a REST API for user management"
 # → Creates feature list from goal (10-20 features)
 # → Creates ai/ directory and CLAUDE.md
-# → Automatically commits harness files
+# → Shows suggested git commit command
 
 # 3. Start working on features
 agent-foreman step
@@ -66,7 +66,7 @@ cat docs/PROJECT_SURVEY.md
 # 3. Initialize harness (uses survey for faster feature generation)
 agent-foreman init "Project goal"
 # → Reads survey to generate features
-# → Automatically commits harness files
+# → Shows suggested git commit command
 
 # 4. Start working
 agent-foreman step
@@ -117,15 +117,16 @@ agent-foreman impact <feature_id>
 
 ## Git Integration
 
-### Auto Commit on Init
+### Suggested Commit on Init
 
-When you run `init`, the harness automatically:
+When you run `init`, the harness:
 
 1. Creates `ai/` directory with feature list and scripts
 2. Creates `CLAUDE.md` with agent instructions
-3. **Commits these files automatically** with message:
+3. **Shows a suggested git commit command**:
    ```
-   chore: initialize agent-foreman harness
+   📝 Suggested git commit:
+      git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"
    ```
 
 ### Suggested Commits on Complete

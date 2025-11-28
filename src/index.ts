@@ -386,25 +386,10 @@ async function runInit(goal: string, mode: InitMode, verbose: boolean) {
     console.log(chalk.green("✓ Updated ai/progress.log"));
   }
 
-  // Step 9: Make first git commit (PRD requirement)
+  // Step 9: Suggest git commit (changed from auto-commit to suggestion)
   if (mode !== "scan") {
-    // Include docs/ if survey was auto-generated
-    const addResult = spawnSync("git", ["add", "ai/", "CLAUDE.md", "docs/"], { cwd, encoding: "utf-8" });
-    if (addResult.status === 0) {
-      const commitResult = spawnSync(
-        "git",
-        ["commit", "-m", "chore: initialize agent-foreman harness"],
-        { cwd, encoding: "utf-8" }
-      );
-      if (commitResult.status === 0) {
-        console.log(chalk.green("✓ Created initial git commit"));
-      } else {
-        // Could be: no git repo, nothing to commit, or other git issue
-        console.log(chalk.yellow("⚠ Could not create git commit (maybe no git repo or no changes)"));
-      }
-    } else {
-      console.log(chalk.yellow("⚠ Could not stage files for git commit"));
-    }
+    console.log(chalk.cyan("\n📝 Suggested git commit:"));
+    console.log(chalk.white('   git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"'));
   }
 
   console.log(chalk.bold.green("\n🎉 Harness initialized successfully!"));

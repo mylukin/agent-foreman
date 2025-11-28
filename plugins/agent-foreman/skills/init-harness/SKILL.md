@@ -147,13 +147,13 @@ Instructions for AI agents working on the project.
 
 ## Git Integration
 
-### Auto Commit
+### Suggested Commit
 
-After creating all files, `init` automatically commits them:
+After creating all files, `init` suggests a git commit command:
 
-```bash
-git add ai/ CLAUDE.md
-git commit -m "chore: initialize agent-foreman harness"
+```text
+📝 Suggested git commit:
+   git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"
 ```
 
 **Output:**
@@ -163,12 +163,14 @@ git commit -m "chore: initialize agent-foreman harness"
 ✓ Generated ai/init.sh
 ✓ Generated CLAUDE.md
 ✓ Updated ai/progress.log
-✓ Created initial git commit
+
+📝 Suggested git commit:
+   git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"
 
 🎉 Harness initialized successfully!
 ```
 
-**Note:** If not in a git repo, a warning is shown but initialization continues.
+**Note:** The commit is not automatic - run the suggested command to commit the harness files.
 
 ## Feature Discovery Sources
 
@@ -206,7 +208,8 @@ agent-foreman init "Build a REST API for task management"
 # ✓ Generated ai/init.sh
 # ✓ Generated CLAUDE.md
 # ✓ Updated ai/progress.log
-# ✓ Created initial git commit
+# 📝 Suggested git commit:
+#    git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"
 # 🎉 Harness initialized successfully!
 
 # Check what was created
@@ -251,7 +254,7 @@ After initialization:
 - Always review auto-discovered features
 - Manually add features that weren't discovered
 - Set realistic priorities (1 = highest)
-- Git commit is automatic (except in scan mode)
+- Git commit is suggested (not automatic), except in scan mode where no commit is suggested
 
 ---
 
