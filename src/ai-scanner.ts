@@ -53,9 +53,25 @@ You are currently working in this directory. Explore it thoroughly using your av
 
 1. **Explore structure**: List directories and files to understand the project layout
 2. **Read configs**: Find and read configuration files (package.json, tsconfig.json, pyproject.toml, go.mod, Cargo.toml, etc.)
-3. **Examine source code**: Read key source files to understand modules and features
+3. **Examine ALL source code**: Read EVERY source file to understand modules and features thoroughly
 4. **Check tests**: Look for test files to understand what functionality exists
 5. **Assess completeness**: Based on code quality and test coverage
+
+## Feature Discovery Guidelines
+
+IMPORTANT: Be extremely thorough when discovering features. Examine EVERY source file and extract ALL distinct capabilities. Look for:
+- CLI commands and subcommands
+- API endpoints (routes, handlers)
+- ALL exported functions and classes (each is a feature)
+- ALL internal utility functions with distinct functionality
+- Database models and CRUD operations
+- Configuration options and settings
+- Plugin/extension points
+- Event handlers and hooks
+- Middleware and interceptors
+- Type definitions and interfaces that represent domain concepts
+
+Do NOT limit the number of features. Extract every distinct capability you find in the codebase.
 
 ## Output
 
@@ -181,7 +197,7 @@ export async function aiScanProject(
 
   const result = await callAnyAvailableAgent(prompt, {
     preferredOrder: ["gemini", "codex", "claude"],
-    verbose: true,
+    verbose,
     cwd: basePath, // Run agent in project directory so it can explore
   });
 
