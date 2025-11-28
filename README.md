@@ -24,6 +24,38 @@ AI coding agents face three common failure modes when working on long-running ta
 - **Hand off cleanly** between sessions via progress logs
 - **Track impact** of changes on other features
 
+## Why It Works
+
+The core insight is simple: **AI agents need the same tooling that makes human engineering teams effective**.
+
+Human engineers don't rely on memory either. We use:
+- Git for version history
+- Issue trackers for task management
+- Documentation for handoffs
+- Tests for verification
+
+agent-foreman brings these same patterns to AI:
+
+| Human Practice | AI Equivalent |
+|----------------|---------------|
+| Scrum board | `feature_list.json` |
+| Sprint notes | `progress.md` |
+| CI/CD pipeline | `init.sh check` |
+| Code review | Acceptance criteria |
+
+### Why JSON Instead of Markdown?
+
+From Anthropic's research:
+
+> "Models are more likely to respect and accurately update JSON structures than markdown checklists."
+
+When features are stored as JSON with explicit `status` fields, AI agents:
+- Don't accidentally delete items
+- Update status correctly
+- Respect the schema
+
+This is the difference between projects that work and projects that mysteriously lose features between sessions.
+
 ## Installation
 
 ```bash
