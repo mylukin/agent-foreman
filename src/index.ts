@@ -10,7 +10,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { aiScanProject, aiResultToSurvey, generateAISurveyMarkdown, generateFeaturesFromSurvey, generateFeaturesFromGoal } from "./ai-scanner.js";
-import { printAgentStatus } from "./agents.js";
+import { printAgentStatus, callAnyAvailableAgent } from "./agents.js";
 import { scanDirectoryStructure, isProjectEmpty } from "./project-scanner.js";
 import {
   loadFeatureList,
@@ -32,7 +32,7 @@ import {
   getRecentEntries,
 } from "./progress-log.js";
 import { generateInitScript, generateMinimalInitScript } from "./init-script.js";
-import { generateClaudeMd, generateFeatureGuidance } from "./prompts.js";
+import { generateClaudeMd, mergeClaudeMd, generateHarnessSection, generateFeatureGuidance } from "./prompts.js";
 import type { InitMode, Feature } from "./types.js";
 
 /**
@@ -372,10 +372,64 @@ async function runInit(goal: string, mode: InitMode, verbose: boolean) {
   await fs.chmod(path.join(cwd, "ai/init.sh"), 0o755);
   console.log(chalk.green("✓ Generated ai/init.sh"));
 
-  // Step 7: Generate CLAUDE.md
-  const claudeMd = generateClaudeMd(goal);
-  await fs.writeFile(path.join(cwd, "CLAUDE.md"), claudeMd);
-  console.log(chalk.green("✓ Generated CLAUDE.md"));
+  // Step 7: Generate or update CLAUDE.md
+  const claudeMdPath = path.join(cwd, "CLAUDE.md");
+  let claudeMdExists = false;
+  let existingClaudeMd = "";
+
+  try {
+    existingClaudeMd = await fs.readFile(claudeMdPath, "utf-8");
+    claudeMdExists = true;
+  } catch {
+    // File doesn't exist, will create new
+  }
+
+  if (claudeMdExists && existingClaudeMd.trim().length > 0) {
+    // Use AI agent to intelligently merge harness section into existing CLAUDE.md
+    console.log(chalk.blue("  CLAUDE.md exists, using AI to merge harness section..."));
+
+    const harnessSection = generateHarnessSection(goal);
+    const mergePrompt = `You are updating a CLAUDE.md file. Your task is to intelligently merge the new "Long-Task Harness" section into the existing content.
+
+## Existing CLAUDE.md content:
+\`\`\`markdown
+${existingClaudeMd}
+\`\`\`
+
+## New harness section to add:
+\`\`\`markdown
+${harnessSection}
+\`\`\`
+
+## Rules:
+1. If the existing file already has a "Long-Task Harness" section or agent-foreman markers, replace it with the new section
+2. If the existing file doesn't have the harness section, append it at the END of the file
+3. Preserve ALL existing content that is not related to agent-foreman
+4. Do NOT modify, delete, or reorganize any existing sections (like "Project Instructions", custom rules, etc.)
+5. Keep the document structure clean and readable
+6. The harness section should be clearly separated from existing content
+
+## Output:
+Return ONLY the complete merged CLAUDE.md content, nothing else. No explanations, no code blocks, just the raw markdown content.`;
+
+    const result = await callAnyAvailableAgent(mergePrompt, { cwd });
+
+    if (result.success && result.output.trim().length > 0) {
+      await fs.writeFile(claudeMdPath, result.output.trim() + "\n");
+      console.log(chalk.green("✓ Updated CLAUDE.md (merged by AI)"));
+    } else {
+      // Fallback to programmatic merge
+      console.log(chalk.yellow("  AI merge failed, using fallback merge..."));
+      const mergedContent = mergeClaudeMd(existingClaudeMd, goal);
+      await fs.writeFile(claudeMdPath, mergedContent);
+      console.log(chalk.green("✓ Updated CLAUDE.md (fallback merge)"));
+    }
+  } else {
+    // Create new CLAUDE.md
+    const claudeMd = generateClaudeMd(goal);
+    await fs.writeFile(claudeMdPath, claudeMd);
+    console.log(chalk.green("✓ Generated CLAUDE.md"));
+  }
 
   // Step 8: Write progress log entry
   if (mode !== "scan") {
