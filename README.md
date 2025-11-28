@@ -34,106 +34,9 @@ npm install -g agent-foreman
 npx agent-foreman --help
 ```
 
-## Quick Start
-
-### New Project
-
-```bash
-# Initialize the harness
-agent-foreman init "Build a REST API for task management"
-
-# Check status
-agent-foreman status
-
-# Start working on features
-agent-foreman step
-```
-
-### Existing Project
-
-```bash
-# Survey the project first
-agent-foreman survey
-
-# Initialize (merge mode preserves existing features)
-agent-foreman init "Project goal" --mode merge
-
-# Start working
-agent-foreman step
-```
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `survey [output]` | Generate project survey report |
-| `init <goal>` | Initialize or upgrade the harness |
-| `step [feature_id]` | Show next feature to work on |
-| `status` | Show current project status |
-| `impact <feature_id>` | Analyze impact of changes |
-| `complete <feature_id>` | Mark a feature as complete |
-
-## Core Files
-
-The harness maintains three core artifacts:
-
-| File | Purpose |
-|------|---------|
-| `ai/feature_list.json` | Feature backlog with status tracking |
-| `ai/progress.log` | Session handoff audit log |
-| `ai/init.sh` | Environment bootstrap script |
-
-## Feature Status
-
-| Status | Meaning |
-|--------|---------|
-| `failing` | Not yet implemented |
-| `passing` | Acceptance criteria met |
-| `blocked` | External dependency blocking |
-| `needs_review` | May be affected by changes |
-| `deprecated` | No longer needed |
-
-## Workflow
-
-### Session Start
-
-```bash
-# 1. Check status
-agent-foreman status
-
-# 2. Get next feature
-agent-foreman step
-```
-
-### Feature Implementation
-
-```bash
-# 3. Implement the feature
-# ... your development work ...
-
-# 4. Run tests
-./ai/init.sh check
-
-# 5. Mark complete
-agent-foreman complete auth.login
-
-# 6. Check impact
-agent-foreman impact auth.login
-```
-
-### Session End
-
-```bash
-# 7. Commit with feature ID
-git add .
-git commit -m "feat(auth): implement user login
-
-Feature: auth.login"
-```
-
 ## Claude Code Plugin
 
-agent-foreman is also available as a Claude Code plugin:
+agent-foreman is available as a Claude Code plugin:
 
 ```bash
 # Install plugin
@@ -141,198 +44,328 @@ agent-foreman is also available as a Claude Code plugin:
 /plugin install agent-foreman
 ```
 
-### Available Skills
+---
 
-| Skill | Description |
-|-------|-------------|
-| `/project-survey` | Analyze existing projects |
-| `/init-harness` | Initialize the harness |
-| `/feature-step` | Work on features |
+## Using with Claude Code
 
-## Using with Claude Code (Detailed Guide)
+> 在 Claude Code 中使用 agent-foreman 的完整指南
 
-This section explains how to use agent-foreman with Claude Code to complete tasks one by one in a structured workflow.
+### Initializing Projects | 初始化项目
 
-> 本节介绍如何使用 agent-foreman 与 Claude Code 配合，逐个完成任务。
+#### Empty Project | 空项目
 
-### Step 1: Initialize the Harness
+For a brand new project with no existing code:
 
-First, initialize the harness in your project:
+> 对于没有现有代码的全新项目：
 
 ```bash
-# For new projects - specify your project goal
-agent-foreman init "Build a REST API for user management"
+# Create project directory
+mkdir my-project && cd my-project
 
-# For existing projects - scan first, then init with merge mode
+# Initialize with your project goal
+agent-foreman init "Build a REST API for task management"
+```
+
+**Prompt for Claude Code:**
+
+```text
+Initialize a new agent-foreman harness for this empty project.
+Goal: Build a REST API for task management
+
+为这个空项目初始化 agent-foreman 框架。
+目标：构建一个任务管理的 REST API
+```
+
+#### Existing Project | 已有代码的项目
+
+For projects with existing code:
+
+> 对于已有代码的项目：
+
+```bash
+# Step 1: Survey the project (AI analyzes your codebase)
 agent-foreman survey
+
+# Step 2: Initialize with merge mode (preserves existing features)
 agent-foreman init "Your project goal" --mode merge
 ```
 
-This creates:
-- `ai/feature_list.json` - Your feature backlog
-- `ai/progress.log` - Session handoff log
-- `ai/init.sh` - Bootstrap script
+**Prompt for Claude Code:**
 
-### Step 2: Check Project Status
+```text
+Survey this existing project and initialize the agent-foreman harness.
+Use merge mode to preserve any existing features.
 
-Ask Claude Code to check the current status:
-
-```
-> Use foreman to check the current project status
-> 使用 foreman 检查当前项目状态
+调查这个现有项目并初始化 agent-foreman 框架。
+使用 merge 模式保留现有功能。
 ```
 
-Or run directly:
+---
 
-```bash
-agent-foreman status
+### Task Loop Prompts | 任务循环提示词
+
+#### Single Task Completion | 完成单个任务
+
+```text
+Use foreman to get the next task, implement it, and mark it complete.
+
+使用 foreman 获取下一个任务，实现它，并标记为完成。
 ```
 
-Output example:
-```
-📊 Project Status
-   ✓ Passing: 5
-   ✗ Failing: 18
-   ⚠ Needs Review: 0
+#### Continuous Task Loop | 持续任务循环
 
-   Completion: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 22%
-```
+**The Magic Prompt - Auto-complete all tasks:**
 
-### Step 3: Get Next Task
+```text
+Use foreman to check the project status, then continuously work through
+all tasks one by one until everything is complete. For each task:
+1. Run `agent-foreman step` to get the next task
+2. Implement the feature according to acceptance criteria
+3. Run tests to verify
+4. Run `agent-foreman complete <feature_id>` to mark done
+5. Repeat until all tasks are passing
 
-Ask Claude Code to find the next priority task:
-
-```
-> Use foreman to get the next task to work on
-> 使用 foreman 获取下一个需要完成的任务
-```
-
-Or run directly:
-
-```bash
-agent-foreman step
+使用 foreman 检查项目状态，然后持续逐个完成所有任务直到全部完成。
+对于每个任务：
+1. 运行 `agent-foreman step` 获取下一个任务
+2. 根据验收标准实现功能
+3. 运行测试验证
+4. 运行 `agent-foreman complete <feature_id>` 标记完成
+5. 重复直到所有任务都通过
 ```
 
-Output example:
-```
-═══════════════════════════════════════════════════════════════
-                     NEXT TASK
-═══════════════════════════════════════════════════════════════
+#### Quick Status Check | 快速状态检查
 
-📋 Feature: cli.survey
-   Module: cli | Priority: 10
-   Status: failing
+```text
+Use foreman to check the current project status.
 
-   Description:
-   Generate AI-powered project survey report
-
-   Acceptance Criteria:
-   1. Generate AI-powered project survey report works as expected
-
-═══════════════════════════════════════════════════════════════
-   When done, run: agent-foreman complete cli.survey
-═══════════════════════════════════════════════════════════════
+使用 foreman 检查当前项目状态。
 ```
 
-### Step 4: Implement the Feature
+#### Analyze and Plan | 分析并规划
 
-Work on implementing the feature. Claude Code will help you with the implementation based on the acceptance criteria.
+```text
+Use foreman to analyze this project and give me a comprehensive status report.
 
-### Step 5: Mark Task as Complete
-
-After implementing and testing the feature:
-
-```bash
-agent-foreman complete <feature_id>
+使用 foreman 分析这个项目并给我一份综合状态报告。
 ```
 
-Example:
-```bash
-agent-foreman complete cli.survey
+---
+
+### Managing Tasks | 管理任务
+
+#### Adding New Tasks | 添加新任务
+
+Edit `ai/feature_list.json` directly or use Claude Code:
+
+```text
+Add a new feature to the task list:
+- ID: auth.oauth
+- Description: Implement OAuth2 authentication with Google
+- Module: auth
+- Priority: 5
+- Acceptance criteria: User can login with Google account
+
+添加一个新功能到任务列表：
+- ID: auth.oauth
+- 描述：实现 Google OAuth2 认证
+- 模块：auth
+- 优先级：5
+- 验收标准：用户可以使用 Google 账户登录
 ```
 
-Output:
-```
-✓ Marked 'cli.survey' as passing
+**Feature JSON Structure:**
 
-📝 Suggested commit:
-   git add -A && git commit -m "feat(cli): Generate AI-powered project survey report"
-
-  Next up: cli.init
-```
-
-### Step 6: Repeat Until Done
-
-Continue the cycle:
-
-```
-step → implement → complete → step → implement → complete → ...
-```
-
-When all features are complete:
-```
-🎉 All features are now passing!
-
-📊 Regenerating project survey...
-✓ Updated docs/PROJECT_SURVEY.md (100% complete)
+```json
+{
+  "id": "auth.oauth",
+  "description": "Implement OAuth2 authentication with Google",
+  "module": "auth",
+  "priority": 5,
+  "status": "failing",
+  "acceptance": [
+    "User can click 'Login with Google' button",
+    "System redirects to Google OAuth flow",
+    "User is authenticated and redirected back"
+  ],
+  "dependsOn": ["auth.login"],
+  "tags": ["oauth", "google"],
+  "version": 1,
+  "origin": "manual",
+  "notes": ""
+}
 ```
 
-### Complete Workflow Example
+#### Changing Task Goals | 改变任务目标
 
-Here's a complete example of using agent-foreman with Claude Code:
+```text
+Update the project goal to: "Build a full-stack task management app with React frontend"
+Also update relevant features to align with the new goal.
 
-```
-User: Use foreman to check and analyze the current project
-Claude: [Runs foreman status and analysis]
-
-User: What's the next task to complete?
-Claude: [Runs agent-foreman step, shows next feature]
-
-User: Complete this task
-Claude: [Implements the feature, runs tests]
-Claude: [Runs agent-foreman complete <feature_id>]
-
-User: Continue to the next task
-Claude: [Runs agent-foreman step for next feature]
-... repeat until all tasks are done ...
+更新项目目标为："构建一个带 React 前端的全栈任务管理应用"
+同时更新相关功能以符合新目标。
 ```
 
-### Batch Completion (for already implemented features)
+#### Modifying Existing Tasks | 修改现有任务
 
-If your features are already implemented but not marked as passing:
+```text
+Update feature 'api.users.create':
+- Change description to: "Create user with email verification"
+- Add acceptance criteria: "Send verification email after registration"
+- Set priority to 3
 
-```bash
-# Complete features one by one
-agent-foreman complete cli.survey
-agent-foreman complete cli.init
-agent-foreman complete cli.step
-# ... continue until all done
+更新功能 'api.users.create'：
+- 修改描述为："创建用户并发送邮件验证"
+- 添加验收标准："注册后发送验证邮件"
+- 设置优先级为 3
 ```
 
-### Using the Foreman Agent
+#### Marking Tasks as Blocked | 标记任务为阻塞
 
-You can also use the specialized foreman agent in Claude Code:
+```text
+Mark feature 'payment.stripe' as blocked with note: "Waiting for Stripe API keys"
 
+将功能 'payment.stripe' 标记为阻塞，备注："等待 Stripe API 密钥"
 ```
-User: Use the foreman agent to analyze the project and complete all tasks
-Claude: [Spawns foreman agent to handle the workflow]
+
+---
+
+### Auto-Complete All Tasks | 自动完成所有任务
+
+#### Method 1: Continuous Loop Prompt
+
+The most effective prompt for fully automated task completion:
+
+```text
+I want you to act as an autonomous developer. Use the agent-foreman
+harness to continuously complete all remaining tasks:
+
+1. Check status with `agent-foreman status`
+2. Get next task with `agent-foreman step`
+3. Implement the feature completely
+4. Run tests with `./ai/init.sh check`
+5. Mark complete with `agent-foreman complete <id>`
+6. Commit the changes
+7. Loop back to step 2 until all tasks pass
+
+Do not stop until all features are passing. Ask me only if you
+encounter a blocker that requires my input.
+
+我希望你作为一个自主开发者。使用 agent-foreman 框架持续完成所有剩余任务：
+
+1. 用 `agent-foreman status` 检查状态
+2. 用 `agent-foreman step` 获取下一个任务
+3. 完整实现功能
+4. 用 `./ai/init.sh check` 运行测试
+5. 用 `agent-foreman complete <id>` 标记完成
+6. 提交更改
+7. 循环回到步骤 2 直到所有任务通过
+
+不要停止直到所有功能都通过。只有遇到需要我输入的阻塞问题时才问我。
 ```
 
-The foreman agent will:
-1. Read `ai/feature_list.json` and `ai/progress.log`
-2. Identify the next priority feature
-3. Help implement and test it
-4. Mark it complete and move to the next
+#### Method 2: Using the Foreman Agent
 
-### Tips for Success
+```text
+Use the foreman agent to automatically complete all pending tasks
+in this project. Work through them one by one until 100% complete.
 
-1. **One task at a time** - Focus on completing one feature before moving to the next
-2. **Check acceptance criteria** - Make sure you meet all criteria before marking complete
-3. **Run tests** - Use `./ai/init.sh check` to verify your implementation
-4. **Commit often** - Create atomic commits for each completed feature
-5. **Review impact** - Run `agent-foreman impact <id>` after making changes
+使用 foreman 代理自动完成此项目中所有待处理的任务。
+逐个完成直到 100% 完成。
+```
 
-## Supported Tech Stacks
+#### Method 3: Batch Completion (for implemented features)
+
+If features are already implemented but not marked:
+
+```text
+All features in this project are already implemented and tested.
+Use foreman to mark each one as complete, going through them
+one by one until all are passing.
+
+这个项目中的所有功能都已经实现和测试。
+使用 foreman 逐个将它们标记为完成，直到全部通过。
+```
+
+---
+
+### Workflow Summary | 工作流程总结
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    AGENT-FOREMAN WORKFLOW                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐              │
+│  │  status  │───▶│   step   │───▶│implement │              │
+│  └──────────┘    └──────────┘    └──────────┘              │
+│       │                               │                     │
+│       │                               ▼                     │
+│       │                         ┌──────────┐               │
+│       │                         │   test   │               │
+│       │                         └──────────┘               │
+│       │                               │                     │
+│       │                               ▼                     │
+│       │    ┌──────────┐        ┌──────────┐               │
+│       │◀───│   next   │◀───────│ complete │               │
+│       │    └──────────┘        └──────────┘               │
+│       │                               │                     │
+│       ▼                               ▼                     │
+│  ┌─────────────────────────────────────────┐               │
+│  │  🎉 All features passing! (100%)        │               │
+│  │  📊 PROJECT_SURVEY.md auto-updated      │               │
+│  └─────────────────────────────────────────┘               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Commands Reference | 命令参考
+
+| Command | Description | 描述 |
+|---------|-------------|------|
+| `survey [output]` | Generate project survey report | 生成项目调查报告 |
+| `init <goal>` | Initialize or upgrade the harness | 初始化或升级框架 |
+| `step [feature_id]` | Show next feature to work on | 显示下一个要处理的功能 |
+| `status` | Show current project status | 显示当前项目状态 |
+| `impact <feature_id>` | Analyze impact of changes | 分析更改的影响 |
+| `complete <feature_id>` | Mark a feature as complete | 将功能标记为完成 |
+
+### Init Modes | 初始化模式
+
+| Mode | Description | 描述 |
+|------|-------------|------|
+| `--mode create` | Create new (default) | 创建新的（默认）|
+| `--mode merge` | Merge with existing | 与现有合并 |
+| `--mode overwrite` | Replace existing | 替换现有 |
+
+---
+
+## Core Files | 核心文件
+
+| File | Purpose | 用途 |
+|------|---------|------|
+| `ai/feature_list.json` | Feature backlog with status | 带状态的功能积压 |
+| `ai/progress.log` | Session handoff audit log | 会话交接审计日志 |
+| `ai/init.sh` | Environment bootstrap script | 环境启动脚本 |
+| `docs/PROJECT_SURVEY.md` | AI-generated project survey | AI 生成的项目调查 |
+
+---
+
+## Feature Status Values | 功能状态值
+
+| Status | Meaning | 含义 |
+|--------|---------|------|
+| `failing` | Not yet implemented | 尚未实现 |
+| `passing` | Acceptance criteria met | 验收标准已满足 |
+| `blocked` | External dependency blocking | 外部依赖阻塞 |
+| `needs_review` | May be affected by changes | 可能受更改影响 |
+| `deprecated` | No longer needed | 不再需要 |
+
+---
+
+## Supported Tech Stacks | 支持的技术栈
 
 | Language | Frameworks |
 |----------|------------|
@@ -340,40 +373,17 @@ The foreman agent will:
 | Go | Echo, Gin, Fiber |
 | Python | FastAPI, Flask, Django |
 
-## Feature List Schema
+---
 
-```json
-{
-  "features": [
-    {
-      "id": "auth.login",
-      "description": "User can log in with email and password",
-      "module": "auth",
-      "priority": 1,
-      "status": "failing",
-      "acceptance": [
-        "User enters valid credentials",
-        "System returns JWT token"
-      ],
-      "dependsOn": ["auth.register"],
-      "version": 1,
-      "origin": "manual"
-    }
-  ],
-  "metadata": {
-    "projectGoal": "Build authentication system",
-    "version": "1.0.0"
-  }
-}
-```
+## Best Practices | 最佳实践
 
-## Best Practices
+1. **One feature at a time** - Complete before switching | 一次一个功能 - 完成后再切换
+2. **Update status promptly** - Mark passing when criteria met | 及时更新状态 - 满足标准时标记通过
+3. **Review impact** - Run impact analysis after changes | 审查影响 - 更改后运行影响分析
+4. **Clean commits** - One feature = one atomic commit | 干净提交 - 一个功能 = 一个原子提交
+5. **Read first** - Always check feature list and progress log | 先阅读 - 始终检查功能列表和进度日志
 
-1. **One feature at a time** - Complete before switching
-2. **Update status promptly** - Mark passing when criteria met
-3. **Review impact** - Run impact analysis after changes
-4. **Clean commits** - One feature = one atomic commit
-5. **Read first** - Always check feature list and progress log
+---
 
 ## Development
 
