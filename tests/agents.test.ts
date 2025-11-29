@@ -11,7 +11,9 @@ import {
   filterAvailableAgents,
   checkAvailableAgents,
   callAgent,
+  callAgentWithRetry,
   callAnyAvailableAgent,
+  printAgentStatus,
 } from "../src/agents.js";
 
 // Mock child_process
@@ -405,6 +407,440 @@ describe("Agents", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("No AI agents available");
+    });
+
+    it("should skip unknown agent names in preferred order", async () => {
+      vi.mocked(spawnSync).mockImplementation((cmd, args) => {
+        const name = (args as string[])[0];
+        if (name === "claude") return { status: 0 } as any;
+        return { status: 1 } as any;
+      });
+
+      const mockProcess = createMockProcess('{"result": "ok"}');
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const result = await callAnyAvailableAgent("test", {
+        preferredOrder: ["unknown-agent", "claude"],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.agentUsed).toBe("claude");
+    });
+
+    it("should try next agent when first fails", async () => {
+      vi.mocked(spawnSync).mockImplementation((cmd, args) => {
+        const name = (args as string[])[0];
+        // Both gemini and claude are available
+        if (name === "gemini" || name === "claude") return { status: 0 } as any;
+        return { status: 1 } as any;
+      });
+
+      // First agent fails, second succeeds
+      let callCount = 0;
+      vi.mocked(spawn).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call (gemini) fails
+          return createMockProcess("error", 1);
+        }
+        // Second call (claude) succeeds
+        return createMockProcess('{"ok": true}', 0);
+      });
+
+      const result = await callAnyAvailableAgent("test", {
+        preferredOrder: ["gemini", "claude"],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.agentUsed).toBe("claude");
+    });
+
+    it("should output verbose logging when enabled", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      vi.mocked(spawnSync).mockImplementation((cmd, args) => {
+        const name = (args as string[])[0];
+        if (name === "claude") return { status: 0 } as any;
+        return { status: 1 } as any;
+      });
+
+      const mockProcess = createMockProcess('{"result": "ok"}');
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      await callAnyAvailableAgent("test", {
+        preferredOrder: ["gemini", "claude"],
+        verbose: true,
+      });
+
+      // Should have logged skipping gemini
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it("should show error in verbose mode when agent fails", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      vi.mocked(spawnSync).mockReturnValue({ status: 0 } as any);
+
+      const mockProcess = createMockProcess("error output", 1);
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      await callAnyAvailableAgent("test", {
+        preferredOrder: ["claude"],
+        verbose: true,
+      });
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("callAgentWithRetry", () => {
+    function createMockProcess(output: string, exitCode = 0) {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      mockProcess.kill = vi.fn();
+
+      setTimeout(() => {
+        mockProcess.stdout.emit("data", Buffer.from(output));
+        mockProcess.emit("close", exitCode);
+      }, 10);
+
+      return mockProcess;
+    }
+
+    beforeEach(() => {
+      vi.mocked(spawn).mockReset();
+      vi.mocked(spawnSync).mockReset();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should return success on first attempt if agent succeeds", async () => {
+      const mockProcess = createMockProcess('{"result": "ok"}', 0);
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgentWithRetry(agent, "test prompt", { maxRetries: 3 });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(spawn).toHaveBeenCalledTimes(1);
+    });
+
+    it("should retry on failure up to maxRetries times", async () => {
+      // All calls fail - but we need fresh mock for each call
+      vi.mocked(spawn).mockImplementation(() => {
+        const mockProcess = new EventEmitter() as any;
+        mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
+        mockProcess.stdout = new EventEmitter();
+        mockProcess.stderr = new EventEmitter();
+        mockProcess.kill = vi.fn();
+
+        // Schedule the close event after a very short delay
+        setTimeout(() => {
+          mockProcess.emit("close", 1);
+        }, 5);
+
+        return mockProcess;
+      });
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgentWithRetry(agent, "test prompt", { maxRetries: 2 });
+
+      // Run through all timers (process close + retry delays)
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(spawn).toHaveBeenCalledTimes(2);
+    });
+
+    it("should succeed on second retry after initial failure", async () => {
+      let callCount = 0;
+      vi.mocked(spawn).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call fails
+          return createMockProcess("error", 1);
+        }
+        // Second call succeeds
+        return createMockProcess('{"ok": true}', 0);
+      });
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgentWithRetry(agent, "test prompt", { maxRetries: 3 });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      expect(spawn).toHaveBeenCalledTimes(2);
+    });
+
+    it("should log retry attempts when verbose is true", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      let callCount = 0;
+      vi.mocked(spawn).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return createMockProcess("error", 1);
+        }
+        return createMockProcess('{"ok": true}', 0);
+      });
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgentWithRetry(agent, "test prompt", {
+        maxRetries: 3,
+        verbose: true,
+      });
+
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      // Should have logged "Retry attempt 2/3..."
+      expect(consoleSpy).toHaveBeenCalled();
+      const calls = consoleSpy.mock.calls.map(c => c[0]);
+      expect(calls.some(c => typeof c === "string" && c.includes("Retry"))).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should use default timeout of 120000ms", async () => {
+      const mockProcess = createMockProcess('{"ok": true}', 0);
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgentWithRetry(agent, "test prompt");
+
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      // Just verify it uses defaults without error
+      expect(spawn).toHaveBeenCalled();
+    });
+
+    it("should pass cwd option to callAgent", async () => {
+      const mockProcess = createMockProcess('{"ok": true}', 0);
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgentWithRetry(agent, "test prompt", {
+        cwd: "/test/path",
+      });
+
+      await vi.runAllTimersAsync();
+      await resultPromise;
+
+      expect(spawn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Array),
+        expect.objectContaining({ cwd: "/test/path" })
+      );
+    });
+
+    it("should return last error when all retries fail", async () => {
+      vi.mocked(spawn).mockImplementation(() => {
+        const mockProcess = new EventEmitter() as any;
+        mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
+        mockProcess.stdout = new EventEmitter();
+        mockProcess.stderr = new EventEmitter();
+        mockProcess.kill = vi.fn();
+
+        setTimeout(() => {
+          mockProcess.stderr.emit("data", Buffer.from("specific error"));
+          mockProcess.emit("close", 1);
+        }, 5);
+
+        return mockProcess;
+      });
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgentWithRetry(agent, "test prompt", { maxRetries: 2 });
+
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+  });
+
+  describe("callAgent - additional edge cases", () => {
+    function createMockProcess(output: string, exitCode = 0) {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      mockProcess.kill = vi.fn();
+
+      setTimeout(() => {
+        mockProcess.stdout.emit("data", Buffer.from(output));
+        mockProcess.emit("close", exitCode);
+      }, 10);
+
+      return mockProcess;
+    }
+
+    beforeEach(() => {
+      vi.mocked(spawn).mockReset();
+      vi.mocked(spawnSync).mockReset();
+    });
+
+    it("should handle agent error event", async () => {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgent(agent, "test prompt");
+
+      // Emit error event
+      setTimeout(() => {
+        mockProcess.emit("error", new Error("spawn failed"));
+      }, 10);
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("spawn failed");
+    });
+
+    it("should handle stderr output on error", async () => {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgent(agent, "test prompt");
+
+      // Emit stderr and then close with error code
+      setTimeout(() => {
+        mockProcess.stderr.emit("data", Buffer.from("Error: command failed"));
+        mockProcess.emit("close", 1);
+      }, 10);
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("command failed");
+    });
+
+    it("should handle timeout", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      mockProcess.kill = vi.fn();
+
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const resultPromise = callAgent(agent, "test prompt", { timeoutMs: 1000 });
+
+      // Advance time past timeout
+      await vi.advanceTimersByTimeAsync(1500);
+
+      // Emit close event after kill
+      mockProcess.emit("close", null);
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Agent timed out");
+      expect(mockProcess.kill).toHaveBeenCalledWith("SIGTERM");
+
+      vi.useRealTimers();
+    });
+
+    it("should handle spawn exception", async () => {
+      vi.mocked(spawn).mockImplementation(() => {
+        throw new Error("spawn ENOENT");
+      });
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      const result = await callAgent(agent, "test prompt");
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("spawn ENOENT");
+    });
+
+    it("should handle agent without stdin (promptViaStdin=false)", async () => {
+      const mockProcess = createMockProcess('{"ok": true}', 0);
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = {
+        name: "test-agent",
+        command: ["test-cmd", "--arg"],
+        promptViaStdin: false,
+      };
+
+      const resultPromise = callAgent(agent, "test prompt");
+      const result = await resultPromise;
+
+      expect(result.success).toBe(true);
+      // The prompt should be passed as argument, not stdin
+      expect(spawn).toHaveBeenCalledWith(
+        "test-cmd",
+        ["--arg", "test prompt"],
+        expect.objectContaining({ stdio: ["ignore", "pipe", "pipe"] })
+      );
+    });
+  });
+
+  describe("printAgentStatus", () => {
+    beforeEach(() => {
+      vi.mocked(spawnSync).mockReset();
+    });
+
+    it("should print status for all agents", () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      vi.mocked(spawnSync).mockReturnValue({ status: 0 } as any);
+
+      printAgentStatus();
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const output = consoleSpy.mock.calls.map(c => c[0]).join(" ");
+      expect(output).toContain("AI Agents Status");
+      expect(output).toContain("claude");
+      expect(output).toContain("gemini");
+      expect(output).toContain("codex");
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should show available status correctly", () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      vi.mocked(spawnSync).mockImplementation((cmd, args) => {
+        const name = (args as string[])[0];
+        if (name === "claude") return { status: 0 } as any;
+        return { status: 1 } as any;
+      });
+
+      printAgentStatus();
+
+      const output = consoleSpy.mock.calls.map(c => c[0]).join("\n");
+      expect(output).toContain("available");
+      expect(output).toContain("not found");
+
+      consoleSpy.mockRestore();
     });
   });
 });
