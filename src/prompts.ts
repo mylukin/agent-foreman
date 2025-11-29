@@ -37,9 +37,9 @@ ${goal}
 3. **Plan** - Review acceptance criteria before coding
 4. **Implement** - Work on ONE feature at a time
 5. **Test** - Run \`./ai/init.sh check\` to verify
-6. **Update** - Mark feature as \`passing\` if criteria met
+6. **Complete** - Run \`agent-foreman complete <feature_id>\` (auto-verifies + commits)
 7. **Log** - Entry automatically added to progress log
-8. **Commit** - Create clean commit with feature ID
+8. **Next** - Move to next feature or celebrate completion
 
 ### Rules
 
@@ -59,7 +59,7 @@ CHANGE 2025-01-15T11:00:00Z feature=auth.login action=refactor reason="Improved 
 REPLAN 2025-01-15T12:00:00Z summary="Splitting auth into submodules" note="Original scope too large"
 \`\`\`
 
-**Log types**: \`INIT\` | \`STEP\` | \`CHANGE\` | \`REPLAN\`
+**Log types**: \`INIT\` | \`STEP\` | \`CHANGE\` | \`REPLAN\` | \`VERIFY\`
 
 **IMPORTANT**: Do NOT write verbose Markdown session notes. Keep each entry as a single line.
 
@@ -74,6 +74,15 @@ agent-foreman step
 
 # Work on specific feature
 agent-foreman step <feature_id>
+
+# Verify and mark feature as complete (AI verification + auto-commit)
+agent-foreman complete <feature_id>
+
+# Skip verification (not recommended)
+agent-foreman complete <feature_id> --skip-verify
+
+# Preview verification without completing
+agent-foreman verify <feature_id>
 
 # Analyze impact of changes
 agent-foreman impact <feature_id>
@@ -217,8 +226,7 @@ export function generateFeatureGuidance(feature: {
   lines.push("1. Review acceptance criteria above");
   lines.push("2. Implement the feature");
   lines.push("3. Run `./ai/init.sh check` to verify");
-  lines.push("4. Update feature status to `passing` if all criteria met");
-  lines.push("5. Commit with message: `feat(${feature.id.split('.')[0]}): ${feature.description}`");
+  lines.push("4. Run `agent-foreman complete ${feature.id}` (auto-verifies + commits)");
 
   return lines.join("\n");
 }

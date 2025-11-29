@@ -56,10 +56,20 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
 ];
 
 /**
- * Check if a command exists in PATH
+ * Detect the current platform
+ */
+export function getPlatform(): "windows" | "unix" {
+  return process.platform === "win32" ? "windows" : "unix";
+}
+
+/**
+ * Check if a command exists in PATH (cross-platform)
+ * Uses 'where' on Windows and 'which' on Unix-like systems
  */
 export function commandExists(cmd: string): boolean {
-  const result = spawnSync("which", [cmd], { stdio: "pipe" });
+  const isWindows = getPlatform() === "windows";
+  const checkCmd = isWindows ? "where" : "which";
+  const result = spawnSync(checkCmd, [cmd], { stdio: "pipe", shell: isWindows });
   return result.status === 0;
 }
 

@@ -1,0 +1,22 @@
+{
+  "name": "agent-foreman",
+  "version": "0.1.14",
+  "description": "Long Task Harness for AI agents - feature-driven development with external memory",
+  "author": {
+    "name": "Lukin",
+    "email": "mylukin@gmail.com",
+    "url": "https://github.com/mylukin"
+  },
+  "homepage": "https://github.com/mylukin/agent-foreman",
+  "repository": "https://github.com/mylukin/agent-foreman",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "agent",
+    "long-task",
+    "harness",
+    "feature-driven",
+    "claude-code",
+    "project-management"
+  ]
+}

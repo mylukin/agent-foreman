@@ -6,6 +6,8 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { glob } from "glob";
 import type { DirectoryStructure } from "./types.js";
+import { debugScanner } from "./debug.js";
+import { isDirectory } from "./file-utils.js";
 
 /**
  * Scan directory structure of a project
@@ -35,22 +37,20 @@ export async function scanDirectoryStructure(basePath: string): Promise<Director
     structure.entryPoints.push(...matches);
   }
 
-  // Source directories
+  // Source directories - use shared isDirectory utility
   const srcPatterns = ["src", "lib", "pkg", "internal", "app", "api", "core"];
   for (const dir of srcPatterns) {
-    try {
-      const stat = await fs.stat(path.join(basePath, dir));
-      if (stat.isDirectory()) structure.srcDirs.push(dir);
-    } catch {}
+    if (await isDirectory(path.join(basePath, dir))) {
+      structure.srcDirs.push(dir);
+    }
   }
 
-  // Test directories
+  // Test directories - use shared isDirectory utility
   const testPatterns = ["tests", "test", "__tests__", "spec", "e2e"];
   for (const dir of testPatterns) {
-    try {
-      const stat = await fs.stat(path.join(basePath, dir));
-      if (stat.isDirectory()) structure.testDirs.push(dir);
-    } catch {}
+    if (await isDirectory(path.join(basePath, dir))) {
+      structure.testDirs.push(dir);
+    }
   }
 
   // Config files

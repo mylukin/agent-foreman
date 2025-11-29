@@ -262,6 +262,93 @@ describe("AI Scanner", () => {
 
       expect(markdown).toContain("and 50 more features");
     });
+
+    it("should generate Chinese version when language is zh-CN", () => {
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(mockSurvey, aiResult, { language: "zh-CN" });
+
+      expect(markdown).toContain("# 项目调查报告 (AI 增强版)");
+      expect(markdown).toContain("## 技术栈");
+      expect(markdown).toContain("| 语言 |");
+      expect(markdown).toContain("## 目录结构");
+      expect(markdown).toContain("## 模块");
+      expect(markdown).toContain("## 完成度评估");
+      expect(markdown).toContain("**总体完成度: 60%**");
+      expect(markdown).toContain("由 agent-foreman 和 AI 分析生成");
+    });
+
+    it("should generate English version by default", () => {
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(mockSurvey, aiResult);
+
+      expect(markdown).toContain("# Project Survey (AI-Enhanced)");
+      expect(markdown).toContain("## Tech Stack");
+      expect(markdown).toContain("| Language |");
+      expect(markdown).toContain("## Directory Structure");
+      expect(markdown).toContain("## Modules");
+    });
+
+    it("should strip Chinese translations from module descriptions by default", () => {
+      const surveyWithChineseDesc: ProjectSurvey = {
+        ...mockSurvey,
+        modules: [
+          {
+            name: "users",
+            path: "src/users",
+            description: "User management\n> 用户管理模块",
+            status: "complete",
+            files: [],
+          },
+        ],
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyWithChineseDesc, aiResult);
+
+      expect(markdown).toContain("User management");
+      expect(markdown).not.toContain("用户管理模块");
+    });
+
+    it("should keep Chinese translations when bilingual option is true", () => {
+      const surveyWithChineseDesc: ProjectSurvey = {
+        ...mockSurvey,
+        modules: [
+          {
+            name: "users",
+            path: "src/users",
+            description: "User management\n> 用户管理模块",
+            status: "complete",
+            files: [],
+          },
+        ],
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyWithChineseDesc, aiResult, { bilingual: true });
+
+      expect(markdown).toContain("User management");
+      expect(markdown).toContain("用户管理模块");
+    });
+
+    it("should translate section headers in Chinese version", () => {
+      const aiResult: AIAnalysisResult = {
+        success: true,
+        agentUsed: "gemini",
+        recommendations: ["Add tests"],
+      };
+      const markdown = generateAISurveyMarkdown(mockSurvey, aiResult, { language: "zh-CN" });
+
+      expect(markdown).toContain("## 建议");
+      expect(markdown).toContain("## 命令");
+      expect(markdown).toContain("# 安装依赖");
+    });
+
+    it("should translate agent info in Chinese version", () => {
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "claude" };
+      const markdown = generateAISurveyMarkdown(mockSurvey, aiResult, { language: "zh-CN" });
+
+      expect(markdown).toContain("由 claude 分析生成");
+    });
   });
 
   describe("generateFeaturesFromSurvey", () => {

@@ -1,9 +1,11 @@
 ---
 name: init-harness
-description: Initialize or upgrade the long-task harness for a project
+description: Set up feature-driven development infrastructure with ai/feature_list.json, ai/progress.md, and ai/init.sh. Use when starting a new project, adding harness to existing project, or upgrading harness after significant changes.
 ---
 
 # Init Harness Skill
+
+> **Tip:** For more reliable invocation, use the `/foreman-init` slash command instead of this skill.
 
 Set up or upgrade the long-task harness infrastructure for feature-driven development.
 

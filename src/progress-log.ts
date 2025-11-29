@@ -49,7 +49,7 @@ export function parseLogEntry(line: string): ProgressLogEntry | null {
   if (!trimmed) return null;
 
   // Match type and timestamp at the beginning
-  const match = trimmed.match(/^(INIT|STEP|CHANGE|REPLAN)\s+(\S+)/);
+  const match = trimmed.match(/^(INIT|STEP|CHANGE|REPLAN|VERIFY)\s+(\S+)/);
   if (!match) return null;
 
   const type = match[1] as ProgressLogType;
@@ -198,6 +198,23 @@ export function createReplanEntry(summary: string, note: string): ProgressLogEnt
     type: "REPLAN",
     timestamp: new Date().toISOString(),
     note,
+    summary,
+  };
+}
+
+/**
+ * Create a VERIFY entry for feature verification
+ */
+export function createVerifyEntry(
+  featureId: string,
+  verdict: string,
+  summary: string
+): ProgressLogEntry {
+  return {
+    type: "VERIFY",
+    timestamp: new Date().toISOString(),
+    feature: featureId,
+    action: verdict,
     summary,
   };
 }

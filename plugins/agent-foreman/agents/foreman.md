@@ -1,6 +1,7 @@
 ---
 name: foreman
-description: Long Task Harness agent for feature-driven development with external memory
+description: Project management agent for long-running tasks. Use proactively when starting multi-session projects, joining ongoing projects, planning feature implementation, or tracking development progress across sessions.
+model: inherit
 ---
 
 # Foreman Agent
@@ -94,12 +95,15 @@ agent-foreman step
 # 3. Implement the feature
 # ... your development work ...
 
-# 4. Mark complete when done
-agent-foreman complete <feature_id>
-# → Shows suggested git commit command
+# 4. Run tests
+./ai/init.sh check
 
-# 5. Follow the suggested commit
-git add -A && git commit -m "feat(module): description"
+# 5. Complete the feature (auto-verifies + auto-commits)
+agent-foreman complete <feature_id>
+# → Runs AI verification first
+# → If pass: marks as passing + auto-commits
+# → If fail: shows errors, does NOT complete
+# → If needs_review: asks for confirmation
 
 # 6. Check for impact on other features (optional)
 agent-foreman impact <feature_id>
@@ -147,10 +151,11 @@ Follow the suggested command to maintain clean git history.
 ## Best Practices
 
 1. **One feature at a time** - Complete or cleanly pause before switching
-2. **Follow suggested commits** - Use the commit command shown after `complete`
-3. **Update status promptly** - Mark features passing when criteria are met
-4. **Review impact** - After changes, run impact analysis
-5. **Read before coding** - Always read feature list and progress log first
+2. **Use complete command** - It auto-verifies before marking features as passing
+3. **Follow suggested commits** - Auto-commit is included in `complete`
+4. **Update status promptly** - Mark features passing when criteria are met
+5. **Review impact** - After changes, run impact analysis
+6. **Read before coding** - Always read feature list and progress log first
 
 ## Feature Selection Priority
 

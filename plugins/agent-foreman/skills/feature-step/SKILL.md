@@ -1,9 +1,11 @@
 ---
 name: feature-step
-description: Work on the next priority feature with guided implementation
+description: Select and work on the next priority feature from ai/feature_list.json with external memory sync and acceptance criteria guidance. Use when starting a development session, completing a feature, or checking feature details before implementation.
 ---
 
 # Feature Step Skill
+
+> **Tip:** For more reliable invocation, use the `/foreman-step` slash command instead of this skill.
 
 Select and work on the next priority feature from the backlog with structured guidance.
 
@@ -142,18 +144,30 @@ agent-foreman step
 npm run test
 ```
 
-### 5. Verify Acceptance
+### 5. Complete (with Integrated Verification)
 
-Go through each criterion:
-
-- [ ] User enters valid credentials
-- [ ] System returns JWT token
-- [ ] User is redirected to dashboard
-
-### 6. Mark Complete
+Run complete - it automatically verifies first:
 
 ```bash
 agent-foreman complete auth.login
+```
+
+This will:
+1. Run AI-powered verification (tests, typecheck, lint, build + AI analysis)
+2. If verification passes → marks feature as passing + auto-commits
+3. If verification fails → shows errors, does NOT mark complete
+4. If needs_review → prompts for confirmation
+
+**Skip verification (not recommended):**
+
+```bash
+agent-foreman complete auth.login --skip-verify
+```
+
+**Preview verification only:**
+
+```bash
+agent-foreman verify auth.login
 ```
 
 **Output with suggested commit:**

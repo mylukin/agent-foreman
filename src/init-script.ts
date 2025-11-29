@@ -51,6 +51,51 @@ check() {
   log_info "All checks passed!"
 }
 
+# Verify: Run all available verification checks
+verify() {
+  local exit_code=0
+
+  log_info "Running verification checks..."
+
+  # Run tests if available
+  ${commands.test ? `log_info "Running tests..."
+  if ! ${commands.test}; then
+    log_error "Tests failed"
+    exit_code=1
+  fi` : "log_warn \"No test command configured\""}
+
+  # Run type check if TypeScript detected
+  if [ -f "tsconfig.json" ]; then
+    log_info "Running type check..."
+    if ! npx tsc --noEmit; then
+      log_error "Type check failed"
+      exit_code=1
+    fi
+  fi
+
+  # Run lint if available
+  ${commands.lint ? `log_info "Running linter..."
+  if ! ${commands.lint}; then
+    log_error "Lint failed"
+    exit_code=1
+  fi` : ""}
+
+  # Run build if available
+  ${commands.build ? `log_info "Running build..."
+  if ! ${commands.build}; then
+    log_error "Build failed"
+    exit_code=1
+  fi` : ""}
+
+  if [ \$exit_code -eq 0 ]; then
+    log_info "All verification checks passed!"
+  else
+    log_error "Some verification checks failed"
+  fi
+
+  return \$exit_code
+}
+
 # Build: Build for production
 build() {
   log_info "Building for production..."
@@ -94,6 +139,7 @@ show_help() {
   echo "  bootstrap  Install dependencies"
   echo "  dev        Start development server"
   echo "  check      Run tests and validation"
+  echo "  verify     Run all verification checks (tests, types, lint, build)"
   echo "  build      Build for production"
   echo "  status     Show project status"
   echo "  help       Show this help message"
@@ -109,6 +155,9 @@ case "\${1:-help}" in
     ;;
   check)
     check
+    ;;
+  verify)
+    verify
     ;;
   build)
     build
@@ -176,6 +225,32 @@ check() {
   echo "Please configure test command in this script"
 }
 
+# Verify: Run all available verification checks
+verify() {
+  local exit_code=0
+
+  log_info "Running verification checks..."
+
+  # Run type check if TypeScript detected
+  if [ -f "tsconfig.json" ]; then
+    log_info "Running type check..."
+    if ! npx tsc --noEmit; then
+      log_error "Type check failed"
+      exit_code=1
+    fi
+  fi
+
+  log_warn "Configure test/lint/build commands for full verification"
+
+  if [ \$exit_code -eq 0 ]; then
+    log_info "Verification checks passed!"
+  else
+    log_error "Some verification checks failed"
+  fi
+
+  return \$exit_code
+}
+
 # Build: Build for production
 build() {
   log_info "Building for production..."
@@ -209,6 +284,7 @@ show_help() {
   echo "  bootstrap  Install dependencies"
   echo "  dev        Start development server"
   echo "  check      Run tests and validation"
+  echo "  verify     Run all verification checks (tests, types, lint, build)"
   echo "  build      Build for production"
   echo "  status     Show project status"
   echo "  help       Show this help message"
@@ -224,6 +300,9 @@ case "\${1:-help}" in
     ;;
   check)
     check
+    ;;
+  verify)
+    verify
     ;;
   build)
     build

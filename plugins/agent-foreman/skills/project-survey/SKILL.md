@@ -1,9 +1,11 @@
 ---
 name: project-survey
-description: Analyze existing projects to generate comprehensive survey reports
+description: Scan and analyze existing codebases to detect tech stack, directory structure, modules, and features. Use when joining an existing project, assessing project health, or understanding codebase structure before making changes.
 ---
 
 # Project Survey Skill
+
+> **Tip:** For more reliable invocation, use the `/foreman-survey` slash command instead of this skill.
 
 Scan and analyze existing projects to understand their structure, tech stack, and feature coverage.
 
