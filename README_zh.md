@@ -1,6 +1,6 @@
 # agent-foreman
 
-> AI智能体的长任务管理框架 - 基于功能驱动的开发，提供外部记忆
+> AI 智能体的长任务管理框架 - 基于功能驱动的开发，提供外部记忆
 
 [![npm version](https://img.shields.io/npm/v/agent-foreman.svg)](https://www.npmjs.com/package/agent-foreman)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -17,7 +17,7 @@ AI 编程智能体在处理长期任务时面临三个常见的失败模式：
 
 ## 解决方案
 
-**agent-foreman** 提供一个结构化的框架，使 AI智能体能够：
+**agent-foreman** 提供一个结构化的框架，使 AI 智能体能够：
 
 - 通过结构化文件维护**外部记忆**
 - **一次专注一个功能**，有明确的验收标准
@@ -26,7 +26,7 @@ AI 编程智能体在处理长期任务时面临三个常见的失败模式：
 
 ## 为什么有效
 
-核心洞察很简单：**AI智能体需要和人类工程团队一样的协作工具**。
+核心洞察很简单：**AI 智能体需要和人类工程团队一样的协作工具**。
 
 人类工程师也不靠记忆工作。我们用：
 - Git 记录版本历史
@@ -49,7 +49,7 @@ agent-foreman 把这些模式带给了 AI：
 
 > "相比 Markdown 清单，模型更能准确地遵守和更新 JSON 结构。"
 
-当功能以 JSON 格式存储，带有明确的 `status` 字段时，AI智能体：
+当功能以 JSON 格式存储，带有明确的 `status` 字段时，AI 智能体：
 - 不会意外删除条目
 - 能正确更新状态
 - 会遵守数据结构

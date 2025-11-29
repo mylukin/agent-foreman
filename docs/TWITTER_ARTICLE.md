@@ -266,4 +266,4 @@ agent-foreman 是它们需要的外部大脑——一个结构化框架，维护
 GitHub: github.com/mylukin/agent-foreman
 NPM: npmjs.com/package/agent-foreman
 
-灵感来自 Anthropic 关于长时间运行 AI智能体的研究。
+灵感来自 Anthropic 关于长时间运行 AI 智能体的研究。
