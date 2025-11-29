@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 import chalk from "chalk";
 
 import type { Feature } from "./types.js";
+import { isPathWithinRoot, safeReadFile } from "./file-utils.js";
 import type {
   VerificationCapabilities,
   AutomatedCheckResult,
@@ -214,6 +215,7 @@ export async function runAutomatedChecks(
 /**
  * Read related files for context
  * Includes files that import or are imported by changed files
+ * Validates paths to prevent path traversal attacks
  */
 export async function readRelatedFiles(
   cwd: string,
@@ -235,12 +237,18 @@ export async function readRelatedFiles(
   );
 
   for (const file of sourceFiles.slice(0, maxFiles)) {
-    try {
-      const content = await fs.readFile(path.join(cwd, file), "utf-8");
-      relatedFiles.set(file, content);
-    } catch {
-      // File may have been deleted
+    // Validate path stays within project root to prevent path traversal
+    if (!isPathWithinRoot(cwd, file)) {
+      // Skip files that would escape project directory
+      continue;
     }
+
+    // Use safeReadFile for secure file reading
+    const content = await safeReadFile(cwd, file);
+    if (content !== null) {
+      relatedFiles.set(file, content);
+    }
+    // If content is null, file doesn't exist or can't be read - skip silently
   }
 
   return relatedFiles;
