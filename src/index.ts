@@ -47,6 +47,11 @@ import {
 import type { FeatureVerificationSummary } from "./verification-types.js";
 import type { InitMode, Feature } from "./types.js";
 import { isGitRepo, hasUncommittedChanges, gitAdd, gitCommit } from "./git-utils.js";
+import {
+  detectAndAnalyzeProject,
+  mergeOrCreateFeatures,
+  generateHarnessFiles,
+} from "./init-helpers.js";
 
 /**
  * Auto-detect project goal from README or package.json
@@ -349,190 +354,40 @@ async function runSurvey(outputPath: string, verbose: boolean) {
   }
 }
 
+/**
+ * Initialize the agent-foreman harness
+ * Refactored to use helper functions for better maintainability
+ */
 async function runInit(goal: string, mode: InitMode, verbose: boolean) {
   const cwd = process.cwd();
-  const { spawnSync } = await import("node:child_process");
   console.log(chalk.blue(`🚀 Initializing harness (mode: ${mode})...`));
 
-  // Step 1: Determine feature source based on project state
-  // Priority: survey > existing code scan > goal-based generation
-  const surveyPath = path.join(cwd, "docs/PROJECT_SURVEY.md");
-  let aiResult;
+  // Step 1: Detect project type and analyze with AI
+  const analysisResult = await detectAndAnalyzeProject(cwd, goal, verbose);
 
-  try {
-    const surveyContent = await fs.readFile(surveyPath, "utf-8");
-    console.log(chalk.green(`✓ Found PROJECT_SURVEY.md`));
-
-    // Use survey + goal to generate features
-    aiResult = await generateFeaturesFromSurvey(surveyContent, goal);
-  } catch {
-    // No survey file - check if project has source code
-    const empty = await isProjectEmpty(cwd);
-
-    if (empty) {
-      // Empty project: generate features from goal description
-      console.log(chalk.gray("  New/empty project detected, generating features from goal..."));
-      if (verbose) {
-        printAgentStatus();
-      }
-
-      aiResult = await generateFeaturesFromGoal(goal);
-    } else {
-      // Has source code: auto-run survey first, then use it
-      console.log(chalk.gray("  No PROJECT_SURVEY.md found, auto-generating survey..."));
-      if (verbose) {
-        printAgentStatus();
-      }
-
-      aiResult = await aiScanProject(cwd, { verbose });
-
-      // Auto-save survey for future use
-      if (aiResult.success) {
-        const tempStructure = await scanDirectoryStructure(cwd);
-        const tempSurvey = aiResultToSurvey(aiResult, tempStructure);
-        const surveyMarkdown = generateAISurveyMarkdown(tempSurvey, aiResult);
-
-        await fs.mkdir(path.dirname(surveyPath), { recursive: true });
-        await fs.writeFile(surveyPath, surveyMarkdown);
-        console.log(chalk.green(`✓ Auto-generated docs/PROJECT_SURVEY.md`));
-      }
-    }
-  }
-
-  if (!aiResult.success) {
-    console.log(chalk.red(`✗ AI analysis failed: ${aiResult.error}`));
+  if (!analysisResult.success || !analysisResult.survey) {
+    console.log(chalk.red(`✗ AI analysis failed: ${analysisResult.error}`));
     console.log(chalk.yellow("  Make sure gemini, codex, or claude CLI is installed"));
     process.exit(1);
   }
 
-  console.log(chalk.green(`✓ AI analysis successful (agent: ${aiResult.agentUsed})`));
-
-  const structure = await scanDirectoryStructure(cwd);
-  const survey = aiResultToSurvey(aiResult, structure);
+  console.log(chalk.green(`✓ AI analysis successful (agent: ${analysisResult.agentUsed})`));
 
   if (verbose) {
-    console.log(chalk.gray(`  Found ${survey.features.length} features`));
+    console.log(chalk.gray(`  Found ${analysisResult.survey.features.length} features`));
   }
 
-  // Step 2: Load existing feature list or create new
-  let featureList = await loadFeatureList(cwd);
-
-  if (mode === "new" || !featureList) {
-    featureList = createEmptyFeatureList(goal);
-  } else {
-    // Update goal if provided
-    featureList.metadata.projectGoal = goal;
-  }
-
-  // Step 3: Convert discovered features to Feature objects
-  const discoveredFeatures: Feature[] = survey.features.map((df, idx) =>
-    discoveredToFeature(df, idx)
+  // Step 2-4: Merge or create features based on mode
+  const featureList = await mergeOrCreateFeatures(
+    cwd,
+    analysisResult.survey,
+    goal,
+    mode,
+    verbose
   );
 
-  // Step 4: Merge or replace based on mode
-  if (mode === "merge") {
-    const beforeCount = featureList.features.length;
-    featureList.features = mergeFeatures(featureList.features, discoveredFeatures);
-    const addedCount = featureList.features.length - beforeCount;
-    if (verbose && addedCount > 0) {
-      console.log(chalk.gray(`  Added ${addedCount} new features`));
-    }
-  } else if (mode === "new") {
-    featureList.features = discoveredFeatures;
-  }
-  // mode === "scan" doesn't modify the list
-
-  // Step 5: Save feature list
-  if (mode !== "scan") {
-    await saveFeatureList(cwd, featureList);
-    console.log(chalk.green(`✓ Feature list saved with ${featureList.features.length} features`));
-  } else {
-    console.log(chalk.yellow(`ℹ Scan mode: ${discoveredFeatures.length} features discovered (not saved)`));
-  }
-
-  // Step 6: Generate init.sh
-  const initScript =
-    survey.commands.install || survey.commands.dev || survey.commands.test
-      ? generateInitScript(survey.commands)
-      : generateMinimalInitScript();
-
-  await fs.mkdir(path.join(cwd, "ai"), { recursive: true });
-  await fs.writeFile(path.join(cwd, "ai/init.sh"), initScript);
-  await fs.chmod(path.join(cwd, "ai/init.sh"), 0o755);
-  console.log(chalk.green("✓ Generated ai/init.sh"));
-
-  // Step 7: Generate or update CLAUDE.md
-  const claudeMdPath = path.join(cwd, "CLAUDE.md");
-  let claudeMdExists = false;
-  let existingClaudeMd = "";
-
-  try {
-    existingClaudeMd = await fs.readFile(claudeMdPath, "utf-8");
-    claudeMdExists = true;
-  } catch {
-    // File doesn't exist, will create new
-  }
-
-  if (claudeMdExists && existingClaudeMd.trim().length > 0) {
-    // Use AI agent to intelligently merge harness section into existing CLAUDE.md
-    console.log(chalk.blue("  CLAUDE.md exists, using AI to merge harness section..."));
-
-    const harnessSection = generateHarnessSection(goal);
-    const mergePrompt = `You are updating a CLAUDE.md file. Your task is to intelligently merge the new "Long-Task Harness" section into the existing content.
-
-## Existing CLAUDE.md content:
-\`\`\`markdown
-${existingClaudeMd}
-\`\`\`
-
-## New harness section to add:
-\`\`\`markdown
-${harnessSection}
-\`\`\`
-
-## Rules:
-1. If the existing file already has a "Long-Task Harness" section, replace it with the new section
-2. If the existing file doesn't have the harness section, append it at the END of the file
-3. Preserve ALL existing content that is not related to agent-foreman
-4. Do NOT modify, delete, or reorganize any existing sections (like "Project Instructions", custom rules, etc.)
-5. Keep the document structure clean and readable
-
-## Output:
-Return ONLY the complete merged CLAUDE.md content, nothing else. No explanations, no code blocks, just the raw markdown content.`;
-
-    const result = await callAnyAvailableAgent(mergePrompt, { cwd });
-
-    if (result.success && result.output.trim().length > 0) {
-      await fs.writeFile(claudeMdPath, result.output.trim() + "\n");
-      console.log(chalk.green("✓ Updated CLAUDE.md (merged by AI)"));
-    } else {
-      // Simple fallback: append at the end
-      console.log(chalk.yellow("  AI merge failed, appending harness section..."));
-      const mergedContent = existingClaudeMd.trimEnd() + "\n\n" + harnessSection + "\n";
-      await fs.writeFile(claudeMdPath, mergedContent);
-      console.log(chalk.green("✓ Updated CLAUDE.md (appended)"));
-    }
-  } else {
-    // Create new CLAUDE.md
-    const claudeMd = generateClaudeMd(goal);
-    await fs.writeFile(claudeMdPath, claudeMd);
-    console.log(chalk.green("✓ Generated CLAUDE.md"));
-  }
-
-  // Step 8: Write progress log entry
-  if (mode !== "scan") {
-    await appendProgressLog(
-      cwd,
-      createInitEntry(goal, `mode=${mode}, features=${featureList.features.length}`)
-    );
-    console.log(chalk.green("✓ Updated ai/progress.md"));
-  }
-
-  // Step 9: Suggest git commit (changed from auto-commit to suggestion)
-  if (mode !== "scan") {
-    console.log(chalk.cyan("\n📝 Suggested git commit:"));
-    console.log(chalk.white('   git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"'));
-  }
+  // Step 5-8: Generate harness files (init.sh, CLAUDE.md, progress.md)
+  await generateHarnessFiles(cwd, analysisResult.survey, featureList, goal, mode);
 
   console.log(chalk.bold.green("\n🎉 Harness initialized successfully!"));
   console.log(chalk.gray("Next: Run 'agent-foreman step' to start working on features"));
