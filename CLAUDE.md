@@ -30,10 +30,9 @@ Long Task Harness for AI agents - feature-driven development with external memor
 2. **Select** - Pick the highest priority feature (`needs_review` > `failing`)
 3. **Plan** - Review acceptance criteria before coding
 4. **Implement** - Work on ONE feature at a time
-5. **Test** - Run `./ai/init.sh check` to verify
-6. **Complete** - Run `agent-foreman complete <feature_id>` (auto-verifies + commits)
-7. **Log** - Entry automatically added to progress log
-8. **Next** - Move to next feature or celebrate completion
+5. **Complete** - Run `agent-foreman complete <feature_id>` (auto-verifies + commits)
+6. **Log** - Entry automatically added to progress log
+7. **Next** - Move to next feature or celebrate completion
 
 ### Rules
 

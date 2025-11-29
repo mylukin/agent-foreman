@@ -4,6 +4,7 @@
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import chalk from "chalk";
+import { isTTY } from "./progress.js";
 
 /**
  * Agent configuration
@@ -290,30 +291,49 @@ export async function callAnyAvailableAgent(
       continue;
     }
 
-    // Show which agent we're using
-    process.stdout.write(chalk.blue(`        Using ${name}... `));
+    // Show which agent we're using with animated spinner
     const startTime = Date.now();
-
-    // Show a spinner while waiting
-    const spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let spinnerIdx = 0;
-    const spinnerInterval = setInterval(() => {
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
-      process.stdout.write(`\r        Using ${name}... ${chalk.cyan(spinner[spinnerIdx])} ${chalk.gray(`(${elapsed}s)`)}`);
-      spinnerIdx = (spinnerIdx + 1) % spinner.length;
-    }, 100);
+    let spinnerInterval: NodeJS.Timeout | null = null;
+
+    // Only use animated spinner in TTY mode to avoid conflicts
+    if (isTTY()) {
+      // Print initial message without newline
+      process.stdout.write(chalk.blue(`        Using ${name}...`));
+      spinnerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+        // Clear just this line and rewrite (don't use \r from column 0 to avoid parent spinner conflicts)
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+        process.stdout.write(chalk.blue(`        Using ${name}... ${chalk.cyan(spinnerFrames[spinnerIdx])} ${chalk.gray(`(${elapsed}s)`)}`));
+        spinnerIdx = (spinnerIdx + 1) % spinnerFrames.length;
+      }, 100);
+    } else {
+      console.log(`        Using ${name}...`);
+    }
 
     const result = await callAgent(agent, prompt, { timeoutMs, cwd });
 
-    clearInterval(spinnerInterval);
+    if (spinnerInterval) {
+      clearInterval(spinnerInterval);
+    }
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     if (result.success) {
-      console.log(`\r        Using ${name}... ${chalk.green("✓")} ${chalk.gray(`(${elapsed}s)`)}`);
+      if (isTTY()) {
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+      }
+      console.log(`        Using ${name}... ${chalk.green("✓")} ${chalk.gray(`(${elapsed}s)`)}`);
       return { ...result, agentUsed: name };
     }
 
-    console.log(`\r        Using ${name}... ${chalk.red("✗")} ${chalk.gray(`(${elapsed}s)`)}`);
+    if (isTTY()) {
+      process.stdout.clearLine(0);
+      process.stdout.cursorTo(0);
+    }
+    console.log(`        Using ${name}... ${chalk.red("✗")} ${chalk.gray(`(${elapsed}s)`)}`);
     if (verbose) {
       console.log(chalk.yellow(`        Error: ${result.error}`));
     }

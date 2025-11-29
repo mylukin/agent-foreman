@@ -374,16 +374,16 @@ async function runSurvey(outputPath: string, verbose: boolean, bilingual: boolea
     printAgentStatus();
   }
 
-  const spinner = createSpinner("Analyzing project with AI");
+  // Note: Don't use spinner here as aiScanProject has its own progress indicators
   const aiResult = await aiScanProject(cwd, { verbose });
 
   if (!aiResult.success) {
-    spinner.fail(`AI analysis failed: ${aiResult.error}`);
+    console.log(chalk.red(`✗ AI analysis failed: ${aiResult.error}`));
     console.log(chalk.yellow("  Make sure gemini, codex, or claude CLI is installed"));
     process.exit(1);
   }
 
-  spinner.succeed(`AI analysis successful (agent: ${aiResult.agentUsed})`);
+  console.log(chalk.green(`✓ AI analysis successful (agent: ${aiResult.agentUsed})`));
 
   const structure = await scanDirectoryStructure(cwd);
   const survey = aiResultToSurvey(aiResult, structure);
@@ -432,16 +432,17 @@ async function runInit(goal: string, mode: InitMode, verbose: boolean) {
   console.log(chalk.blue(`🚀 Initializing harness (mode: ${mode})...`));
 
   // Step 1: Detect project type and analyze with AI
-  const spinner = createSpinner("Analyzing project with AI");
+  // Note: Don't use spinner here as detectAndAnalyzeProject has its own progress indicators
+  console.log(chalk.gray("  Analyzing project..."));
   const analysisResult = await detectAndAnalyzeProject(cwd, goal, verbose);
 
   if (!analysisResult.success || !analysisResult.survey) {
-    spinner.fail(`AI analysis failed: ${analysisResult.error}`);
+    console.log(chalk.red(`✗ AI analysis failed: ${analysisResult.error}`));
     console.log(chalk.yellow("  Make sure gemini, codex, or claude CLI is installed"));
     process.exit(1);
   }
 
-  spinner.succeed(`AI analysis successful (agent: ${analysisResult.agentUsed})`);
+  console.log(chalk.green(`✓ AI analysis successful (agent: ${analysisResult.agentUsed})`));
 
   if (verbose) {
     console.log(chalk.gray(`  Found ${analysisResult.survey.features.length} features`));
