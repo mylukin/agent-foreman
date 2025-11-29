@@ -17,6 +17,9 @@ import {
 import {
   detectWithPresets,
   formatExtendedCapabilities,
+  detectCapabilities,
+  formatCapabilities,
+  detectVerificationCapabilities,
 } from "../src/capability-detector.js";
 
 import {
@@ -988,6 +991,251 @@ describe("Capability Formatting", () => {
       const output = formatExtendedCapabilities(caps);
 
       expect(output).toContain("Lint: Not detected");
+    });
+
+    it("should show 'Unknown' when no languages detected", () => {
+      const caps = createTestCapabilities({
+        languages: [],
+      });
+
+      const output = formatExtendedCapabilities(caps);
+
+      expect(output).toContain("Unknown");
+    });
+
+    it("should show custom test framework when framework is undefined", () => {
+      const caps = createTestCapabilities({
+        testInfo: { available: true, command: "./custom-test.sh", confidence: 0.9 },
+      });
+
+      const output = formatExtendedCapabilities(caps);
+
+      expect(output).toContain("custom");
+    });
+  });
+
+  describe("formatCapabilities", () => {
+    it("should format all detected capabilities", () => {
+      const caps = {
+        hasTests: true,
+        testCommand: "npm test",
+        testFramework: "vitest",
+        hasTypeCheck: true,
+        typeCheckCommand: "npx tsc --noEmit",
+        hasLint: true,
+        lintCommand: "npm run lint",
+        hasBuild: true,
+        buildCommand: "npm run build",
+        hasGit: true,
+      };
+
+      const output = formatCapabilities(caps);
+
+      expect(output).toContain("vitest");
+      expect(output).toContain("npm test");
+      expect(output).toContain("tsc --noEmit");
+      expect(output).toContain("npm run lint");
+      expect(output).toContain("npm run build");
+      expect(output).toContain("Available");
+    });
+
+    it("should show Not detected for missing capabilities", () => {
+      const caps = {
+        hasTests: false,
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: false,
+      };
+
+      const output = formatCapabilities(caps);
+
+      expect(output).toContain("Tests: Not detected");
+      expect(output).toContain("Type Check: Not detected");
+      expect(output).toContain("Lint: Not detected");
+      expect(output).toContain("Build: Not detected");
+      expect(output).toContain("Not available");
+    });
+  });
+
+  describe("detectVerificationCapabilities", () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "detect-verify-cap-test-"));
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it("should detect capabilities in Node.js project", async () => {
+      await fs.writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify({
+          scripts: { test: "vitest run" },
+          devDependencies: { vitest: "^1.0.0" },
+        })
+      );
+
+      const caps = await detectVerificationCapabilities(tempDir);
+
+      expect(caps.hasTests).toBe(true);
+      expect(caps.testFramework).toBe("vitest");
+    });
+  });
+
+  describe("detectCapabilities - three-tier detection", () => {
+    let tempDir: string;
+    let consoleSpy: ReturnType<typeof vi.spyOn>;
+    let aiSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "detect-cap-test-"));
+      consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      // Mock AI discovery by default to prevent real API calls
+      aiSpy = vi.spyOn(agents, "callAnyAvailableAgent").mockResolvedValue({
+        success: true,
+        output: JSON.stringify({ languages: ["unknown"] }),
+        agentUsed: "test",
+      });
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+      consoleSpy.mockRestore();
+      aiSpy.mockRestore();
+      vi.restoreAllMocks();
+    });
+
+    it("should use cached capabilities when available and not stale", async () => {
+      // Create a well-configured Node.js project with high confidence
+      await fs.writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify({
+          scripts: { test: "vitest run", build: "tsc", lint: "eslint ." },
+          devDependencies: { vitest: "^1.0.0", typescript: "^5.0.0", eslint: "^8.0.0" },
+        })
+      );
+      await fs.writeFile(
+        path.join(tempDir, "tsconfig.json"),
+        JSON.stringify({ compilerOptions: {} })
+      );
+
+      // First detection creates cache
+      const first = await detectCapabilities(tempDir);
+      expect(first.hasTests).toBe(true);
+      expect(first.source).toBe("preset");
+
+      // Second detection should use cache
+      const second = await detectCapabilities(tempDir, { verbose: true });
+      expect(second.hasTests).toBe(true);
+    });
+
+    it("should force re-detection when force option is true", async () => {
+      // Create a well-configured Node.js project with high enough confidence
+      await fs.writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify({
+          scripts: { test: "vitest run", build: "tsc", lint: "eslint ." },
+          devDependencies: { vitest: "^1.0.0", typescript: "^5.0.0", eslint: "^8.0.0" },
+        })
+      );
+      await fs.writeFile(
+        path.join(tempDir, "tsconfig.json"),
+        JSON.stringify({ compilerOptions: {} })
+      );
+
+      // First detection
+      const first = await detectCapabilities(tempDir);
+      expect(first.hasTests).toBe(true);
+
+      // Force re-detection - should still detect the same capabilities
+      const result = await detectCapabilities(tempDir, { force: true });
+      expect(result.hasTests).toBe(true);
+      expect(result.source).toBe("preset");
+    });
+
+    it("should fall back to AI discovery for unknown project types", async () => {
+      // Mock AI to return specific capabilities
+      aiSpy.mockResolvedValue({
+        success: true,
+        output: JSON.stringify({
+          languages: ["elixir"],
+          test: { available: true, command: "mix test" },
+        }),
+        agentUsed: "test",
+      });
+
+      const result = await detectCapabilities(tempDir, { forceAI: true, verbose: true });
+
+      expect(result.source).toBe("ai-discovered");
+    });
+
+    it("should use preset detection when confidence is high enough", async () => {
+      // Create a well-configured Node.js project
+      await fs.writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify({
+          scripts: { test: "vitest run", build: "tsc", lint: "eslint ." },
+          devDependencies: { vitest: "^1.0.0", typescript: "^5.0.0", eslint: "^8.0.0" },
+        })
+      );
+      await fs.writeFile(
+        path.join(tempDir, "tsconfig.json"),
+        JSON.stringify({ compilerOptions: {} })
+      );
+
+      const result = await detectCapabilities(tempDir, { verbose: true });
+
+      expect(result.source).toBe("preset");
+      expect(result.confidence).toBeGreaterThanOrEqual(0.8);
+    });
+
+    it("should fall back to AI when preset confidence is too low", async () => {
+      // Create a project with some but incomplete config
+      await fs.writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify({ name: "test" })
+      );
+
+      aiSpy.mockResolvedValue({
+        success: true,
+        output: JSON.stringify({ languages: ["javascript"] }),
+        agentUsed: "test",
+      });
+
+      const result = await detectCapabilities(tempDir, { verbose: true });
+
+      // With low confidence preset, it should fall back to AI
+      expect(result.source).toBe("ai-discovered");
+    });
+
+    it("should skip cache check when forceAI is true", async () => {
+      // Create a well-configured project for caching
+      await fs.writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify({
+          scripts: { test: "vitest run", build: "tsc", lint: "eslint ." },
+          devDependencies: { vitest: "^1.0.0", typescript: "^5.0.0", eslint: "^8.0.0" },
+        })
+      );
+      await fs.writeFile(
+        path.join(tempDir, "tsconfig.json"),
+        JSON.stringify({ compilerOptions: {} })
+      );
+      await detectCapabilities(tempDir); // Create cache
+
+      // Force AI should skip cache
+      aiSpy.mockResolvedValue({
+        success: true,
+        output: JSON.stringify({ languages: ["typescript"] }),
+        agentUsed: "test",
+      });
+
+      const result = await detectCapabilities(tempDir, { forceAI: true });
+
+      expect(result.source).toBe("ai-discovered");
     });
   });
 });
