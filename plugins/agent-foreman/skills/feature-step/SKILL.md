@@ -1,6 +1,6 @@
 ---
 name: feature-step
-description: Work on the next priority feature with guided implementation
+description: Select and work on the next priority feature from ai/feature_list.json with external memory sync and acceptance criteria guidance. Use when starting a development session, completing a feature, or checking feature details before implementation.
 ---
 
 # Feature Step Skill

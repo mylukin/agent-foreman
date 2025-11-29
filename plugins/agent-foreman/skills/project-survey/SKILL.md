@@ -1,6 +1,6 @@
 ---
 name: project-survey
-description: Analyze existing projects to generate comprehensive survey reports
+description: Scan and analyze existing codebases to detect tech stack, directory structure, modules, and features. Use when joining an existing project, assessing project health, or understanding codebase structure before making changes.
 ---
 
 # Project Survey Skill

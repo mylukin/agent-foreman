@@ -1,6 +1,7 @@
 ---
 name: foreman
-description: Long Task Harness agent for feature-driven development with external memory
+description: Project management agent for long-running tasks. Use proactively when starting multi-session projects, joining ongoing projects, planning feature implementation, or tracking development progress across sessions.
+model: inherit
 ---
 
 # Foreman Agent
