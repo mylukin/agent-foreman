@@ -309,10 +309,8 @@ describe("Prompts", () => {
       expect(guidance).toContain("1. Review acceptance criteria above");
       expect(guidance).toContain("2. Implement the feature");
       expect(guidance).toContain("3. Run `./ai/init.sh check` to verify");
-      expect(guidance).toContain("4. Update feature status to `passing`");
-      expect(guidance).toContain("5. Commit with message:");
-      // The template uses ${feature.id.split('.')[0]} which is a literal template string in the output
-      expect(guidance).toContain("feat(${feature.id.split");
+      expect(guidance).toContain("4. Run `agent-foreman complete");
+      expect(guidance).toContain("(auto-verifies + commits)");
     });
   });
 

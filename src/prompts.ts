@@ -226,8 +226,7 @@ export function generateFeatureGuidance(feature: {
   lines.push("1. Review acceptance criteria above");
   lines.push("2. Implement the feature");
   lines.push("3. Run `./ai/init.sh check` to verify");
-  lines.push("4. Update feature status to `passing` if all criteria met");
-  lines.push("5. Commit with message: `feat(${feature.id.split('.')[0]}): ${feature.description}`");
+  lines.push("4. Run `agent-foreman complete ${feature.id}` (auto-verifies + commits)");
 
   return lines.join("\n");
 }
