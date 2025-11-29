@@ -11,6 +11,10 @@ import {
   saveVerificationResult,
   getLastVerification,
   createEmptyStore,
+  clearVerificationResult,
+  getAllVerificationResults,
+  hasVerification,
+  getVerificationStats,
   STORE_VERSION,
 } from "../src/verification-store.js";
 
@@ -190,6 +194,137 @@ describe("Verification Store", () => {
 
       expect(result).not.toBeNull();
       expect(result?.verdict).toBe("pass");
+    });
+  });
+
+  describe("clearVerificationResult", () => {
+    it("should clear existing verification result", async () => {
+      const result = createTestVerificationResult();
+      await saveVerificationResult(tempDir, result);
+
+      // Verify it exists
+      const before = await getLastVerification(tempDir, "test.feature");
+      expect(before).not.toBeNull();
+
+      // Clear it
+      await clearVerificationResult(tempDir, "test.feature");
+
+      // Verify it's gone
+      const after = await getLastVerification(tempDir, "test.feature");
+      expect(after).toBeNull();
+    });
+
+    it("should do nothing when store doesn't exist", async () => {
+      // Should not throw
+      await clearVerificationResult(tempDir, "non.existent");
+    });
+
+    it("should do nothing when feature doesn't exist in store", async () => {
+      const result = createTestVerificationResult({ featureId: "other.feature" });
+      await saveVerificationResult(tempDir, result);
+
+      // Should not throw
+      await clearVerificationResult(tempDir, "non.existent");
+
+      // Other feature should still exist
+      const other = await getLastVerification(tempDir, "other.feature");
+      expect(other).not.toBeNull();
+    });
+  });
+
+  describe("getAllVerificationResults", () => {
+    it("should return empty object when no store exists", async () => {
+      const results = await getAllVerificationResults(tempDir);
+      expect(results).toEqual({});
+    });
+
+    it("should return all stored results", async () => {
+      const result1 = createTestVerificationResult({ featureId: "feature.one" });
+      const result2 = createTestVerificationResult({ featureId: "feature.two", verdict: "fail" });
+      const result3 = createTestVerificationResult({ featureId: "feature.three", verdict: "needs_review" });
+
+      await saveVerificationResult(tempDir, result1);
+      await saveVerificationResult(tempDir, result2);
+      await saveVerificationResult(tempDir, result3);
+
+      const results = await getAllVerificationResults(tempDir);
+
+      expect(Object.keys(results)).toHaveLength(3);
+      expect(results["feature.one"].verdict).toBe("pass");
+      expect(results["feature.two"].verdict).toBe("fail");
+      expect(results["feature.three"].verdict).toBe("needs_review");
+    });
+  });
+
+  describe("hasVerification", () => {
+    it("should return false when no store exists", async () => {
+      const has = await hasVerification(tempDir, "test.feature");
+      expect(has).toBe(false);
+    });
+
+    it("should return false when feature not verified", async () => {
+      const result = createTestVerificationResult({ featureId: "other.feature" });
+      await saveVerificationResult(tempDir, result);
+
+      const has = await hasVerification(tempDir, "test.feature");
+      expect(has).toBe(false);
+    });
+
+    it("should return true when feature has verification", async () => {
+      const result = createTestVerificationResult();
+      await saveVerificationResult(tempDir, result);
+
+      const has = await hasVerification(tempDir, "test.feature");
+      expect(has).toBe(true);
+    });
+  });
+
+  describe("getVerificationStats", () => {
+    it("should return zeros when no store exists", async () => {
+      const stats = await getVerificationStats(tempDir);
+
+      expect(stats.total).toBe(0);
+      expect(stats.passing).toBe(0);
+      expect(stats.failing).toBe(0);
+      expect(stats.needsReview).toBe(0);
+    });
+
+    it("should count verification results by verdict", async () => {
+      await saveVerificationResult(tempDir, createTestVerificationResult({ featureId: "f1", verdict: "pass" }));
+      await saveVerificationResult(tempDir, createTestVerificationResult({ featureId: "f2", verdict: "pass" }));
+      await saveVerificationResult(tempDir, createTestVerificationResult({ featureId: "f3", verdict: "fail" }));
+      await saveVerificationResult(tempDir, createTestVerificationResult({ featureId: "f4", verdict: "needs_review" }));
+      await saveVerificationResult(tempDir, createTestVerificationResult({ featureId: "f5", verdict: "needs_review" }));
+
+      const stats = await getVerificationStats(tempDir);
+
+      expect(stats.total).toBe(5);
+      expect(stats.passing).toBe(2);
+      expect(stats.failing).toBe(1);
+      expect(stats.needsReview).toBe(2);
+    });
+  });
+
+  describe("loadVerificationStore - corrupted results field", () => {
+    it("should handle store with invalid results field", async () => {
+      const storeDir = path.join(tempDir, "ai", "verification");
+      await fs.mkdir(storeDir, { recursive: true });
+
+      // Write store with results set to a non-object value
+      const invalidStore = {
+        results: "not an object",
+        updatedAt: new Date().toISOString(),
+        version: STORE_VERSION,
+      };
+      await fs.writeFile(
+        path.join(storeDir, "results.json"),
+        JSON.stringify(invalidStore)
+      );
+
+      const store = await loadVerificationStore(tempDir);
+
+      expect(store).not.toBeNull();
+      expect(store?.results).toEqual({});
     });
   });
 });
