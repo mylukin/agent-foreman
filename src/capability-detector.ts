@@ -20,6 +20,7 @@ import {
 } from "./capability-cache.js";
 
 import { discoverCapabilitiesWithAI } from "./ai-capability-discovery.js";
+import { debugDetector } from "./debug.js";
 
 const execAsync = promisify(exec);
 
@@ -34,7 +35,8 @@ async function fileExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);
     return true;
-  } catch {
+  } catch (error) {
+    debugDetector("File check failed for %s: %s", filePath, (error as Error).message);
     return false;
   }
 }
@@ -48,7 +50,8 @@ async function commandExists(command: string): Promise<boolean> {
       process.platform === "win32" ? `where ${command}` : `which ${command}`;
     await execAsync(checkCmd);
     return true;
-  } catch {
+  } catch (error) {
+    debugDetector("Command check failed for %s: %s", command, (error as Error).message);
     return false;
   }
 }
@@ -63,7 +66,8 @@ async function readPackageJson(
   try {
     const content = await fs.readFile(pkgPath, "utf-8");
     return JSON.parse(content);
-  } catch {
+  } catch (error) {
+    debugDetector("Failed to read package.json: %s", (error as Error).message);
     return null;
   }
 }
@@ -341,7 +345,8 @@ async function detectGit(cwd: string): Promise<boolean> {
   try {
     await execAsync("git rev-parse --git-dir", { cwd });
     return true;
-  } catch {
+  } catch (error) {
+    debugDetector("Git repository check failed: %s", (error as Error).message);
     return false;
   }
 }

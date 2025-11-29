@@ -8,6 +8,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 
 import type { ExtendedCapabilities, CapabilityCache } from "./verification-types.js";
+import { debugCache } from "./debug.js";
 
 // Cache file path relative to project root
 const CACHE_FILE = "ai/capabilities.json";
@@ -153,6 +154,7 @@ export async function isStale(cwd: string): Promise<boolean> {
 
     // If no commit hash stored, consider stale
     if (!cache.commitHash) {
+      debugCache("No commit hash in cache, marking as stale");
       return true;
     }
 
@@ -163,8 +165,9 @@ export async function isStale(cwd: string): Promise<boolean> {
     const hasChanges = hasBuildFileChanges(cwd, cache.commitHash, trackedFiles);
 
     return hasChanges;
-  } catch {
+  } catch (error) {
     // If cache doesn't exist or is corrupted, it's effectively stale
+    debugCache("isStale check failed: %s", (error as Error).message);
     return true;
   }
 }
@@ -182,10 +185,12 @@ function getGitCommitHash(cwd: string): string | undefined {
       stdio: ["pipe", "pipe", "pipe"],
     });
     if (result.status !== 0) {
+      debugCache("git rev-parse failed with status %d", result.status);
       return undefined;
     }
     return result.stdout.trim();
-  } catch {
+  } catch (error) {
+    debugCache("Failed to get git commit hash: %s", (error as Error).message);
     return undefined;
   }
 }
@@ -203,8 +208,8 @@ async function findExistingBuildFiles(cwd: string): Promise<string[]> {
     try {
       await fs.access(filePath);
       existing.push(file);
-    } catch {
-      // File doesn't exist, skip
+    } catch (error) {
+      debugCache("Build file check failed for %s: %s", file, (error as Error).message);
     }
   }
 
@@ -238,13 +243,15 @@ function hasBuildFileChanges(
 
     // If git command fails, assume stale to be safe
     if (result.status !== 0) {
+      debugCache("git diff failed with status %d", result.status);
       return true;
     }
 
     // If any files returned, cache is stale
     return result.stdout.trim().length > 0;
-  } catch {
+  } catch (error) {
     // If git command fails, assume stale to be safe
+    debugCache("hasBuildFileChanges error: %s", (error as Error).message);
     return true;
   }
 }
@@ -260,7 +267,8 @@ export async function loadFullCache(cwd: string): Promise<CapabilityCache | null
   try {
     const content = await fs.readFile(cachePath, "utf-8");
     return JSON.parse(content);
-  } catch {
+  } catch (error) {
+    debugCache("loadFullCache failed: %s", (error as Error).message);
     return null;
   }
 }

@@ -13,6 +13,7 @@ import type {
   CustomRule,
   CustomRuleType,
 } from "./verification-types.js";
+import { debugDiscovery } from "./debug.js";
 
 // ============================================================================
 // Types
@@ -189,8 +190,8 @@ async function findConfigFiles(cwd: string): Promise<string[]> {
       if (stat.isFile() || stat.isDirectory()) {
         found.push(pattern);
       }
-    } catch {
-      // File doesn't exist
+    } catch (error) {
+      debugDiscovery("Config file check failed for %s: %s", pattern, (error as Error).message);
     }
   }
 
@@ -208,8 +209,8 @@ async function findBuildFiles(cwd: string): Promise<string[]> {
     try {
       await fs.access(filePath);
       found.push(pattern);
-    } catch {
-      // File doesn't exist
+    } catch (error) {
+      debugDiscovery("Build file check failed for %s: %s", pattern, (error as Error).message);
     }
   }
 
@@ -272,8 +273,8 @@ async function getDirectoryStructure(cwd: string): Promise<string> {
           await buildTree(path.join(dir, entry.name), prefix + childPrefix, depth + 1);
         }
       }
-    } catch {
-      // Permission denied or other error, skip this directory
+    } catch (error) {
+      debugDiscovery("Directory traversal error: %s", (error as Error).message);
     }
   }
 
@@ -281,7 +282,8 @@ async function getDirectoryStructure(cwd: string): Promise<string> {
     lines.push("./");
     await buildTree(cwd, "", 0);
     return lines.join("\n").slice(0, 2000);
-  } catch {
+  } catch (error) {
+    debugDiscovery("buildTree failed: %s", (error as Error).message);
     // Fallback: just list top-level directories
     try {
       const entries = await fs.readdir(cwd, { withFileTypes: true });
@@ -290,7 +292,8 @@ async function getDirectoryStructure(cwd: string): Promise<string> {
         .map((e) => e.name)
         .slice(0, 20);
       return `Directories: ${dirs.join(", ")}`;
-    } catch {
+    } catch (fallbackError) {
+      debugDiscovery("Fallback directory read failed: %s", (fallbackError as Error).message);
       return "Unable to read directory structure";
     }
   }
@@ -325,12 +328,12 @@ async function getSampleSourceFiles(
             path: path.relative(cwd, file),
             content: content.slice(0, MAX_CONTENT_PER_FILE),
           });
-        } catch {
-          // Skip unreadable files
+        } catch (error) {
+          debugDiscovery("Failed to read source file %s: %s", file, (error as Error).message);
         }
       }
-    } catch {
-      // Directory doesn't exist
+    } catch (error) {
+      debugDiscovery("Failed to access search dir %s: %s", dir, (error as Error).message);
     }
   }
 
@@ -383,8 +386,8 @@ async function findSourceFilesRecursive(
         files.push(...subFiles);
       }
     }
-  } catch {
-    // Ignore permission errors
+  } catch (error) {
+    debugDiscovery("Recursive file search error in %s: %s", dir, (error as Error).message);
   }
 
   return files;

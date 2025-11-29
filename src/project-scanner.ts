@@ -6,6 +6,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { glob } from "glob";
 import type { DirectoryStructure } from "./types.js";
+import { debugScanner } from "./debug.js";
 
 /**
  * Scan directory structure of a project
@@ -41,7 +42,9 @@ export async function scanDirectoryStructure(basePath: string): Promise<Director
     try {
       const stat = await fs.stat(path.join(basePath, dir));
       if (stat.isDirectory()) structure.srcDirs.push(dir);
-    } catch {}
+    } catch (error) {
+      debugScanner("Source dir check failed for %s: %s", dir, (error as Error).message);
+    }
   }
 
   // Test directories
@@ -50,7 +53,9 @@ export async function scanDirectoryStructure(basePath: string): Promise<Director
     try {
       const stat = await fs.stat(path.join(basePath, dir));
       if (stat.isDirectory()) structure.testDirs.push(dir);
-    } catch {}
+    } catch (error) {
+      debugScanner("Test dir check failed for %s: %s", dir, (error as Error).message);
+    }
   }
 
   // Config files
