@@ -21,25 +21,9 @@ import {
 
 import { discoverCapabilitiesWithAI } from "./ai-capability-discovery.js";
 import { debugDetector } from "./debug.js";
+import { fileExists } from "./file-utils.js";
 
 const execAsync = promisify(exec);
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Check if a file exists
- */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch (error) {
-    debugDetector("File check failed for %s: %s", filePath, (error as Error).message);
-    return false;
-  }
-}
 
 /**
  * Check if a command is available in PATH

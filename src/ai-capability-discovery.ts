@@ -14,6 +14,7 @@ import type {
   CustomRuleType,
 } from "./verification-types.js";
 import { debugDiscovery } from "./debug.js";
+import { fileExists, findFiles as findFilesShared } from "./file-utils.js";
 
 // ============================================================================
 // Types
@@ -179,42 +180,18 @@ const MAX_CONTENT_PER_FILE = 1000;
 
 /**
  * Find config files in project
+ * Uses shared findFiles utility
  */
 async function findConfigFiles(cwd: string): Promise<string[]> {
-  const found: string[] = [];
-
-  for (const pattern of CONFIG_FILE_PATTERNS) {
-    const filePath = path.join(cwd, pattern);
-    try {
-      const stat = await fs.stat(filePath);
-      if (stat.isFile() || stat.isDirectory()) {
-        found.push(pattern);
-      }
-    } catch (error) {
-      debugDiscovery("Config file check failed for %s: %s", pattern, (error as Error).message);
-    }
-  }
-
-  return found;
+  return findFilesShared(cwd, CONFIG_FILE_PATTERNS);
 }
 
 /**
  * Find build files in project
+ * Uses shared findFiles utility
  */
 async function findBuildFiles(cwd: string): Promise<string[]> {
-  const found: string[] = [];
-
-  for (const pattern of BUILD_FILE_PATTERNS) {
-    const filePath = path.join(cwd, pattern);
-    try {
-      await fs.access(filePath);
-      found.push(pattern);
-    } catch (error) {
-      debugDiscovery("Build file check failed for %s: %s", pattern, (error as Error).message);
-    }
-  }
-
-  return found;
+  return findFilesShared(cwd, BUILD_FILE_PATTERNS);
 }
 
 /**
