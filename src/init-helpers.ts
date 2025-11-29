@@ -180,16 +180,8 @@ export async function generateHarnessFiles(
   goal: string,
   mode: InitMode
 ): Promise<void> {
-  // Generate init.sh
-  const initScript =
-    survey.commands.install || survey.commands.dev || survey.commands.test
-      ? generateInitScript(survey.commands)
-      : generateMinimalInitScript();
-
-  await fs.mkdir(path.join(cwd, "ai"), { recursive: true });
-  await fs.writeFile(path.join(cwd, "ai/init.sh"), initScript);
-  await fs.chmod(path.join(cwd, "ai/init.sh"), 0o755);
-  console.log(chalk.green("✓ Generated ai/init.sh"));
+  // Generate init.sh (with AI merge support in merge mode)
+  await generateOrMergeInitScript(cwd, survey, mode);
 
   // Generate or update CLAUDE.md
   await updateClaudeMd(cwd, goal);
@@ -208,6 +200,97 @@ export async function generateHarnessFiles(
     console.log(chalk.cyan("\n📝 Suggested git commit:"));
     console.log(chalk.white('   git add ai/ CLAUDE.md docs/ && git commit -m "chore: initialize agent-foreman harness"'));
   }
+}
+
+/**
+ * Helper: Generate or merge init.sh script
+ * In merge mode, uses AI to intelligently merge user customizations with new template
+ */
+async function generateOrMergeInitScript(
+  cwd: string,
+  survey: ReturnType<typeof aiResultToSurvey>,
+  mode: InitMode
+): Promise<void> {
+  const initScriptPath = path.join(cwd, "ai/init.sh");
+
+  // Generate new init.sh template
+  const newInitScript =
+    survey.commands.install || survey.commands.dev || survey.commands.test
+      ? generateInitScript(survey.commands)
+      : generateMinimalInitScript();
+
+  await fs.mkdir(path.join(cwd, "ai"), { recursive: true });
+
+  // Check if existing init.sh exists
+  let existingScript = "";
+  let existingScriptExists = false;
+
+  try {
+    existingScript = await fs.readFile(initScriptPath, "utf-8");
+    existingScriptExists = true;
+  } catch {
+    debugInit("ai/init.sh doesn't exist, will create new");
+  }
+
+  // If merge mode and existing script exists, use AI to merge
+  if (mode === "merge" && existingScriptExists && existingScript.trim().length > 0) {
+    console.log(chalk.blue("  ai/init.sh exists, using AI to merge your customizations..."));
+
+    const mergePrompt = `You are merging two bash scripts. The user has customized their ai/init.sh script, and we have a new template with potentially new features or commands.
+
+## Existing ai/init.sh (USER'S CUSTOMIZED VERSION - PRESERVE THEIR CHANGES):
+\`\`\`bash
+${existingScript}
+\`\`\`
+
+## New template ai/init.sh (MAY CONTAIN NEW FEATURES):
+\`\`\`bash
+${newInitScript}
+\`\`\`
+
+## Merge Rules (CRITICAL - FOLLOW EXACTLY):
+1. **PRESERVE all user customizations** in existing functions (bootstrap, dev, check, build, status, etc.)
+2. **ADD new functions** from the template that don't exist in the user's version (e.g., "verify" function)
+3. **ADD new case statements** in the main entry point for any new functions
+4. **PRESERVE user's custom commands** - if user changed "npm install" to "pnpm install", keep their change
+5. **PRESERVE user's custom functions** - if user added their own functions, keep them
+6. **UPDATE the help text** to include any new commands
+7. **DO NOT replace** user's working commands with template defaults
+8. **MAINTAIN bash script validity** - ensure the output is a valid executable bash script
+
+## Merge Strategy:
+- For each function in the existing script: KEEP the user's version
+- For each function in the new template that's NOT in existing: ADD it
+- For the case statement: MERGE (keep existing cases, add new ones)
+- For show_help: UPDATE to list all available commands
+
+## Output:
+Return ONLY the merged bash script content. No explanations, no markdown code blocks, just the raw bash script starting with #!/usr/bin/env bash`;
+
+    const result = await callAnyAvailableAgent(mergePrompt, { cwd });
+
+    if (result.success && result.output.trim().length > 0) {
+      // Validate the output looks like a bash script
+      const mergedScript = result.output.trim();
+      if (mergedScript.startsWith("#!/usr/bin/env bash") || mergedScript.startsWith("#!/bin/bash")) {
+        await fs.writeFile(initScriptPath, mergedScript + "\n");
+        await fs.chmod(initScriptPath, 0o755);
+        console.log(chalk.green("✓ Updated ai/init.sh (merged by AI - your customizations preserved)"));
+        return;
+      } else {
+        console.log(chalk.yellow("  AI merge output doesn't look like a valid bash script, falling back..."));
+      }
+    } else {
+      console.log(chalk.yellow("  AI merge failed, keeping your existing ai/init.sh unchanged"));
+      console.log(chalk.gray("  (Run with --mode new to force regeneration)"));
+      return; // Keep existing script unchanged
+    }
+  }
+
+  // New mode or no existing script: write new template
+  await fs.writeFile(initScriptPath, newInitScript);
+  await fs.chmod(initScriptPath, 0o755);
+  console.log(chalk.green("✓ Generated ai/init.sh"));
 }
 
 /**
