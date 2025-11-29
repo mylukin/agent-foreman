@@ -33,6 +33,22 @@ export type FeatureOrigin =
   | "replan"; // Added during replanning
 
 /**
+ * Summary of verification result to embed in Feature
+ */
+export interface FeatureVerificationSummary {
+  /** Last verification timestamp (ISO 8601) */
+  verifiedAt: string;
+  /** Verification verdict */
+  verdict: "pass" | "fail" | "needs_review";
+  /** Agent that performed verification */
+  verifiedBy: string;
+  /** Git commit hash at verification time */
+  commitHash?: string;
+  /** Brief summary of the verification result */
+  summary: string;
+}
+
+/**
  * Single feature entry in the feature list
  */
 export interface Feature {
@@ -60,6 +76,8 @@ export interface Feature {
   origin: FeatureOrigin;
   /** Additional context or notes */
   notes: string;
+  /** Last verification result (optional) */
+  verification?: FeatureVerificationSummary;
 }
 
 /**
@@ -95,8 +113,9 @@ export interface FeatureListMetadata {
  * - STEP: Feature implementation step
  * - CHANGE: Feature status change
  * - REPLAN: Major replanning event
+ * - VERIFY: Feature verification result
  */
-export type ProgressLogType = "INIT" | "STEP" | "CHANGE" | "REPLAN";
+export type ProgressLogType = "INIT" | "STEP" | "CHANGE" | "REPLAN" | "VERIFY";
 
 /**
  * Progress log entry structure

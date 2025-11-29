@@ -198,11 +198,15 @@ describe("Feature List Schema", () => {
 
     it("should reject invalid feature IDs", () => {
       expect(isValidFeatureId("")).toBe(false);
-      expect(isValidFeatureId("Auth")).toBe(false); // uppercase
       expect(isValidFeatureId("1auth")).toBe(false); // starts with number
       expect(isValidFeatureId("auth-login")).toBe(false); // hyphen
       expect(isValidFeatureId("auth login")).toBe(false); // space
       expect(isValidFeatureId(".auth")).toBe(false); // starts with dot
+    });
+
+    it("should accept uppercase feature IDs", () => {
+      expect(isValidFeatureId("Auth")).toBe(true); // uppercase allowed
+      expect(isValidFeatureId("AuthLogin")).toBe(true);
     });
   });
 

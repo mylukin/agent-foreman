@@ -18,6 +18,7 @@ import {
   selectNextFeature,
   findFeatureById,
   updateFeatureStatus,
+  updateFeatureVerification,
   mergeFeatures,
   createEmptyFeatureList,
   discoveredToFeature,
@@ -29,10 +30,17 @@ import {
   readProgressLog,
   createInitEntry,
   createStepEntry,
+  createVerifyEntry,
   getRecentEntries,
 } from "./progress-log.js";
 import { generateInitScript, generateMinimalInitScript } from "./init-script.js";
 import { generateClaudeMd, generateHarnessSection, generateFeatureGuidance } from "./prompts.js";
+import {
+  verifyFeature,
+  createVerificationSummary,
+  formatVerificationResult,
+} from "./verifier.js";
+import type { FeatureVerificationSummary } from "./verification-types.js";
 import type { InitMode, Feature } from "./types.js";
 
 /**
@@ -195,6 +203,32 @@ async function main() {
           }),
       async (argv) => {
         await runComplete(argv.feature_id!, argv.notes);
+      }
+    )
+    .command(
+      "verify <feature_id>",
+      "AI-powered verification of feature completion",
+      (yargs) =>
+        yargs
+          .positional("feature_id", {
+            describe: "Feature ID to verify",
+            type: "string",
+            demandOption: true,
+          })
+          .option("verbose", {
+            alias: "v",
+            type: "boolean",
+            default: false,
+            describe: "Show detailed AI reasoning",
+          })
+          .option("skip-checks", {
+            alias: "s",
+            type: "boolean",
+            default: false,
+            describe: "Skip automated checks, AI only",
+          }),
+      async (argv) => {
+        await runVerify(argv.feature_id!, argv.verbose, argv.skipChecks);
       }
     )
     .command(
@@ -744,6 +778,79 @@ async function runImpact(featureId: string) {
     console.log(chalk.white("   2. Mark uncertain features as 'needs_review'"));
     console.log(chalk.white("   3. Update feature notes with impact details"));
     console.log("");
+  }
+}
+
+async function runVerify(featureId: string, verbose: boolean, skipChecks: boolean) {
+  const cwd = process.cwd();
+
+  // Load feature list
+  const featureList = await loadFeatureList(cwd);
+  if (!featureList) {
+    console.log(chalk.red("✗ No feature list found. Run 'agent-foreman init' first."));
+    process.exit(1);
+  }
+
+  // Find feature
+  const feature = findFeatureById(featureList.features, featureId);
+  if (!feature) {
+    console.log(chalk.red(`✗ Feature '${featureId}' not found.`));
+    process.exit(1);
+  }
+
+  console.log(chalk.bold.blue("\n═══════════════════════════════════════════════════════════════"));
+  console.log(chalk.bold.blue("                    FEATURE VERIFICATION"));
+  console.log(chalk.bold.blue("═══════════════════════════════════════════════════════════════\n"));
+
+  console.log(chalk.bold(`📋 Feature: ${chalk.cyan(feature.id)}`));
+  console.log(chalk.gray(`   Module: ${feature.module} | Priority: ${feature.priority}`));
+  console.log("");
+  console.log(chalk.bold("📝 Acceptance Criteria:"));
+  feature.acceptance.forEach((a, i) => {
+    console.log(chalk.white(`   ${i + 1}. ${a}`));
+  });
+
+  // Run verification
+  const result = await verifyFeature(cwd, feature, {
+    verbose,
+    skipChecks,
+  });
+
+  // Display result
+  console.log(formatVerificationResult(result, verbose));
+
+  // Update feature with verification summary
+  const summary = createVerificationSummary(result);
+  featureList.features = updateFeatureVerification(
+    featureList.features,
+    featureId,
+    summary
+  );
+
+  // Save feature list
+  await saveFeatureList(cwd, featureList);
+
+  // Log to progress
+  await appendProgressLog(
+    cwd,
+    createVerifyEntry(
+      featureId,
+      result.verdict,
+      `Verified ${featureId}: ${result.verdict}`
+    )
+  );
+
+  console.log(chalk.gray(`\n   Results saved to ai/verification/results.json`));
+  console.log(chalk.gray(`   Feature list updated with verification summary`));
+
+  // Suggest next action
+  if (result.verdict === "pass") {
+    console.log(chalk.green("\n   ✓ Feature verified successfully!"));
+    console.log(chalk.cyan(`   Run 'agent-foreman complete ${featureId}' to mark as passing`));
+  } else if (result.verdict === "fail") {
+    console.log(chalk.red("\n   ✗ Verification failed. Review the criteria above and fix issues."));
+  } else {
+    console.log(chalk.yellow("\n   ⚠ Needs review. Some criteria could not be verified automatically."));
   }
 }
 

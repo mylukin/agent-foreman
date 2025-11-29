@@ -3,7 +3,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Feature, FeatureList, FeatureStatus, DiscoveredFeature } from "./types.js";
+import type { Feature, FeatureList, FeatureStatus, FeatureVerificationSummary, DiscoveredFeature } from "./types.js";
 import { validateFeatureList } from "./schema.js";
 
 /** Default path for feature list file */
@@ -107,6 +107,25 @@ export function updateFeatureStatus(
         ...f,
         status,
         notes: notes ?? f.notes,
+      };
+    }
+    return f;
+  });
+}
+
+/**
+ * Update feature verification summary
+ */
+export function updateFeatureVerification(
+  features: Feature[],
+  id: string,
+  verification: FeatureVerificationSummary
+): Feature[] {
+  return features.map((f) => {
+    if (f.id === id) {
+      return {
+        ...f,
+        verification,
       };
     }
     return f;
