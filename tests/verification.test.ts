@@ -1,7 +1,7 @@
 /**
  * Tests for the verification system
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -21,6 +21,8 @@ import {
 import {
   buildVerificationPrompt,
   parseVerificationResponse,
+  truncateDiffIntelligently,
+  DEFAULT_MAX_DIFF_SIZE,
 } from "../src/verification-prompts.js";
 
 import type {
@@ -521,6 +523,237 @@ Thank you.`;
       const result = parseVerificationResponse(response, []);
 
       expect(result.verdict).toBe("needs_review");
+    });
+  });
+
+  describe("truncateDiffIntelligently", () => {
+    it("should return diff as-is when under limit", () => {
+      const diff = "small diff content";
+      const result = truncateDiffIntelligently(diff, { maxSize: 1000 });
+
+      expect(result.wasTruncated).toBe(false);
+      expect(result.diff).toBe(diff);
+      expect(result.originalSize).toBe(diff.length);
+      expect(result.truncatedSize).toBe(diff.length);
+    });
+
+    it("should export DEFAULT_MAX_DIFF_SIZE constant", () => {
+      expect(DEFAULT_MAX_DIFF_SIZE).toBe(10000);
+    });
+
+    it("should truncate large diff with simple fallback when no file sections found", () => {
+      // Create a large string without git diff format
+      const largeDiff = "x".repeat(15000);
+      const result = truncateDiffIntelligently(largeDiff, { maxSize: 1000, logWarnings: false });
+
+      expect(result.wasTruncated).toBe(true);
+      expect(result.originalSize).toBe(15000);
+      expect(result.diff.length).toBeLessThan(2000); // Less than 2x maxSize
+      expect(result.diff).toContain("truncated");
+    });
+
+    it("should preserve file headers when truncating", () => {
+      const diff = `diff --git a/src/file1.ts b/src/file1.ts
+index abc123..def456 100644
+--- a/src/file1.ts
++++ b/src/file1.ts
+@@ -1,5 +1,10 @@
++added line 1
++added line 2
++added line 3
+ context line
+-removed line
++new line
+${"x".repeat(20000)}`;
+
+      const result = truncateDiffIntelligently(diff, { maxSize: 500, logWarnings: false });
+
+      expect(result.wasTruncated).toBe(true);
+      expect(result.diff).toContain("diff --git a/src/file1.ts");
+      expect(result.diff).toContain("--- a/src/file1.ts");
+      expect(result.diff).toContain("+++ b/src/file1.ts");
+    });
+
+    it("should keep hunk headers when truncating", () => {
+      const diff = `diff --git a/src/test.ts b/src/test.ts
+--- a/src/test.ts
++++ b/src/test.ts
+@@ -10,5 +10,10 @@
++added line
+-removed line
+${"context ".repeat(3000)}`;
+
+      const result = truncateDiffIntelligently(diff, { maxSize: 400, logWarnings: false });
+
+      expect(result.wasTruncated).toBe(true);
+      expect(result.diff).toContain("@@ -10,5 +10,10 @@");
+    });
+
+    it("should prioritize changed lines (+/-) over context lines", () => {
+      // Create a diff larger than maxSize with lots of context and some changes
+      // The changed lines are in the middle - they should be prioritized
+      const contextLines = Array.from({ length: 30 }, (_, i) => ` context line ${i}`).join("\n");
+      const diff = `diff --git a/src/test.ts b/src/test.ts
+--- a/src/test.ts
++++ b/src/test.ts
+@@ -1,60 +1,62 @@
+${contextLines}
++important added line
+-important removed line
+${contextLines}`;
+
+      // Use a maxSize large enough to include headers and some content
+      const result = truncateDiffIntelligently(diff, { maxSize: 800, logWarnings: false });
+
+      expect(result.wasTruncated).toBe(true);
+      // Changed lines should be kept (they are prioritized)
+      expect(result.diff).toContain("+important added line");
+      expect(result.diff).toContain("-important removed line");
+    });
+
+    it("should handle multiple file sections", () => {
+      const diff = `diff --git a/src/file1.ts b/src/file1.ts
+--- a/src/file1.ts
++++ b/src/file1.ts
+@@ -1,3 +1,4 @@
++added in file1
+ context
+diff --git a/src/file2.ts b/src/file2.ts
+--- a/src/file2.ts
++++ b/src/file2.ts
+@@ -1,3 +1,4 @@
++added in file2
+ context`;
+
+      const result = truncateDiffIntelligently(diff, { maxSize: 500, logWarnings: false });
+
+      // Both file headers should be present
+      expect(result.diff).toContain("diff --git a/src/file1.ts");
+      expect(result.diff).toContain("diff --git a/src/file2.ts");
+    });
+
+    it("should include truncation message in output", () => {
+      const diff = `diff --git a/src/test.ts b/src/test.ts
+--- a/src/test.ts
++++ b/src/test.ts
+@@ -1,100 +1,100 @@
+${"content line\n".repeat(1000)}`;
+
+      const result = truncateDiffIntelligently(diff, { maxSize: 500, logWarnings: false });
+
+      expect(result.wasTruncated).toBe(true);
+      expect(result.diff).toContain("intelligently truncated");
+    });
+
+    it("should log warning when logWarnings is true", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const largeDiff = `diff --git a/src/test.ts b/src/test.ts
+${"x".repeat(15000)}`;
+
+      truncateDiffIntelligently(largeDiff, { maxSize: 1000, logWarnings: true });
+
+      expect(warnSpy).toHaveBeenCalled();
+      expect(warnSpy.mock.calls[0][0]).toContain("[verification-prompts]");
+
+      warnSpy.mockRestore();
+    });
+
+    it("should not log warning when logWarnings is false", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const largeDiff = `diff --git a/src/test.ts b/src/test.ts
+${"x".repeat(15000)}`;
+
+      truncateDiffIntelligently(largeDiff, { maxSize: 1000, logWarnings: false });
+
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it("should use default maxSize when not specified", () => {
+      const diff = "small diff";
+      const result = truncateDiffIntelligently(diff);
+
+      expect(result.wasTruncated).toBe(false);
+      // Default is 10000, so small diff should not be truncated
+    });
+
+    it("should handle new file mode in headers", () => {
+      const diff = `diff --git a/src/new-file.ts b/src/new-file.ts
+new file mode 100644
+index 0000000..abc123
+--- /dev/null
++++ b/src/new-file.ts
+@@ -0,0 +1,5 @@
++line 1
++line 2
++line 3
++line 4
++line 5`;
+
+      const result = truncateDiffIntelligently(diff, { maxSize: 10000, logWarnings: false });
+
+      expect(result.wasTruncated).toBe(false);
+      expect(result.diff).toContain("new file mode");
+    });
+
+    it("should handle deleted file mode in headers", () => {
+      const diff = `diff --git a/src/deleted-file.ts b/src/deleted-file.ts
+deleted file mode 100644
+index abc123..0000000
+--- a/src/deleted-file.ts
++++ /dev/null
+@@ -1,5 +0,0 @@
+-line 1
+-line 2`;
+
+      const result = truncateDiffIntelligently(diff, { maxSize: 10000, logWarnings: false });
+
+      expect(result.wasTruncated).toBe(false);
+      expect(result.diff).toContain("deleted file mode");
+    });
+  });
+
+  describe("buildVerificationPrompt with truncation", () => {
+    it("should truncate large diffs in prompt", () => {
+      const feature = createTestFeature();
+      const largeDiff = `diff --git a/src/test.ts b/src/test.ts
+--- a/src/test.ts
++++ b/src/test.ts
+@@ -1,100 +1,100 @@
+${"content line\n".repeat(2000)}`;
+
+      const prompt = buildVerificationPrompt(
+        feature,
+        largeDiff,
+        ["src/test.ts"],
+        [],
+        undefined,
+        { maxSize: 500, logWarnings: false }
+      );
+
+      // Prompt should be smaller than original diff
+      expect(prompt.length).toBeLessThan(largeDiff.length);
+      expect(prompt).toContain("truncated");
+    });
+
+    it("should accept truncation options parameter", () => {
+      const feature = createTestFeature();
+      const diff = "small diff";
+
+      // Should not throw with options parameter
+      const prompt = buildVerificationPrompt(
+        feature,
+        diff,
+        [],
+        [],
+        undefined,
+        { maxSize: 20000 }
+      );
+
+      expect(prompt).toContain("small diff");
     });
   });
 });
