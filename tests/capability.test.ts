@@ -12,6 +12,7 @@ import {
   invalidateCache,
   isStale,
   CACHE_VERSION,
+  loadFullCache,
 } from "../src/capability-cache.js";
 
 import {
@@ -222,6 +223,99 @@ describe("Capability Cache", () => {
 
       const result = await isStale(tempDir);
       expect(result).toBe(true);
+    });
+
+    it("should return true for corrupted JSON cache", async () => {
+      const cacheDir = path.join(tempDir, "ai");
+      await fs.mkdir(cacheDir, { recursive: true });
+      await fs.writeFile(
+        path.join(cacheDir, "capabilities.json"),
+        "not valid json"
+      );
+
+      const result = await isStale(tempDir);
+      expect(result).toBe(true);
+    });
+
+    it("should return true when trackedFiles is undefined", async () => {
+      const cache: CapabilityCache = {
+        version: CACHE_VERSION,
+        capabilities: createTestCapabilities(),
+        commitHash: "abc123",
+        // trackedFiles undefined - should use BUILD_FILES as default
+      };
+
+      const cacheDir = path.join(tempDir, "ai");
+      await fs.mkdir(cacheDir, { recursive: true });
+      await fs.writeFile(
+        path.join(cacheDir, "capabilities.json"),
+        JSON.stringify(cache)
+      );
+
+      // Non-git directory will return true from hasBuildFileChanges
+      const result = await isStale(tempDir);
+      expect(result).toBe(true);
+    });
+  });
+
+  describe("loadFullCache", () => {
+    it("should return null for non-existent cache", async () => {
+      const result = await loadFullCache(tempDir);
+      expect(result).toBeNull();
+    });
+
+    it("should return full cache object with metadata", async () => {
+      const cache: CapabilityCache = {
+        version: CACHE_VERSION,
+        capabilities: createTestCapabilities(),
+        commitHash: "abc123def456",
+        trackedFiles: ["package.json", "yarn.lock"],
+      };
+
+      const cacheDir = path.join(tempDir, "ai");
+      await fs.mkdir(cacheDir, { recursive: true });
+      await fs.writeFile(
+        path.join(cacheDir, "capabilities.json"),
+        JSON.stringify(cache)
+      );
+
+      const result = await loadFullCache(tempDir);
+
+      expect(result).not.toBeNull();
+      expect(result?.version).toBe(CACHE_VERSION);
+      expect(result?.commitHash).toBe("abc123def456");
+      expect(result?.trackedFiles).toEqual(["package.json", "yarn.lock"]);
+    });
+
+    it("should return null for corrupted cache", async () => {
+      const cacheDir = path.join(tempDir, "ai");
+      await fs.mkdir(cacheDir, { recursive: true });
+      await fs.writeFile(
+        path.join(cacheDir, "capabilities.json"),
+        "{ not valid json"
+      );
+
+      const result = await loadFullCache(tempDir);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("invalidateCache error handling", () => {
+    it("should throw for permission errors (non-ENOENT)", async () => {
+      // Create a read-only directory to trigger permission error
+      // This test may not work on all systems
+      const cacheDir = path.join(tempDir, "ai");
+      await fs.mkdir(cacheDir, { recursive: true });
+      const cachePath = path.join(cacheDir, "capabilities.json");
+      await fs.writeFile(cachePath, "{}");
+
+      // Make directory read-only (may not work on Windows)
+      if (process.platform !== "win32") {
+        await fs.chmod(cacheDir, 0o444);
+        await expect(invalidateCache(tempDir)).rejects.toThrow();
+        // Restore permissions for cleanup
+        await fs.chmod(cacheDir, 0o755);
+      }
     });
   });
 });
