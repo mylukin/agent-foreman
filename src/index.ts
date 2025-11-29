@@ -342,20 +342,6 @@ async function main() {
         await runDetectCapabilities(argv.force, argv.ai, argv.verbose);
       }
     )
-    .command(
-      "install-commands",
-      "Install foreman slash commands to ~/.claude/commands/",
-      (yargs) =>
-        yargs.option("force", {
-          alias: "f",
-          type: "boolean",
-          default: false,
-          describe: "Force overwrite existing commands",
-        }),
-      async (argv) => {
-        await runInstallCommands(argv.force);
-      }
-    )
     .demandCommand(1, "You need at least one command")
     .help()
     .version()
@@ -1216,94 +1202,6 @@ async function runDetectCapabilities(
     console.log(chalk.gray(`  Cache: ai/capabilities.json`));
   } catch (error) {
     spinner.fail(`Detection failed: ${(error as Error).message}`);
-    process.exit(1);
-  }
-}
-
-/**
- * Install foreman slash commands to ~/.claude/commands/
- */
-async function runInstallCommands(force: boolean) {
-  const { homedir } = await import("node:os");
-  const { fileURLToPath } = await import("node:url");
-  const { dirname } = await import("node:path");
-
-  const COMMAND_FILES = [
-    "foreman-survey.md",
-    "foreman-init.md",
-    "foreman-step.md",
-  ];
-
-  const claudeCommandsDir = path.join(homedir(), ".claude", "commands");
-
-  // Find commands directory relative to the installed package
-  // When running from source: src/index.ts -> ../commands
-  // When running from dist: dist/index.js -> ../commands
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  const sourceDir = path.join(__dirname, "..", "commands");
-
-  console.log(chalk.blue("📦 Installing foreman slash commands..."));
-
-  try {
-    // Create ~/.claude/commands/ if it doesn't exist
-    await fs.mkdir(claudeCommandsDir, { recursive: true });
-
-    let installed = 0;
-    let skipped = 0;
-    let overwritten = 0;
-
-    for (const file of COMMAND_FILES) {
-      const sourcePath = path.join(sourceDir, file);
-      const destPath = path.join(claudeCommandsDir, file);
-
-      try {
-        // Check if source file exists
-        await fs.access(sourcePath);
-
-        // Check if destination already exists
-        let exists = false;
-        try {
-          await fs.access(destPath);
-          exists = true;
-        } catch {
-          // File doesn't exist
-        }
-
-        if (exists && !force) {
-          console.log(chalk.gray(`   Skipped: ${file} (already exists)`));
-          skipped++;
-          continue;
-        }
-
-        await fs.copyFile(sourcePath, destPath);
-
-        if (exists) {
-          console.log(chalk.yellow(`   Overwritten: ${file}`));
-          overwritten++;
-        } else {
-          console.log(chalk.green(`   Installed: ${file}`));
-          installed++;
-        }
-      } catch (err) {
-        console.log(chalk.red(`   Failed: ${file} - ${(err as Error).message}`));
-      }
-    }
-
-    console.log("");
-    if (installed > 0 || overwritten > 0) {
-      console.log(chalk.green(`✓ Installed ${installed + overwritten} command(s) to ~/.claude/commands/`));
-    }
-    if (skipped > 0) {
-      console.log(chalk.gray(`  Skipped ${skipped} existing command(s). Use --force to overwrite.`));
-    }
-    console.log("");
-    console.log(chalk.cyan("  Available commands:"));
-    console.log(chalk.white("    /foreman-survey - Analyze project structure"));
-    console.log(chalk.white("    /foreman-init   - Initialize harness"));
-    console.log(chalk.white("    /foreman-step   - Work on next feature"));
-  } catch (err) {
-    console.error(chalk.red(`\n✗ Installation failed: ${(err as Error).message}`));
     process.exit(1);
   }
 }

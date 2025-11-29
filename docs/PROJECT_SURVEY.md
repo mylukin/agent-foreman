@@ -123,7 +123,7 @@ Agent-foreman is a TypeScript CLI harness that uses AI agents to survey projects
 - **Description**: Dependency graph analysis to find affected features, recommendations, readiness checks, ordering, and depth calculations.
 
 ### Plugins
-- **Path**: `plugins/agent-foreman`
+- **Path**: `plugins/foreman`
 - **Status**: complete
 - **Description**: Claude plugin assets (agent profile, slash commands, skills) documenting workflows for survey/init/feature steps.
 
