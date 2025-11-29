@@ -1,5 +1,5 @@
 {
-  "name": "agent-foreman",
+  "name": "foreman",
   "owner": {
     "name": "Lukin",
     "email": "mylukin@gmail.com",
@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Long Task Harness for AI agents - feature-driven development with external memory",
-    "version": "0.1.19"
+    "version": "0.1.20"
   },
   "plugins": [
     {
-      "name": "agent-foreman",
+      "name": "foreman",
       "source": "./plugins/foreman",
       "description": "Long Task Harness providing external memory, feature-driven workflow, and clean agent handoffs",
-      "version": "0.1.19",
+      "version": "0.1.20",
       "author": {
         "name": "Lukin",
         "url": "https://github.com/mylukin"

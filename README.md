@@ -72,8 +72,8 @@ agent-foreman is available as a Claude Code plugin:
 
 ```bash
 # Install plugin
-/plugin marketplace add mylukin/agent-foreman
-/plugin install agent-foreman
+/plugin marketplace add mylukin/foreman
+/plugin install foreman
 ```
 
 ---
