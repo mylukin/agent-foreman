@@ -37,6 +37,7 @@ import { generateInitScript, generateMinimalInitScript } from "./init-script.js"
 import { generateClaudeMd, generateHarnessSection, generateFeatureGuidance } from "./prompts.js";
 import {
   verifyFeature,
+  verifyFeatureAutonomous,
   createVerificationSummary,
   formatVerificationResult,
 } from "./verifier.js";
@@ -266,9 +267,15 @@ async function main() {
             type: "boolean",
             default: false,
             describe: "Show detailed verification output",
+          })
+          .option("autonomous", {
+            alias: "a",
+            type: "boolean",
+            default: false,
+            describe: "Use autonomous AI exploration (recommended)",
           }),
       async (argv) => {
-        await runComplete(argv.feature_id!, argv.notes, !argv.noCommit, argv.skipVerify, argv.verbose);
+        await runComplete(argv.feature_id!, argv.notes, !argv.noCommit, argv.skipVerify, argv.verbose, argv.autonomous);
       }
     )
     .command(
@@ -292,9 +299,15 @@ async function main() {
             type: "boolean",
             default: false,
             describe: "Skip automated checks, AI only",
+          })
+          .option("autonomous", {
+            alias: "a",
+            type: "boolean",
+            default: false,
+            describe: "Use autonomous AI exploration (recommended)",
           }),
       async (argv) => {
-        await runVerify(argv.feature_id!, argv.verbose, argv.skipChecks);
+        await runVerify(argv.feature_id!, argv.verbose, argv.skipChecks, argv.autonomous);
       }
     )
     .command(
@@ -865,7 +878,7 @@ async function runImpact(featureId: string) {
   }
 }
 
-async function runVerify(featureId: string, verbose: boolean, skipChecks: boolean) {
+async function runVerify(featureId: string, verbose: boolean, skipChecks: boolean, autonomous: boolean = false) {
   const cwd = process.cwd();
 
   // Load feature list
@@ -888,17 +901,19 @@ async function runVerify(featureId: string, verbose: boolean, skipChecks: boolea
 
   console.log(chalk.bold(`📋 Feature: ${chalk.cyan(feature.id)}`));
   console.log(chalk.gray(`   Module: ${feature.module} | Priority: ${feature.priority}`));
+  if (autonomous) {
+    console.log(chalk.cyan(`   Mode: Autonomous AI exploration`));
+  }
   console.log("");
   console.log(chalk.bold("📝 Acceptance Criteria:"));
   feature.acceptance.forEach((a, i) => {
     console.log(chalk.white(`   ${i + 1}. ${a}`));
   });
 
-  // Run verification
-  const result = await verifyFeature(cwd, feature, {
-    verbose,
-    skipChecks,
-  });
+  // Run verification (choose mode)
+  const result = autonomous
+    ? await verifyFeatureAutonomous(cwd, feature, { verbose, skipChecks })
+    : await verifyFeature(cwd, feature, { verbose, skipChecks });
 
   // Display result
   console.log(formatVerificationResult(result, verbose));
@@ -961,7 +976,8 @@ async function runComplete(
   notes?: string,
   autoCommit: boolean = true,
   skipVerify: boolean = false,
-  verbose: boolean = false
+  verbose: boolean = false,
+  autonomous: boolean = false
 ) {
   const cwd = process.cwd();
 
@@ -988,17 +1004,19 @@ async function runComplete(
 
     console.log(chalk.bold(`📋 Feature: ${chalk.cyan(feature.id)}`));
     console.log(chalk.gray(`   Module: ${feature.module} | Priority: ${feature.priority}`));
+    if (autonomous) {
+      console.log(chalk.cyan(`   Mode: Autonomous AI exploration`));
+    }
     console.log("");
     console.log(chalk.bold("📝 Acceptance Criteria:"));
     feature.acceptance.forEach((a, i) => {
       console.log(chalk.white(`   ${i + 1}. ${a}`));
     });
 
-    // Run verification
-    const result = await verifyFeature(cwd, feature, {
-      verbose,
-      skipChecks: false,
-    });
+    // Run verification (choose mode)
+    const result = autonomous
+      ? await verifyFeatureAutonomous(cwd, feature, { verbose, skipChecks: false })
+      : await verifyFeature(cwd, feature, { verbose, skipChecks: false });
 
     // Display result
     console.log(formatVerificationResult(result, verbose));
