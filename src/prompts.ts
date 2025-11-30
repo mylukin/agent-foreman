@@ -19,7 +19,7 @@ ${goal}
 | File | Purpose |
 |------|---------|
 | \`ai/feature_list.json\` | Feature backlog with status tracking |
-| \`ai/progress.md\` | Session handoff audit log |
+| \`ai/progress.log\` | Session handoff audit log |
 | \`ai/init.sh\` | Bootstrap script (install/dev/check) |
 
 ### Feature Status Values
@@ -32,7 +32,7 @@ ${goal}
 
 ### Workflow for Each Session
 
-1. **Start** - Read \`ai/feature_list.json\` and recent \`ai/progress.md\`
+1. **Start** - Read \`ai/feature_list.json\` and recent \`ai/progress.log\`
 2. **Select** - Pick the highest priority feature (\`needs_review\` > \`failing\`)
 3. **Plan** - Review acceptance criteria before coding
 4. **Implement** - Work on ONE feature at a time
@@ -50,7 +50,7 @@ ${goal}
 
 ### Progress Log Format
 
-Append entries to \`ai/progress.md\` using this **single-line format only**:
+Append entries to \`ai/progress.log\` using this **single-line format only**:
 
 \`\`\`
 STEP 2025-01-15T10:30:00Z feature=auth.login status=passing summary="Implemented login flow"

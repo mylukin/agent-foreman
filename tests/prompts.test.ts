@@ -28,7 +28,7 @@ describe("Prompts", () => {
       expect(section).toContain("### Core Files");
       expect(section).toContain("| File | Purpose |");
       expect(section).toContain("`ai/feature_list.json`");
-      expect(section).toContain("`ai/progress.md`");
+      expect(section).toContain("`ai/progress.log`");
       expect(section).toContain("`ai/init.sh`");
     });
 

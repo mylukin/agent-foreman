@@ -69,13 +69,28 @@ describe("Feature List Schema", () => {
       expect(result.errors.some((e) => e.includes("status"))).toBe(true);
     });
 
-    it("should reject invalid feature ID format", () => {
+    it("should accept flexible feature ID formats", () => {
+      // Now accepts any non-empty string
+      const valid = {
+        ...validFeatureList,
+        features: [
+          {
+            ...validFeatureList.features[0],
+            id: "Any-Format_123.test",
+          },
+        ],
+      };
+      const result = validateFeatureList(valid);
+      expect(result.valid).toBe(true);
+    });
+
+    it("should reject empty feature ID", () => {
       const invalid = {
         ...validFeatureList,
         features: [
           {
             ...validFeatureList.features[0],
-            id: "Invalid-ID", // uppercase not allowed
+            id: "",
           },
         ],
       };
@@ -187,26 +202,24 @@ describe("Feature List Schema", () => {
   });
 
   describe("isValidFeatureId", () => {
-    it("should accept valid feature IDs", () => {
+    it("should accept any non-empty string without double quotes", () => {
       expect(isValidFeatureId("auth")).toBe(true);
       expect(isValidFeatureId("auth.login")).toBe(true);
-      expect(isValidFeatureId("auth.password.reset")).toBe(true);
-      expect(isValidFeatureId("api.v2.users")).toBe(true);
-      expect(isValidFeatureId("feature_with_underscore")).toBe(true);
-      expect(isValidFeatureId("a1.b2.c3")).toBe(true);
+      expect(isValidFeatureId("auth-login")).toBe(true);
+      expect(isValidFeatureId("1auth")).toBe(true);
+      expect(isValidFeatureId(".auth")).toBe(true);
+      expect(isValidFeatureId("Auth Login")).toBe(true);
+      expect(isValidFeatureId("任何中文")).toBe(true);
+      expect(isValidFeatureId("feature/with/slashes")).toBe(true);
     });
 
-    it("should reject invalid feature IDs", () => {
+    it("should reject empty string", () => {
       expect(isValidFeatureId("")).toBe(false);
-      expect(isValidFeatureId("1auth")).toBe(false); // starts with number
-      expect(isValidFeatureId("auth-login")).toBe(false); // hyphen
-      expect(isValidFeatureId("auth login")).toBe(false); // space
-      expect(isValidFeatureId(".auth")).toBe(false); // starts with dot
     });
 
-    it("should accept uppercase feature IDs", () => {
-      expect(isValidFeatureId("Auth")).toBe(true); // uppercase allowed
-      expect(isValidFeatureId("AuthLogin")).toBe(true);
+    it("should reject strings containing double quotes", () => {
+      expect(isValidFeatureId('has"quote')).toBe(false);
+      expect(isValidFeatureId('"quoted"')).toBe(false);
     });
   });
 

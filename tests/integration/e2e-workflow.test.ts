@@ -84,9 +84,9 @@ describe("E2E Workflow Tests", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      // Create progress.md
+      // Create progress.log
       await fs.writeFile(
-        path.join(tempDir, "ai/progress.md"),
+        path.join(tempDir, "ai/progress.log"),
         `# Progress Log\n\nINIT ${new Date().toISOString()} summary="E2E test setup"\n`
       );
 
@@ -233,7 +233,7 @@ describe("E2E Workflow Tests", () => {
       expect(updated.metadata.version).toBe("1.0.0");
     });
 
-    it("should verify progress.md is updated after complete", async () => {
+    it("should verify progress.log is updated after complete", async () => {
       await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
 
       const featureList = {
@@ -264,7 +264,7 @@ describe("E2E Workflow Tests", () => {
       );
 
       await fs.writeFile(
-        path.join(tempDir, "ai/progress.md"),
+        path.join(tempDir, "ai/progress.log"),
         "# Progress Log\n\n"
       );
 
@@ -280,8 +280,8 @@ describe("E2E Workflow Tests", () => {
         timeout: 10000,
       });
 
-      // Verify progress.md was updated
-      const progressContent = await fs.readFile(path.join(tempDir, "ai/progress.md"), "utf-8");
+      // Verify progress.log was updated
+      const progressContent = await fs.readFile(path.join(tempDir, "ai/progress.log"), "utf-8");
       expect(progressContent).toContain("STEP");
       expect(progressContent).toContain("test.progress");
       expect(progressContent).toContain("passing");

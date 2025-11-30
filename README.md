@@ -39,7 +39,7 @@ agent-foreman brings these same patterns to AI:
 | Human Practice | AI Equivalent |
 |----------------|---------------|
 | Scrum board | `feature_list.json` |
-| Sprint notes | `progress.md` |
+| Sprint notes | `progress.log` |
 | CI/CD pipeline | `init.sh check` |
 | Code review | Acceptance criteria |
 
@@ -310,7 +310,7 @@ one by one until all are passing.
 | File | Purpose |
 |------|---------|
 | `ai/feature_list.json` | Feature backlog with status |
-| `ai/progress.md` | Session handoff audit log |
+| `ai/progress.log` | Session handoff audit log |
 | `ai/init.sh` | Environment bootstrap script |
 | `docs/PROJECT_SURVEY.md` | AI-generated project survey |
 

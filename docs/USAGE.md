@@ -66,7 +66,7 @@ The AI will automatically detect this is an empty project and generate 10-20 ini
 ✓ Feature list saved with 15 features
 ✓ Generated ai/init.sh
 ✓ Generated CLAUDE.md
-✓ Updated ai/progress.md
+✓ Updated ai/progress.log
 ✓ Created initial git commit
 
 🎉 Harness initialized successfully!
@@ -339,7 +339,7 @@ agent-foreman agents
 │  git init                                                    │
 │           ↓                                                  │
 │  agent-foreman init "goal" →  ai/feature_list.json          │
-│                               ai/progress.md                │
+│                               ai/progress.log                │
 │                               ai/init.sh                     │
 │                               CLAUDE.md                      │
 │                               + git commit (auto)            │
@@ -370,7 +370,7 @@ agent-foreman agents
 │    │     step         │  ← External memory sync             │
 │    └────────┬─────────┘    - pwd                            │
 │             │              - git log                         │
-│             │              - progress.md                    │
+│             │              - progress.log                    │
 │             ↓              - feature status                  │
 │    ┌──────────────────┐                                     │
 │    │   Implement      │                                     │
@@ -438,7 +438,7 @@ After initialization, your project will have:
 your-project/
 ├── ai/
 │   ├── feature_list.json   # Feature backlog (JSON for AI)
-│   ├── progress.md        # Immutable audit log
+│   ├── progress.log        # Immutable audit log
 │   └── init.sh             # Bootstrap script
 ├── docs/
 │   └── PROJECT_SURVEY.md   # AI-generated documentation (optional)
@@ -452,7 +452,7 @@ your-project/
 > your-project/
 > ├── ai/
 > │   ├── feature_list.json   # 功能清单 (JSON 格式供 AI 使用)
-> │   ├── progress.md        # 不可变审计日志
+> │   ├── progress.log        # 不可变审计日志
 > │   └── init.sh             # 启动脚本
 > ├── docs/
 > │   └── PROJECT_SURVEY.md   # AI 生成的文档 (可选)

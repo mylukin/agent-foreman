@@ -172,7 +172,7 @@ export async function mergeOrCreateFeatures(
 }
 
 /**
- * Step 6-8: Generate harness files (init.sh, CLAUDE.md, progress.md)
+ * Step 6-8: Generate harness files (init.sh, CLAUDE.md, progress.log)
  */
 export async function generateHarnessFiles(
   cwd: string,
@@ -193,7 +193,7 @@ export async function generateHarnessFiles(
       cwd,
       createInitEntry(goal, `mode=${mode}, features=${featureList.features.length}`)
     );
-    console.log(chalk.green("✓ Updated ai/progress.md"));
+    console.log(chalk.green("✓ Updated ai/progress.log"));
   }
 
   // Suggest git commit

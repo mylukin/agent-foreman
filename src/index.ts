@@ -449,7 +449,7 @@ async function runInit(goal: string, mode: InitMode, verbose: boolean) {
     verbose
   );
 
-  // Step 5-8: Generate harness files (init.sh, CLAUDE.md, progress.md)
+  // Step 5-8: Generate harness files (init.sh, CLAUDE.md, progress.log)
   await generateHarnessFiles(cwd, analysisResult.survey, featureList, goal, mode);
 
   console.log(chalk.bold.green("\n🎉 Harness initialized successfully!"));

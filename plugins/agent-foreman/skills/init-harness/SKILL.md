@@ -5,7 +5,7 @@ description: Initialize or upgrade the long-task harness for a project
 
 # Init Harness
 
-Set up feature-driven development infrastructure with ai/feature_list.json, ai/progress.md, and ai/init.sh.
+Set up feature-driven development infrastructure with ai/feature_list.json, ai/progress.log, and ai/init.sh.
 
 ## When to Use
 
@@ -37,7 +37,7 @@ agent-foreman init --mode scan
 | File | Purpose |
 |------|---------|
 | `ai/feature_list.json` | Feature backlog with status tracking |
-| `ai/progress.md` | Session handoff audit log |
+| `ai/progress.log` | Session handoff audit log |
 | `ai/init.sh` | Bootstrap script (install/dev/check) |
 | `CLAUDE.md` | Instructions for AI agents |
 | `docs/PROJECT_SURVEY.md` | Auto-generated when scanning existing project |

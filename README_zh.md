@@ -39,7 +39,7 @@ agent-foreman 把这些模式带给了 AI：
 | 人类实践 | AI 等效 |
 |---------|--------|
 | Scrum 看板 | `feature_list.json` |
-| 冲刺纪要 | `progress.md` |
+| 冲刺纪要 | `progress.log` |
 | CI/CD 流水线 | `init.sh check` |
 | Code Review | 验收标准 |
 
@@ -307,7 +307,7 @@ agent-foreman init "你的项目目标"
 | 文件 | 用途 |
 |------|------|
 | `ai/feature_list.json` | 带状态的功能积压 |
-| `ai/progress.md` | 会话交接审计日志 |
+| `ai/progress.log` | 会话交接审计日志 |
 | `ai/init.sh` | 环境启动脚本 |
 | `docs/PROJECT_SURVEY.md` | AI 生成的项目调查 |
 

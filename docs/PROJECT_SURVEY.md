@@ -202,8 +202,8 @@ Agent-foreman is a TypeScript CLI harness that uses AI agents to survey projects
 
 - Ensure Claude/Gemini/Codex CLIs are installed and authenticated for AI features.
 > 确保已安装并授权 Claude/Gemini/Codex CLI，以便使用 AI 功能。
-- Keep ai/feature_list.json and ai/progress.md under version control to preserve external memory.
-> 将 ai/feature_list.json 与 ai/progress.md 納入版本控制，保存外部记忆。
+- Keep ai/feature_list.json and ai/progress.log under version control to preserve external memory.
+> 将 ai/feature_list.json 与 ai/progress.log 納入版本控制，保存外部记忆。
 - Periodically run agent-foreman detect-capabilities --force when build/test tooling changes.
 > 当构建/测试工具变更时，定期运行 agent-foreman detect-capabilities --force。
 

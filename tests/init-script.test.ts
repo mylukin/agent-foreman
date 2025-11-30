@@ -133,8 +133,8 @@ describe("Init Script", () => {
       const commands: ProjectCommands = {};
       const script = generateInitScript(commands);
 
-      expect(script).toContain('if [ -f "ai/progress.md" ]');
-      expect(script).toContain("tail -5 ai/progress.md");
+      expect(script).toContain('if [ -f "ai/progress.log" ]');
+      expect(script).toContain("tail -5 ai/progress.log");
     });
 
     it("should handle empty commands gracefully", () => {

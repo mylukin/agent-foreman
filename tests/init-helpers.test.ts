@@ -277,7 +277,7 @@ custom() {
       expect(initScript).not.toContain("custom()"); // User's custom function removed
     });
 
-    it("should not write progress.md in scan mode", async () => {
+    it("should not write progress.log in scan mode", async () => {
       mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: "# CLAUDE.md" });
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "scan");
@@ -286,9 +286,9 @@ custom() {
       const initScript = await fs.readFile(path.join(testDir, "ai/init.sh"), "utf-8");
       expect(initScript).toContain("#!/usr/bin/env bash");
 
-      // progress.md should not have INIT entry for scan mode
+      // progress.log should not have INIT entry for scan mode
       try {
-        const progressLog = await fs.readFile(path.join(testDir, "ai/progress.md"), "utf-8");
+        const progressLog = await fs.readFile(path.join(testDir, "ai/progress.log"), "utf-8");
         expect(progressLog).not.toContain("INIT");
       } catch {
         // File doesn't exist, which is expected for scan mode
@@ -374,7 +374,7 @@ Some existing content.
     });
   });
 
-  describe("generateHarnessFiles - progress.md", () => {
+  describe("generateHarnessFiles - progress.log", () => {
     const mockSurvey = {
       techStack: { language: "typescript" },
       commands: { install: "npm install" },
@@ -406,24 +406,24 @@ Some existing content.
       },
     };
 
-    it("should append INIT entry to progress.md in new mode", async () => {
+    it("should append INIT entry to progress.log in new mode", async () => {
       mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: "# CLAUDE.md" });
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new");
 
-      const progressLog = await fs.readFile(path.join(testDir, "ai/progress.md"), "utf-8");
+      const progressLog = await fs.readFile(path.join(testDir, "ai/progress.log"), "utf-8");
       expect(progressLog).toContain("INIT");
       expect(progressLog).toContain("Test goal");
       expect(progressLog).toContain("mode=new");
       expect(progressLog).toContain("features=1");
     });
 
-    it("should append INIT entry to progress.md in merge mode", async () => {
+    it("should append INIT entry to progress.log in merge mode", async () => {
       mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: "# CLAUDE.md" });
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Another goal", "merge");
 
-      const progressLog = await fs.readFile(path.join(testDir, "ai/progress.md"), "utf-8");
+      const progressLog = await fs.readFile(path.join(testDir, "ai/progress.log"), "utf-8");
       expect(progressLog).toContain("INIT");
       expect(progressLog).toContain("Another goal");
       expect(progressLog).toContain("mode=merge");

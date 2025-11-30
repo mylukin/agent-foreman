@@ -33,7 +33,7 @@ The foreman maintains three core artifacts as external memory:
 | File | Purpose |
 |------|---------|
 | `ai/feature_list.json` | Feature backlog with status tracking |
-| `ai/progress.md` | Handoff audit log for session continuity |
+| `ai/progress.log` | Handoff audit log for session continuity |
 | `ai/init.sh` | Environment bootstrap script |
 
 ## Workflow
