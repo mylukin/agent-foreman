@@ -278,9 +278,35 @@ async function main() {
             type: "boolean",
             default: false,
             describe: "Disable autonomous AI exploration (use diff-based)",
+          })
+          .option("quick", {
+            alias: "q",
+            type: "boolean",
+            default: false,
+            describe: "Run only related tests (selective test execution)",
+          })
+          .option("full", {
+            type: "boolean",
+            default: false,
+            describe: "Force full test suite (default for final verification)",
+          })
+          .option("test-pattern", {
+            type: "string",
+            describe: "Explicit test pattern to use (e.g., \"tests/auth/**\")",
           }),
       async (argv) => {
-        await runComplete(argv.feature_id!, argv.notes, !argv.noCommit, argv.skipVerify, argv.verbose, !argv.noAutonomous);
+        // Determine test mode: --full > --quick > default (full for final verification)
+        const testMode = argv.full ? "full" : argv.quick ? "quick" : "full";
+        await runComplete(
+          argv.feature_id!,
+          argv.notes,
+          !argv.noCommit,
+          argv.skipVerify,
+          argv.verbose,
+          !argv.noAutonomous,
+          testMode,
+          argv.testPattern
+        );
       }
     )
     .command(
@@ -309,9 +335,25 @@ async function main() {
             type: "boolean",
             default: false,
             describe: "Disable autonomous AI exploration (use diff-based)",
+          })
+          .option("quick", {
+            alias: "q",
+            type: "boolean",
+            default: false,
+            describe: "Run only related tests (selective test execution)",
+          })
+          .option("full", {
+            type: "boolean",
+            default: false,
+            describe: "Force full test suite",
+          })
+          .option("test-pattern", {
+            type: "string",
+            describe: "Explicit test pattern to use (e.g., \"tests/auth/**\")",
           }),
       async (argv) => {
-        await runVerify(argv.feature_id!, argv.verbose, argv.skipChecks, !argv.noAutonomous);
+        const testMode = argv.full ? "full" : argv.quick ? "quick" : "full";
+        await runVerify(argv.feature_id!, argv.verbose, argv.skipChecks, !argv.noAutonomous, testMode, argv.testPattern);
       }
     )
     .command(
@@ -880,7 +922,14 @@ async function runImpact(featureId: string) {
   }
 }
 
-async function runVerify(featureId: string, verbose: boolean, skipChecks: boolean, autonomous: boolean = false) {
+async function runVerify(
+  featureId: string,
+  verbose: boolean,
+  skipChecks: boolean,
+  autonomous: boolean = false,
+  testMode: "full" | "quick" | "skip" = "full",
+  testPattern?: string
+) {
   const cwd = process.cwd();
 
   // Load feature list
@@ -906,6 +955,9 @@ async function runVerify(featureId: string, verbose: boolean, skipChecks: boolea
   if (autonomous) {
     console.log(chalk.cyan(`   Mode: Autonomous AI exploration`));
   }
+  if (testMode === "quick") {
+    console.log(chalk.cyan(`   Test mode: Quick (selective tests)`));
+  }
   console.log("");
   console.log(chalk.bold("📝 Acceptance Criteria:"));
   feature.acceptance.forEach((a, i) => {
@@ -913,9 +965,10 @@ async function runVerify(featureId: string, verbose: boolean, skipChecks: boolea
   });
 
   // Run verification (choose mode)
+  const verifyOptions = { verbose, skipChecks, testMode, testPattern };
   const result = autonomous
-    ? await verifyFeatureAutonomous(cwd, feature, { verbose, skipChecks })
-    : await verifyFeature(cwd, feature, { verbose, skipChecks });
+    ? await verifyFeatureAutonomous(cwd, feature, verifyOptions)
+    : await verifyFeature(cwd, feature, verifyOptions);
 
   // Display result
   console.log(formatVerificationResult(result, verbose));
@@ -979,7 +1032,9 @@ async function runComplete(
   autoCommit: boolean = true,
   skipVerify: boolean = false,
   verbose: boolean = false,
-  autonomous: boolean = false
+  autonomous: boolean = false,
+  testMode: "full" | "quick" | "skip" = "full",
+  testPattern?: string
 ) {
   const cwd = process.cwd();
 
@@ -1009,6 +1064,9 @@ async function runComplete(
     if (autonomous) {
       console.log(chalk.cyan(`   Mode: Autonomous AI exploration`));
     }
+    if (testMode === "quick") {
+      console.log(chalk.cyan(`   Test mode: Quick (selective tests)`));
+    }
     console.log("");
     console.log(chalk.bold("📝 Acceptance Criteria:"));
     feature.acceptance.forEach((a, i) => {
@@ -1016,9 +1074,10 @@ async function runComplete(
     });
 
     // Run verification (choose mode)
+    const verifyOptions = { verbose, skipChecks: false, testMode, testPattern };
     const result = autonomous
-      ? await verifyFeatureAutonomous(cwd, feature, { verbose, skipChecks: false })
-      : await verifyFeature(cwd, feature, { verbose, skipChecks: false });
+      ? await verifyFeatureAutonomous(cwd, feature, verifyOptions)
+      : await verifyFeature(cwd, feature, verifyOptions);
 
     // Display result
     console.log(formatVerificationResult(result, verbose));

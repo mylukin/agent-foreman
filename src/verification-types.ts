@@ -177,6 +177,11 @@ export interface FeatureVerificationSummary {
 // ============================================================================
 
 /**
+ * Test execution mode for verification
+ */
+export type TestMode = "full" | "quick" | "skip";
+
+/**
  * Options for the verify CLI command
  */
 export interface VerifyOptions {
@@ -186,6 +191,15 @@ export interface VerifyOptions {
   skipChecks?: boolean;
   /** Timeout for verification in milliseconds */
   timeout?: number;
+  /**
+   * Test execution mode
+   * - "full": Run all tests (default for final completion)
+   * - "quick": Run only related tests based on changes
+   * - "skip": Skip tests entirely
+   */
+  testMode?: TestMode;
+  /** Explicit test pattern to use (overrides auto-detection) */
+  testPattern?: string;
 }
 
 // ============================================================================

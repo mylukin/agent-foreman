@@ -19,7 +19,12 @@ import type {
   FeatureVerificationSummary,
   CriterionResult,
   VerificationVerdict,
+  TestMode,
 } from "./verification-types.js";
+import {
+  getSelectiveTestCommand,
+  type TestDiscoveryResult,
+} from "./test-discovery.js";
 import {
   detectVerificationCapabilities,
   detectCapabilities,
@@ -158,21 +163,60 @@ async function runCheck(
 }
 
 /**
+ * Options for running automated checks
+ */
+export interface AutomatedCheckOptions {
+  /** Verbose output */
+  verbose?: boolean;
+  /** Test execution mode: "full" | "quick" | "skip" */
+  testMode?: TestMode;
+  /** Selective test command (for quick mode) */
+  selectiveTestCommand?: string | null;
+  /** Test discovery result for logging */
+  testDiscovery?: TestDiscoveryResult;
+}
+
+/**
  * Run all available automated checks
  */
 export async function runAutomatedChecks(
   cwd: string,
   capabilities: VerificationCapabilities,
-  verbose: boolean = false
+  optionsOrVerbose: boolean | AutomatedCheckOptions = false
 ): Promise<AutomatedCheckResult[]> {
+  // Handle backward compatibility with boolean verbose parameter
+  const options: AutomatedCheckOptions =
+    typeof optionsOrVerbose === "boolean"
+      ? { verbose: optionsOrVerbose }
+      : optionsOrVerbose;
+
+  const { verbose = false, testMode = "full", selectiveTestCommand, testDiscovery } = options;
   const results: AutomatedCheckResult[] = [];
 
   // Collect checks to run
   const checks: Array<{ type: AutomatedCheckResult["type"]; command: string; name: string }> = [];
 
-  if (capabilities.hasTests && capabilities.testCommand) {
-    checks.push({ type: "test", command: capabilities.testCommand, name: "tests" });
+  // Handle test execution based on mode
+  if (testMode !== "skip" && capabilities.hasTests && capabilities.testCommand) {
+    if (testMode === "quick" && selectiveTestCommand) {
+      // Use selective test command for quick mode
+      const testName = testDiscovery?.testFiles.length
+        ? `selective tests (${testDiscovery.testFiles.length} files)`
+        : "selective tests";
+      checks.push({ type: "test", command: selectiveTestCommand, name: testName });
+
+      if (verbose && testDiscovery) {
+        console.log(chalk.gray(`   Test discovery: ${testDiscovery.source}`));
+        if (testDiscovery.testFiles.length > 0) {
+          console.log(chalk.gray(`   Test files: ${testDiscovery.testFiles.join(", ")}`));
+        }
+      }
+    } else {
+      // Full test mode - run all tests
+      checks.push({ type: "test", command: capabilities.testCommand, name: "tests" });
+    }
   }
+
   if (capabilities.hasTypeCheck && capabilities.typeCheckCommand) {
     checks.push({ type: "typecheck", command: capabilities.typeCheckCommand, name: "type check" });
   }
@@ -434,9 +478,15 @@ export async function verifyFeature(
   feature: Feature,
   options: VerifyOptions = {}
 ): Promise<VerificationResult> {
-  const { verbose = false, skipChecks = false } = options;
+  const { verbose = false, skipChecks = false, testMode = "full", testPattern } = options;
 
   console.log(chalk.bold("\n   Verifying feature: " + feature.id));
+
+  // Show test mode if not default
+  if (testMode !== "full") {
+    const modeLabel = testMode === "quick" ? chalk.cyan("quick (selective tests)") : chalk.yellow("skip tests");
+    console.log(chalk.gray(`   Test mode: ${modeLabel}`));
+  }
 
   // Define verification steps for progress tracking
   const steps = skipChecks
@@ -466,7 +516,38 @@ export async function verifyFeature(
     const capabilities = await detectCapabilities(cwd, { verbose });
     stepProgress.completeStep(true);
 
-    automatedResults = await runAutomatedChecks(cwd, capabilities, verbose);
+    // Handle selective testing for quick mode
+    let selectiveTestCommand: string | null = null;
+    let testDiscovery: TestDiscoveryResult | undefined;
+
+    if (testMode === "quick") {
+      // Use explicit pattern or auto-discover
+      const featureWithPattern = testPattern
+        ? { ...feature, testPattern }
+        : feature;
+      const selectiveResult = await getSelectiveTestCommand(
+        cwd,
+        featureWithPattern,
+        capabilities,
+        changedFiles
+      );
+      selectiveTestCommand = selectiveResult.command;
+      testDiscovery = selectiveResult.discovery;
+
+      if (verbose && testDiscovery.source !== "none") {
+        console.log(chalk.gray(`   Test discovery source: ${testDiscovery.source}`));
+        if (testDiscovery.pattern) {
+          console.log(chalk.gray(`   Test pattern: ${testDiscovery.pattern}`));
+        }
+      }
+    }
+
+    automatedResults = await runAutomatedChecks(cwd, capabilities, {
+      verbose,
+      testMode,
+      selectiveTestCommand,
+      testDiscovery,
+    });
     const allPassed = automatedResults.every((r) => r.success);
     stepProgress.completeStep(allPassed);
   }

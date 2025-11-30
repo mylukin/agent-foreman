@@ -78,6 +78,12 @@ export interface Feature {
   notes: string;
   /** Last verification result (optional) */
   verification?: FeatureVerificationSummary;
+  /**
+   * Test pattern for selective test execution (optional)
+   * Glob pattern or test name pattern for running related tests only
+   * Examples: "tests/auth/**", "src/auth/*.test.ts", "--grep auth"
+   */
+  testPattern?: string;
 }
 
 /**
