@@ -47,7 +47,7 @@ import {
 } from "./capability-detector.js";
 import type { FeatureVerificationSummary } from "./verification-types.js";
 import type { InitMode, Feature } from "./types.js";
-import { isGitRepo, hasUncommittedChanges, gitAdd, gitCommit } from "./git-utils.js";
+import { isGitRepo, hasUncommittedChanges, gitAdd, gitCommit, gitInit } from "./git-utils.js";
 import {
   detectAndAnalyzeProject,
   mergeOrCreateFeatures,
@@ -422,6 +422,17 @@ async function runSurvey(outputPath: string, verbose: boolean, bilingual: boolea
 async function runInit(goal: string, mode: InitMode, verbose: boolean) {
   const cwd = process.cwd();
   console.log(chalk.blue(`🚀 Initializing harness (mode: ${mode})...`));
+
+  // Step 0: Ensure git repository exists (required for agent-foreman)
+  if (!isGitRepo(cwd)) {
+    console.log(chalk.yellow("  Not a git repository, initializing..."));
+    const initResult = gitInit(cwd);
+    if (!initResult.success) {
+      console.log(chalk.red(`✗ Failed to initialize git: ${initResult.error}`));
+      process.exit(1);
+    }
+    console.log(chalk.green("✓ Git repository initialized"));
+  }
 
   // Step 1: Detect project type and analyze with AI
   // Note: Don't use spinner here as detectAndAnalyzeProject has its own progress indicators

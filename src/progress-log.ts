@@ -91,7 +91,7 @@ export async function appendProgressLog(
   const filePath = path.join(basePath, PROGRESS_LOG_PATH);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 
-  const line = formatLogEntry(entry) + "\n\n";
+  const line = formatLogEntry(entry) + "\n";
   await fs.appendFile(filePath, line);
 }
 

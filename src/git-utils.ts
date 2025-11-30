@@ -212,3 +212,29 @@ export function hasStagedChanges(cwd: string): boolean {
   });
   return result.status !== 0;
 }
+
+/**
+ * Initialize a new git repository
+ */
+export function gitInit(cwd: string): GitResult {
+  try {
+    const result = spawnSync("git", ["init"], {
+      cwd,
+      encoding: "utf-8",
+    });
+
+    if (result.status !== 0) {
+      return {
+        success: false,
+        error: result.stderr || "Failed to initialize git repository",
+      };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error during git init",
+    };
+  }
+}
