@@ -50,7 +50,7 @@ agent-foreman step --dry-run
 agent-foreman status
 
 # Preview verification without completing
-agent-foreman verify <feature_id>
+agent-foreman check <feature_id>
 
 # Verify + mark complete + auto-commit
 agent-foreman complete <feature_id>

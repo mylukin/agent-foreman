@@ -81,7 +81,7 @@ agent-foreman complete <feature_id>
 agent-foreman complete <feature_id> --skip-verify
 
 # Preview verification without completing
-agent-foreman verify <feature_id>
+agent-foreman check <feature_id>
 
 # Analyze impact of changes
 agent-foreman impact <feature_id>
