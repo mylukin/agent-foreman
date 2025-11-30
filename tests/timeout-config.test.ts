@@ -141,5 +141,98 @@ describe("Timeout Configuration", () => {
       expect(formatTimeout(90000)).toBe("1m 30s");
       expect(formatTimeout(150000)).toBe("2m 30s");
     });
+
+    it("should handle zero milliseconds", () => {
+      expect(formatTimeout(0)).toBe("0s");
+    });
+
+    it("should handle sub-second values", () => {
+      expect(formatTimeout(500)).toBe("0s");
+    });
+  });
+
+  describe("getAllTimeouts - comprehensive", () => {
+    it("should return all timeout keys", () => {
+      const timeouts = getAllTimeouts();
+      expect(Object.keys(timeouts)).toContain("AI_SCAN_PROJECT");
+      expect(Object.keys(timeouts)).toContain("AI_GENERATE_FROM_SURVEY");
+      expect(Object.keys(timeouts)).toContain("AI_GENERATE_FROM_GOAL");
+      expect(Object.keys(timeouts)).toContain("AI_MERGE_INIT_SCRIPT");
+      expect(Object.keys(timeouts)).toContain("AI_MERGE_CLAUDE_MD");
+      expect(Object.keys(timeouts)).toContain("AI_VERIFICATION");
+      expect(Object.keys(timeouts)).toContain("AI_CAPABILITY_DISCOVERY");
+      expect(Object.keys(timeouts)).toContain("AI_DEFAULT");
+    });
+
+    it("should handle invalid env values in getAllTimeouts", () => {
+      process.env.AGENT_FOREMAN_TIMEOUT_SCAN = "not-a-number";
+      const timeouts = getAllTimeouts();
+      // Invalid value should fall back to default
+      expect(timeouts.AI_SCAN_PROJECT.source).toBe("default");
+      expect(timeouts.AI_SCAN_PROJECT.value).toBe(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT);
+    });
+
+    it("should handle negative env values in getAllTimeouts", () => {
+      process.env.AGENT_FOREMAN_TIMEOUT_VERIFY = "-500";
+      const timeouts = getAllTimeouts();
+      expect(timeouts.AI_VERIFICATION.source).toBe("default");
+    });
+
+    it("should handle zero env values in getAllTimeouts", () => {
+      process.env.AGENT_FOREMAN_TIMEOUT_CAPABILITY = "0";
+      const timeouts = getAllTimeouts();
+      expect(timeouts.AI_CAPABILITY_DISCOVERY.source).toBe("default");
+    });
+
+    it("should handle multiple env overrides", () => {
+      process.env.AGENT_FOREMAN_TIMEOUT_SCAN = "100000";
+      process.env.AGENT_FOREMAN_TIMEOUT_VERIFY = "200000";
+      const timeouts = getAllTimeouts();
+      expect(timeouts.AI_SCAN_PROJECT).toEqual({ value: 100000, source: "env" });
+      expect(timeouts.AI_VERIFICATION).toEqual({ value: 200000, source: "env" });
+      expect(timeouts.AI_DEFAULT.source).toBe("default");
+    });
+  });
+
+  describe("getTimeout - additional edge cases", () => {
+    it("should not use global default for AI_DEFAULT itself", () => {
+      process.env.AGENT_FOREMAN_TIMEOUT_DEFAULT = "999999";
+      // When getting AI_DEFAULT, it should use its env value directly, not recurse
+      expect(getTimeout("AI_DEFAULT")).toBe(999999);
+    });
+
+    it("should handle all timeout keys correctly", () => {
+      // Test each key uses correct env var
+      const keys: Array<keyof typeof DEFAULT_TIMEOUTS> = [
+        "AI_SCAN_PROJECT",
+        "AI_GENERATE_FROM_SURVEY",
+        "AI_GENERATE_FROM_GOAL",
+        "AI_MERGE_INIT_SCRIPT",
+        "AI_MERGE_CLAUDE_MD",
+        "AI_VERIFICATION",
+        "AI_CAPABILITY_DISCOVERY",
+        "AI_DEFAULT",
+      ];
+
+      for (const key of keys) {
+        expect(getTimeout(key)).toBe(DEFAULT_TIMEOUTS[key]);
+      }
+    });
+
+    it("should parse integer values correctly", () => {
+      process.env.AGENT_FOREMAN_TIMEOUT_SCAN = "123456";
+      expect(getTimeout("AI_SCAN_PROJECT")).toBe(123456);
+    });
+
+    it("should handle whitespace in env values", () => {
+      // parseInt handles leading/trailing whitespace
+      process.env.AGENT_FOREMAN_TIMEOUT_SCAN = " 500000 ";
+      expect(getTimeout("AI_SCAN_PROJECT")).toBe(500000);
+    });
+
+    it("should handle float values by truncating", () => {
+      process.env.AGENT_FOREMAN_TIMEOUT_SCAN = "123456.789";
+      expect(getTimeout("AI_SCAN_PROJECT")).toBe(123456);
+    });
   });
 });

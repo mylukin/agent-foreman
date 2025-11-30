@@ -16,6 +16,7 @@ import {
   gitCommit,
   getCurrentBranch,
   hasStagedChanges,
+  gitInit,
 } from "../src/git-utils.js";
 
 // ============================================================================
@@ -445,6 +446,112 @@ describe("Git Utils", () => {
 
       const files = getChangedFiles(testDir);
       expect(files).toContain("nested/deep/file.txt");
+    });
+  });
+
+  // ============================================================================
+  // gitInit Tests
+  // ============================================================================
+
+  describe("gitInit", () => {
+    it("should successfully initialize a git repository", async () => {
+      const result = gitInit(testDir);
+      expect(result.success).toBe(true);
+      expect(result.error).toBeUndefined();
+
+      // Verify it's now a git repo
+      expect(isGitRepo(testDir)).toBe(true);
+    });
+
+    it("should succeed even if already initialized", async () => {
+      // Initialize once
+      const result1 = gitInit(testDir);
+      expect(result1.success).toBe(true);
+
+      // Initialize again (git init is idempotent)
+      const result2 = gitInit(testDir);
+      expect(result2.success).toBe(true);
+    });
+
+    it("should return error for invalid path", () => {
+      // Try to init in a path that doesn't exist
+      const result = gitInit("/nonexistent/path/to/init");
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it("should return error when directory is not writable", async () => {
+      // Skip this test on Windows where permission handling is different
+      if (process.platform === "win32") {
+        return;
+      }
+
+      // Create a directory and remove write permission
+      const readOnlyDir = await createTempDir();
+      try {
+        await fs.chmod(readOnlyDir, 0o444); // Read-only
+        const result = gitInit(readOnlyDir);
+        // Should fail because can't create .git directory
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
+      } finally {
+        await fs.chmod(readOnlyDir, 0o755); // Restore permissions for cleanup
+        await fs.rm(readOnlyDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  // ============================================================================
+  // Additional Edge Cases for gitCommit
+  // ============================================================================
+
+  describe("gitCommit - additional error cases", () => {
+    it("should handle commit with stderr message", async () => {
+      await initGitRepo(testDir);
+
+      // Try to commit without any changes (after initial commit)
+      await createFile(testDir, "file.txt", "content");
+      await stageFile(testDir, "file.txt");
+      await commitFile(testDir, "Initial commit");
+
+      // Second commit with nothing staged should return error
+      const result = gitCommit(testDir, "No changes");
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+  });
+
+  // ============================================================================
+  // Additional Edge Cases for gitAdd
+  // ============================================================================
+
+  describe("gitAdd - additional edge cases", () => {
+    it("should handle staging multiple specific files", async () => {
+      await initGitRepo(testDir);
+      await createFile(testDir, "a.txt", "a");
+      await createFile(testDir, "b.txt", "b");
+      await createFile(testDir, "c.txt", "c");
+
+      const result = gitAdd(testDir, ["a.txt", "b.txt"]);
+      expect(result.success).toBe(true);
+
+      // Verify both files are staged but not c.txt
+      const status = spawnSync("git", ["diff", "--cached", "--name-only"], {
+        cwd: testDir,
+        encoding: "utf-8",
+      });
+      expect(status.stdout).toContain("a.txt");
+      expect(status.stdout).toContain("b.txt");
+      expect(status.stdout).not.toContain("c.txt");
+    });
+
+    it("should handle adding empty array", async () => {
+      await initGitRepo(testDir);
+      await createFile(testDir, "file.txt", "content");
+
+      const result = gitAdd(testDir, []);
+      // Empty array should succeed but stage nothing
+      expect(result.success).toBe(true);
     });
   });
 });

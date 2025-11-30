@@ -11,6 +11,30 @@ import * as os from "node:os";
 // Path to the built CLI
 const CLI_PATH = path.resolve(process.cwd(), "dist/index.js");
 
+/**
+ * Extract JSON from output that may contain non-JSON prefixes (like upgrade notifications)
+ */
+function extractJSON(output: string): unknown {
+  // Try to find the start of JSON object or array
+  const jsonStart = output.indexOf("{");
+  const arrayStart = output.indexOf("[");
+
+  let startIdx = -1;
+  if (jsonStart >= 0 && arrayStart >= 0) {
+    startIdx = Math.min(jsonStart, arrayStart);
+  } else if (jsonStart >= 0) {
+    startIdx = jsonStart;
+  } else if (arrayStart >= 0) {
+    startIdx = arrayStart;
+  }
+
+  if (startIdx === -1) {
+    throw new Error(`No JSON found in output: ${output}`);
+  }
+
+  return JSON.parse(output.slice(startIdx));
+}
+
 describe("CLI Integration", () => {
   let tempDir: string;
 
@@ -44,7 +68,7 @@ describe("CLI Integration", () => {
         encoding: "utf-8",
       });
 
-      const output = JSON.parse(result.stdout);
+      const output = extractJSON(result.stdout) as { error: string };
       expect(output.error).toBe("No feature list found");
     });
 
@@ -130,7 +154,7 @@ describe("CLI Integration", () => {
         encoding: "utf-8",
       });
 
-      const output = JSON.parse(result.stdout);
+      const output = extractJSON(result.stdout) as { stats: { passing: number; total: number }; completion: number };
       expect(output.stats).toBeDefined();
       expect(output.stats.passing).toBe(1);
       expect(output.stats.total).toBe(1);
@@ -230,7 +254,7 @@ describe("CLI Integration", () => {
         encoding: "utf-8",
       });
 
-      const output = JSON.parse(result.stdout);
+      const output = extractJSON(result.stdout) as { feature: { id: string; description: string; status: string } };
       expect(output.feature.id).toBe("test.feature1");
       expect(output.feature.description).toBe("First feature");
       expect(output.feature.status).toBe("failing");
@@ -307,7 +331,7 @@ describe("CLI Integration", () => {
         encoding: "utf-8",
       });
 
-      const output = JSON.parse(result.stdout);
+      const output = extractJSON(result.stdout) as { complete: boolean; message: string };
       expect(output.complete).toBe(true);
       expect(output.message).toContain("passing");
     });

@@ -349,6 +349,120 @@ describe("AI Scanner", () => {
 
       expect(markdown).toContain("由 claude 分析生成");
     });
+
+    it("should display feature completion status when features have status", () => {
+      const surveyWithStatus: ProjectSurvey = {
+        ...mockSurvey,
+        features: [
+          { id: "api.users", description: "Users API", module: "api", source: "route", confidence: 0.8, status: "passing" },
+          { id: "api.posts", description: "Posts API", module: "api", source: "route", confidence: 0.7, status: "failing" },
+          { id: "api.comments", description: "Comments API", module: "api", source: "route", confidence: 0.6, status: "blocked" },
+        ],
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyWithStatus, aiResult);
+
+      expect(markdown).toContain("## Feature Completion Status");
+      expect(markdown).toContain("| ID | Description | Module | Status |");
+      expect(markdown).toContain("✅ passing");
+      expect(markdown).toContain("❌ failing");
+      expect(markdown).toContain("⏸️ blocked");
+    });
+
+    it("should display feature completion status in Chinese", () => {
+      const surveyWithStatus: ProjectSurvey = {
+        ...mockSurvey,
+        features: [
+          { id: "api.users", description: "Users API", module: "api", source: "route", confidence: 0.8, status: "passing" },
+        ],
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyWithStatus, aiResult, { language: "zh-CN" });
+
+      expect(markdown).toContain("## 功能完成状态");
+      expect(markdown).toContain("| ID | 描述 | 模块 | 状态 |");
+    });
+
+    it("should handle module without description", () => {
+      const surveyNoDesc: ProjectSurvey = {
+        ...mockSurvey,
+        modules: [
+          { name: "core", path: "src/core", status: "partial", files: [] },
+        ],
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyNoDesc, aiResult);
+
+      expect(markdown).toContain("### core");
+      expect(markdown).toContain("**Path**: `src/core`");
+      expect(markdown).not.toContain("**Description**:");
+    });
+
+    it("should handle survey with no entry points", () => {
+      const surveyNoEntries: ProjectSurvey = {
+        ...mockSurvey,
+        structure: {
+          entryPoints: [],
+          srcDirs: ["src"],
+          testDirs: [],
+          configFiles: [],
+        },
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyNoEntries, aiResult);
+
+      expect(markdown).toContain("## Directory Structure");
+      expect(markdown).not.toContain("### Entry Points");
+    });
+
+    it("should handle survey with no source directories", () => {
+      const surveyNoSrc: ProjectSurvey = {
+        ...mockSurvey,
+        structure: {
+          entryPoints: ["main.ts"],
+          srcDirs: [],
+          testDirs: ["tests"],
+          configFiles: [],
+        },
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyNoSrc, aiResult);
+
+      expect(markdown).toContain("### Entry Points");
+      expect(markdown).not.toContain("### Source Directories");
+    });
+
+    it("should handle survey with no modules", () => {
+      const surveyNoModules: ProjectSurvey = {
+        ...mockSurvey,
+        modules: [],
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyNoModules, aiResult);
+
+      expect(markdown).not.toContain("## Modules");
+    });
+
+    it("should handle features without confidence", () => {
+      const surveyNoConfidence: ProjectSurvey = {
+        ...mockSurvey,
+        features: [
+          { id: "api.users", description: "Users API", module: "api", source: "route" } as any,
+        ],
+      };
+
+      const aiResult: AIAnalysisResult = { success: true, agentUsed: "gemini" };
+      const markdown = generateAISurveyMarkdown(surveyNoConfidence, aiResult);
+
+      expect(markdown).toContain("api.users");
+      expect(markdown).toContain("| - |"); // Confidence should show as "-"
+    });
   });
 
   describe("generateFeaturesFromSurvey", () => {
