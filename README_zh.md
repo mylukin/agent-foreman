@@ -40,7 +40,7 @@ agent-foreman 把这些模式带给了 AI：
 |---------|--------|
 | Scrum 看板 | `feature_list.json` |
 | 冲刺纪要 | `progress.md` |
-| CI/CD 流水线 | `init.sh check` |
+| CI/CD 流水线 | `agent-foreman complete` |
 | Code Review | 验收标准 |
 
 ### 为什么用 JSON 而不是 Markdown？
@@ -224,10 +224,9 @@ agent-foreman init "你的项目目标"
 1. 用 `agent-foreman status` 检查状态
 2. 用 `agent-foreman step` 获取下一个任务
 3. 完整实现功能
-4. 用 `./ai/init.sh check` 运行测试
-5. 用 `agent-foreman complete <id>` 标记完成
-6. 提交更改
-7. 循环回到步骤 2 直到所有任务通过
+4. 用 `agent-foreman complete <id>` 验证并标记完成（自动运行测试）
+5. 提交更改
+6. 循环回到步骤 2 直到所有任务通过
 
 不要停止直到所有功能都通过。只有遇到需要我输入的阻塞问题时才问我。
 ```

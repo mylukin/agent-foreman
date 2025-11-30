@@ -40,7 +40,7 @@ agent-foreman brings these same patterns to AI:
 |----------------|---------------|
 | Scrum board | `feature_list.json` |
 | Sprint notes | `progress.md` |
-| CI/CD pipeline | `init.sh check` |
+| CI/CD pipeline | `agent-foreman complete` |
 | Code review | Acceptance criteria |
 
 ### Why JSON Instead of Markdown?
@@ -225,10 +225,9 @@ harness to continuously complete all remaining tasks:
 1. Check status with `agent-foreman status`
 2. Get next task with `agent-foreman step`
 3. Implement the feature completely
-4. Run tests with `./ai/init.sh check`
-5. Mark complete with `agent-foreman complete <id>`
-6. Commit the changes
-7. Loop back to step 2 until all tasks pass
+4. Verify and mark complete with `agent-foreman complete <id>` (auto-runs tests)
+5. Commit the changes
+6. Loop back to step 2 until all tasks pass
 
 Do not stop until all features are passing. Ask me only if you
 encounter a blocker that requires my input.
