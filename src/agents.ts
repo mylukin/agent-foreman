@@ -5,6 +5,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import chalk from "chalk";
 import { isTTY } from "./progress.js";
+import { getTimeout } from "./timeout-config.js";
 
 /**
  * Agent configuration
@@ -234,7 +235,7 @@ export async function callAgentWithRetry(
     cwd?: string;
   } = {}
 ): Promise<{ success: boolean; output: string; error?: string }> {
-  const { timeoutMs = 120000, maxRetries = 2, verbose = false, cwd } = options;
+  const { timeoutMs = getTimeout("AI_DEFAULT"), maxRetries = 2, verbose = false, cwd } = options;
 
   let lastError: string | undefined;
 

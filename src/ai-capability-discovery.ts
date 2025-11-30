@@ -7,6 +7,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 
 import { callAnyAvailableAgent } from "./agents.js";
+import { getTimeout } from "./timeout-config.js";
 import type {
   ExtendedCapabilities,
   CapabilityCommand,
@@ -592,7 +593,7 @@ export async function discoverCapabilitiesWithAI(
   console.log("  Analyzing project with AI...");
   const result = await callAnyAvailableAgent(prompt, {
     cwd,
-    timeoutMs: 120000, // 2 minute timeout
+    timeoutMs: getTimeout("AI_CAPABILITY_DISCOVERY"),
   });
 
   if (!result.success) {

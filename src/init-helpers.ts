@@ -15,6 +15,7 @@ import { generateClaudeMd, generateHarnessSection } from "./prompts.js";
 import { callAnyAvailableAgent, printAgentStatus } from "./agents.js";
 import { appendProgressLog, createInitEntry } from "./progress-log.js";
 import { debugInit } from "./debug.js";
+import { getTimeout } from "./timeout-config.js";
 
 /**
  * Result from project detection and analysis
@@ -267,7 +268,10 @@ ${newInitScript}
 ## Output:
 Return ONLY the merged bash script content. No explanations, no markdown code blocks, just the raw bash script starting with #!/usr/bin/env bash`;
 
-    const result = await callAnyAvailableAgent(mergePrompt, { cwd });
+    const result = await callAnyAvailableAgent(mergePrompt, {
+      cwd,
+      timeoutMs: getTimeout("AI_MERGE_INIT_SCRIPT"),
+    });
 
     if (result.success && result.output.trim().length > 0) {
       // Validate the output looks like a bash script
@@ -335,7 +339,10 @@ ${harnessSection}
 ## Output:
 Return ONLY the complete merged CLAUDE.md content, nothing else. No explanations, no code blocks, just the raw markdown content.`;
 
-    const result = await callAnyAvailableAgent(mergePrompt, { cwd });
+    const result = await callAnyAvailableAgent(mergePrompt, {
+      cwd,
+      timeoutMs: getTimeout("AI_MERGE_CLAUDE_MD"),
+    });
 
     if (result.success && result.output.trim().length > 0) {
       await fs.writeFile(claudeMdPath, result.output.trim() + "\n");

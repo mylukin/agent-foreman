@@ -30,6 +30,7 @@ import {
   parseVerificationResponse,
 } from "./verification-prompts.js";
 import { callAnyAvailableAgent } from "./agents.js";
+import { getTimeout } from "./timeout-config.js";
 import {
   createSpinner,
   createProgressBar,
@@ -367,7 +368,7 @@ export async function analyzeWithAI(
 
     const result = await callAnyAvailableAgent(prompt, {
       cwd,
-      timeoutMs: options.timeout || 300000, // 5 minute timeout
+      timeoutMs: options.timeout || getTimeout("AI_VERIFICATION"),
       verbose: options.verbose,
     });
 

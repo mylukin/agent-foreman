@@ -7,6 +7,7 @@
  */
 import chalk from "chalk";
 import { callAnyAvailableAgent, checkAvailableAgents } from "./agents.js";
+import { getTimeout } from "./timeout-config.js";
 import type {
   ProjectSurvey,
   TechStackInfo,
@@ -199,6 +200,7 @@ export async function aiScanProject(
     preferredOrder: ["codex", "gemini", "claude"],
     verbose,
     cwd: basePath, // Run agent in project directory so it can explore
+    timeoutMs: getTimeout("AI_SCAN_PROJECT"),
   });
 
   if (!result.success) {
@@ -284,6 +286,7 @@ Extract all information directly from the survey document. Generate feature IDs 
   const result = await callAnyAvailableAgent(prompt, {
     preferredOrder: ["codex", "gemini", "claude"],
     verbose: true,
+    timeoutMs: getTimeout("AI_GENERATE_FROM_SURVEY"),
   });
 
   if (!result.success) {
@@ -376,6 +379,7 @@ Guidelines:
   const result = await callAnyAvailableAgent(prompt, {
     preferredOrder: ["codex", "gemini", "claude"],
     verbose: true,
+    timeoutMs: getTimeout("AI_GENERATE_FROM_GOAL"),
   });
 
   if (!result.success) {
