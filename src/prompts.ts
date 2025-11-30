@@ -74,14 +74,11 @@ agent-foreman step
 # Work on specific feature
 agent-foreman step <feature_id>
 
-# Verify and mark feature as complete (AI verification + auto-commit)
+# Complete feature (auto-runs verification + auto-commit)
 agent-foreman complete <feature_id>
 
 # Skip verification (not recommended)
 agent-foreman complete <feature_id> --skip-verify
-
-# Preview verification without completing
-agent-foreman check <feature_id>
 
 # Analyze impact of changes
 agent-foreman impact <feature_id>

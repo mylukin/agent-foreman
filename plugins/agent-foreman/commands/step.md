@@ -49,10 +49,7 @@ agent-foreman step --dry-run
 # Check project status
 agent-foreman status
 
-# Preview verification without completing
-agent-foreman check <feature_id>
-
-# Verify + mark complete + auto-commit
+# Complete feature (auto-runs verification + auto-commit)
 agent-foreman complete <feature_id>
 
 # Skip verification (not recommended)

@@ -342,19 +342,16 @@ Show project status and progress.
 agent-foreman status
 ```
 
-### `check <feature_id>`
+### `check <feature_id>` (optional)
 
-Preview verification without completing (dry run).
+Preview verification without completing. Useful for debugging - normally you can just use `complete` which auto-runs verification.
+
+> 预览验证结果，不执行完成操作。用于调试 - 通常直接使用 `complete` 即可，它会自动运行验证。
 
 ```bash
 agent-foreman check cli.survey
-
-# With test mode options
 agent-foreman check cli.survey --quick
-agent-foreman check cli.survey --test-pattern "tests/cli/**"
 ```
-
-> 预览验证结果，不执行完成操作（预演模式）
 
 ### `impact <feature_id>`
 

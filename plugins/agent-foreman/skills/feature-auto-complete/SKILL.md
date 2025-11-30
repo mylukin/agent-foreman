@@ -109,9 +109,6 @@ agent-foreman status
 # Work on single feature
 agent-foreman step
 
-# Check a specific feature (preview verification)
-agent-foreman check <feature_id>
-
-# Complete a specific feature
+# Complete a specific feature (auto-runs verification)
 agent-foreman complete <feature_id>
 ```
