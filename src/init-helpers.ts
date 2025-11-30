@@ -251,7 +251,7 @@ ${newInitScript}
 
 ## Merge Rules (CRITICAL - FOLLOW EXACTLY):
 1. **PRESERVE all user customizations** in existing functions (bootstrap, dev, check, build, status, etc.)
-2. **ADD new functions** from the template that don't exist in the user's version (e.g., "verify" function)
+2. **ADD new functions** from the template that don't exist in the user's version
 3. **ADD new case statements** in the main entry point for any new functions
 4. **PRESERVE user's custom commands** - if user changed "npm install" to "pnpm install", keep their change
 5. **PRESERVE user's custom functions** - if user added their own functions, keep them

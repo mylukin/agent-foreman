@@ -160,10 +160,7 @@ dev() {
   pnpm run dev
 }
 check() {
-  pnpm test
-}
-verify() {
-  # New function from template
+  # Comprehensive check function
   pnpm test
 }`;
       // Use mockImplementation to control the response based on call
@@ -182,7 +179,7 @@ verify() {
 
       const initScript = await fs.readFile(path.join(testDir, "ai/init.sh"), "utf-8");
       expect(initScript).toContain("pnpm install"); // Preserved user's pnpm
-      expect(initScript).toContain("verify()"); // Added new function
+      expect(initScript).toContain("check()"); // Has check function
     });
 
     it("should keep existing init.sh unchanged when AI merge fails completely", async () => {

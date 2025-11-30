@@ -40,7 +40,7 @@ agent-foreman brings these same patterns to AI:
 |----------------|---------------|
 | Scrum board | `feature_list.json` |
 | Sprint notes | `progress.md` |
-| CI/CD pipeline | `init.sh verify` |
+| CI/CD pipeline | `init.sh check` |
 | Code review | Acceptance criteria |
 
 ### Why JSON Instead of Markdown?

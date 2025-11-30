@@ -43,19 +43,11 @@ dev() {
   ${commands.dev || "echo 'No dev command configured'"}
 }
 
-# Check: Run tests and basic validation
+# Check: Run all verification checks (tests, types, lint, build)
 check() {
-  log_info "Running tests..."
-  ${commands.test || "echo 'No test command configured'"}
-  ${commands.lint ? `\n  log_info "Running lint..."\n  ${commands.lint}` : ""}
-  log_info "All checks passed!"
-}
-
-# Verify: Run all available verification checks
-verify() {
   local exit_code=0
 
-  log_info "Running verification checks..."
+  log_info "Running checks..."
 
   # Run tests if available
   ${commands.test ? `log_info "Running tests..."
@@ -88,9 +80,9 @@ verify() {
   fi` : ""}
 
   if [ \$exit_code -eq 0 ]; then
-    log_info "All verification checks passed!"
+    log_info "All checks passed!"
   else
-    log_error "Some verification checks failed"
+    log_error "Some checks failed"
   fi
 
   return \$exit_code
@@ -138,8 +130,7 @@ show_help() {
   echo "Commands:"
   echo "  bootstrap  Install dependencies"
   echo "  dev        Start development server"
-  echo "  check      Run tests and validation"
-  echo "  verify     Run all verification checks (tests, types, lint, build)"
+  echo "  check      Run all checks (tests, types, lint, build)"
   echo "  build      Build for production"
   echo "  status     Show project status"
   echo "  help       Show this help message"
@@ -155,9 +146,6 @@ case "\${1:-help}" in
     ;;
   check)
     check
-    ;;
-  verify)
-    verify
     ;;
   build)
     build
@@ -218,18 +206,11 @@ dev() {
   echo "Please configure dev command in this script"
 }
 
-# Check: Run tests and basic validation
+# Check: Run all verification checks (tests, types, lint, build)
 check() {
-  log_info "Running tests..."
-  # TODO: Add your test command
-  echo "Please configure test command in this script"
-}
-
-# Verify: Run all available verification checks
-verify() {
   local exit_code=0
 
-  log_info "Running verification checks..."
+  log_info "Running checks..."
 
   # Run type check if TypeScript detected
   if [ -f "tsconfig.json" ]; then
@@ -243,9 +224,9 @@ verify() {
   log_warn "Configure test/lint/build commands for full verification"
 
   if [ \$exit_code -eq 0 ]; then
-    log_info "Verification checks passed!"
+    log_info "All checks passed!"
   else
-    log_error "Some verification checks failed"
+    log_error "Some checks failed"
   fi
 
   return \$exit_code
@@ -283,8 +264,7 @@ show_help() {
   echo "Commands:"
   echo "  bootstrap  Install dependencies"
   echo "  dev        Start development server"
-  echo "  check      Run tests and validation"
-  echo "  verify     Run all verification checks (tests, types, lint, build)"
+  echo "  check      Run all checks (tests, types, lint, build)"
   echo "  build      Build for production"
   echo "  status     Show project status"
   echo "  help       Show this help message"
@@ -300,9 +280,6 @@ case "\${1:-help}" in
     ;;
   check)
     check
-    ;;
-  verify)
-    verify
     ;;
   build)
     build

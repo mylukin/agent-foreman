@@ -40,7 +40,7 @@ agent-foreman 把这些模式带给了 AI：
 |---------|--------|
 | Scrum 看板 | `feature_list.json` |
 | 冲刺纪要 | `progress.md` |
-| CI/CD 流水线 | `init.sh verify` |
+| CI/CD 流水线 | `init.sh check` |
 | Code Review | 验收标准 |
 
 ### 为什么用 JSON 而不是 Markdown？

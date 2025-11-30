@@ -63,7 +63,6 @@ describe("Init Script", () => {
       expect(script).toContain("bootstrap()");
       expect(script).toContain("dev()");
       expect(script).toContain("check()");
-      expect(script).toContain("verify()");
       expect(script).toContain("build()");
       expect(script).toContain("status()");
       expect(script).toContain("show_help()");
@@ -78,7 +77,6 @@ describe("Init Script", () => {
       expect(script).toContain("bootstrap)");
       expect(script).toContain("dev)");
       expect(script).toContain("check)");
-      expect(script).toContain("verify)");
       expect(script).toContain("build)");
       expect(script).toContain("status)");
       expect(script).toContain("help|--help|-h)");
@@ -108,7 +106,7 @@ describe("Init Script", () => {
       expect(script).toContain('select(.status == "needs_review")');
     });
 
-    it("should include verify function with exit code tracking", () => {
+    it("should include check function with exit code tracking", () => {
       const commands: ProjectCommands = {
         test: "npm test",
         lint: "npm run lint",
@@ -118,11 +116,11 @@ describe("Init Script", () => {
 
       expect(script).toContain("local exit_code=0");
       expect(script).toContain("return $exit_code");
-      expect(script).toContain("Some verification checks failed");
-      expect(script).toContain("All verification checks passed!");
+      expect(script).toContain("Some checks failed");
+      expect(script).toContain("All checks passed!");
     });
 
-    it("should include TypeScript check in verify function", () => {
+    it("should include TypeScript check in check function", () => {
       const commands: ProjectCommands = {};
       const script = generateInitScript(commands);
 
@@ -177,7 +175,6 @@ describe("Init Script", () => {
       expect(script).toContain("bootstrap()");
       expect(script).toContain("dev()");
       expect(script).toContain("check()");
-      expect(script).toContain("verify()");
       expect(script).toContain("build()");
       expect(script).toContain("status()");
       expect(script).toContain("show_help()");
@@ -188,7 +185,6 @@ describe("Init Script", () => {
 
       expect(script).toContain("# TODO: Add your install command");
       expect(script).toContain("# TODO: Add your dev command");
-      expect(script).toContain("# TODO: Add your test command");
       expect(script).toContain("# TODO: Add your build command");
     });
 
@@ -197,7 +193,6 @@ describe("Init Script", () => {
 
       expect(script).toContain("Please configure install command in this script");
       expect(script).toContain("Please configure dev command in this script");
-      expect(script).toContain("Please configure test command in this script");
       expect(script).toContain("Please configure build command in this script");
     });
 
@@ -208,7 +203,6 @@ describe("Init Script", () => {
       expect(script).toContain("bootstrap)");
       expect(script).toContain("dev)");
       expect(script).toContain("check)");
-      expect(script).toContain("verify)");
       expect(script).toContain("build)");
       expect(script).toContain("status)");
     });
@@ -222,7 +216,7 @@ describe("Init Script", () => {
       expect(script).toContain("NC=");
     });
 
-    it("should include verify function with TypeScript check", () => {
+    it("should include check function with TypeScript check", () => {
       const script = generateMinimalInitScript();
 
       expect(script).toContain("local exit_code=0");
@@ -245,8 +239,7 @@ describe("Init Script", () => {
       expect(script).toContain("Usage: ./ai/init.sh <command>");
       expect(script).toContain("bootstrap  Install dependencies");
       expect(script).toContain("dev        Start development server");
-      expect(script).toContain("check      Run tests and validation");
-      expect(script).toContain("verify     Run all verification checks");
+      expect(script).toContain("check      Run all checks");
       expect(script).toContain("build      Build for production");
       expect(script).toContain("status     Show project status");
       expect(script).toContain("help       Show this help message");
@@ -286,7 +279,6 @@ describe("Init Script", () => {
         "bootstrap()",
         "dev()",
         "check()",
-        "verify()",
         "build()",
         "status()",
         "show_help()",

@@ -75,7 +75,7 @@ Agent-foreman is a TypeScript CLI harness that uses AI agents to survey projects
 ### Init Script Generator
 - **Path**: `src/init-script.ts`
 - **Status**: complete
-- **Description**: Generates full or minimal ai/init.sh with bootstrap/dev/check/verify/build/status/help functions and TypeScript checks.
+- **Description**: Generates full or minimal ai/init.sh with bootstrap/dev/check/build/status/help functions and TypeScript checks.
 
 ### Project Scanner
 - **Path**: `src/project-scanner.ts`
