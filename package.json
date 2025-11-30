@@ -1,6 +1,6 @@
 {
   "name": "agent-foreman",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "description": "Long Task Harness for AI agents - feature-driven development with external memory",
   "type": "module",
   "main": "./dist/index.js",
