@@ -135,12 +135,13 @@ export interface VerificationResult {
 }
 
 // ============================================================================
-// Verification Store
+// Verification Store (Legacy - Single File)
 // ============================================================================
 
 /**
  * Verification store structure (ai/verification/results.json)
  * Stores all verification results indexed by feature ID
+ * @deprecated Use VerificationIndex with per-feature subdirectories instead
  */
 export interface VerificationStore {
   /** Map of feature ID to latest verification result */
@@ -149,6 +150,86 @@ export interface VerificationStore {
   updatedAt: string;
   /** Store schema version */
   version: string;
+}
+
+// ============================================================================
+// Verification Index (New - Per-Feature Subdirectories)
+// ============================================================================
+
+/**
+ * Summary of a feature's verification history
+ * Stored in index.json for quick lookups without loading full results
+ */
+export interface FeatureSummary {
+  /** Feature ID */
+  featureId: string;
+  /** Latest run number (e.g., 3 points to 003.json) */
+  latestRun: number;
+  /** Timestamp of the latest verification (ISO 8601) */
+  latestTimestamp: string;
+  /** Verdict of the latest verification */
+  latestVerdict: VerificationVerdict;
+  /** Total number of verification runs */
+  totalRuns: number;
+  /** Count of passing verifications */
+  passCount: number;
+  /** Count of failing verifications */
+  failCount: number;
+}
+
+/**
+ * Verification index structure (ai/verification/index.json)
+ * Summary index for quick lookups across all features
+ */
+export interface VerificationIndex {
+  /** Map of feature ID to its verification summary */
+  features: Record<string, FeatureSummary>;
+  /** Last update timestamp (ISO 8601) */
+  updatedAt: string;
+  /** Index schema version */
+  version: string;
+}
+
+/**
+ * Compact metadata for a single verification run
+ * Stored in {featureId}/NNN.json - excludes verbose output and reasoning
+ */
+export interface VerificationMetadata {
+  /** Feature ID that was verified */
+  featureId: string;
+  /** Sequential run number (1, 2, 3, ...) */
+  runNumber: number;
+  /** Verification timestamp (ISO 8601) */
+  timestamp: string;
+  /** Git commit hash at verification time */
+  commitHash?: string;
+  /** List of files that were changed */
+  changedFiles: string[];
+  /** Summary of the git diff */
+  diffSummary: string;
+
+  /** Results of automated checks (without verbose output) */
+  automatedChecks: Array<{
+    type: AutomatedCheckType;
+    success: boolean;
+    duration?: number;
+    errorCount?: number;
+    // Note: output field is excluded - stored in markdown
+  }>;
+
+  /** Per-criterion results (without verbose reasoning) */
+  criteriaResults: Array<{
+    criterion: string;
+    index: number;
+    satisfied: boolean;
+    confidence: number;
+    // Note: reasoning and evidence excluded - stored in markdown
+  }>;
+
+  /** Overall verification verdict */
+  verdict: VerificationVerdict;
+  /** AI agent used for verification */
+  verifiedBy: string;
 }
 
 // ============================================================================
