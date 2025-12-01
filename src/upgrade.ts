@@ -5,6 +5,7 @@
 
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as readline from "node:readline";
@@ -53,7 +54,8 @@ export function getCurrentVersion(): string {
     // Get the directory of this module
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
     const pkgPath = path.join(__dirname, "..", "package.json");
-    const pkgContent = require("fs").readFileSync(pkgPath, "utf-8");
+    // Use fs import instead of require() for ESM compatibility
+    const pkgContent = readFileSync(pkgPath, "utf-8");
     const pkg = JSON.parse(pkgContent);
     return pkg.version || "0.0.0";
   } catch {
