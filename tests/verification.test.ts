@@ -1091,6 +1091,41 @@ describe("Verification Report Generator", () => {
       expect(report).not.toContain("## Suggestions");
       expect(report).not.toContain("## Code Quality Notes");
     });
+
+    it("should include code quality notes when present", () => {
+      const result = createTestVerificationResult({
+        codeQualityNotes: ["Consider adding more tests", "Variable naming could be improved"],
+      });
+      const report = generateVerificationReport(result);
+
+      expect(report).toContain("## Code Quality Notes");
+      expect(report).toContain("Consider adding more tests");
+      expect(report).toContain("Variable naming could be improved");
+    });
+
+    it("should include related files analyzed when present", () => {
+      const result = createTestVerificationResult({
+        relatedFilesAnalyzed: ["src/utils/helper.ts", "src/types/index.ts"],
+      });
+      const report = generateVerificationReport(result);
+
+      expect(report).toContain("## Related Files Analyzed");
+      expect(report).toContain("`src/utils/helper.ts`");
+      expect(report).toContain("`src/types/index.ts`");
+    });
+
+    it("should include all optional sections when present", () => {
+      const result = createTestVerificationResult({
+        suggestions: ["Add more tests"],
+        codeQualityNotes: ["Good code structure"],
+        relatedFilesAnalyzed: ["src/related.ts"],
+      });
+      const report = generateVerificationReport(result);
+
+      expect(report).toContain("## Suggestions");
+      expect(report).toContain("## Code Quality Notes");
+      expect(report).toContain("## Related Files Analyzed");
+    });
   });
 
   describe("generateVerificationSummary", () => {
@@ -1252,6 +1287,120 @@ describe("Verification Store Migration", () => {
       // Verify files were created
       const featureDir = path.join(storeDir, "auto.migrate");
       expect((await fs.stat(featureDir)).isDirectory()).toBe(true);
+    });
+  });
+
+  describe("autoMigrateIfNeeded", () => {
+    it("should do nothing when no migration needed", async () => {
+      // No files exist - should not throw
+      await autoMigrateIfNeeded(tempDir);
+
+      // Verify no files were created
+      const storeDir = path.join(tempDir, "ai", "verification");
+      await expect(fs.stat(storeDir)).rejects.toThrow();
+    });
+
+    it("should migrate when old format exists", async () => {
+      const storeDir = path.join(tempDir, "ai", "verification");
+      await fs.mkdir(storeDir, { recursive: true });
+
+      const storeData = {
+        results: { "migrate.test": createTestVerificationResult({ featureId: "migrate.test" }) },
+        updatedAt: new Date().toISOString(),
+        version: STORE_VERSION,
+      };
+      await fs.writeFile(
+        path.join(storeDir, "results.json"),
+        JSON.stringify(storeData)
+      );
+
+      await autoMigrateIfNeeded(tempDir);
+
+      // Verify index was created
+      const indexPath = path.join(storeDir, "index.json");
+      const stat = await fs.stat(indexPath);
+      expect(stat.isFile()).toBe(true);
+    });
+
+    it("should handle migration errors gracefully", async () => {
+      const storeDir = path.join(tempDir, "ai", "verification");
+      await fs.mkdir(storeDir, { recursive: true });
+
+      // Create invalid results.json
+      await fs.writeFile(
+        path.join(storeDir, "results.json"),
+        "{ invalid json"
+      );
+
+      // Should not throw even with invalid data
+      await autoMigrateIfNeeded(tempDir);
+    });
+
+    it("should skip when index already exists", async () => {
+      const storeDir = path.join(tempDir, "ai", "verification");
+      await fs.mkdir(storeDir, { recursive: true });
+
+      // Create both results.json and index.json
+      await fs.writeFile(
+        path.join(storeDir, "results.json"),
+        JSON.stringify({ results: {}, updatedAt: "", version: STORE_VERSION })
+      );
+      await fs.writeFile(
+        path.join(storeDir, "index.json"),
+        JSON.stringify({ features: {}, updatedAt: "", version: INDEX_VERSION })
+      );
+
+      // Should not modify anything
+      await autoMigrateIfNeeded(tempDir);
+
+      // Index should still be empty (not updated from results)
+      const index = await loadVerificationIndex(tempDir);
+      expect(Object.keys(index?.features || {}).length).toBe(0);
+    });
+  });
+
+  describe("migrateResultsJson error handling", () => {
+    it("should handle feature migration error gracefully", async () => {
+      const storeDir = path.join(tempDir, "ai", "verification");
+      await fs.mkdir(storeDir, { recursive: true });
+
+      // Create a results.json with valid structure but make directory unwritable
+      const storeData = {
+        results: { "error.feature": createTestVerificationResult({ featureId: "error.feature" }) },
+        updatedAt: new Date().toISOString(),
+        version: STORE_VERSION,
+      };
+      await fs.writeFile(
+        path.join(storeDir, "results.json"),
+        JSON.stringify(storeData)
+      );
+
+      // Create a file where we expect a directory (to cause write error)
+      await fs.writeFile(path.join(storeDir, "error.feature"), "not a directory");
+
+      // Migration should still complete (with warning logged)
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const count = await migrateResultsJson(tempDir);
+
+      // Count should be 0 since feature migration failed
+      expect(count).toBe(0);
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it("should return 0 when results.json is empty", async () => {
+      const storeDir = path.join(tempDir, "ai", "verification");
+      await fs.mkdir(storeDir, { recursive: true });
+
+      // Create empty results.json
+      await fs.writeFile(
+        path.join(storeDir, "results.json"),
+        JSON.stringify({ results: {}, updatedAt: "", version: STORE_VERSION })
+      );
+
+      const count = await migrateResultsJson(tempDir);
+      expect(count).toBe(0);
     });
   });
 });
