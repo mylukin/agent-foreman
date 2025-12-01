@@ -2,6 +2,8 @@
  * Centralized timeout configuration for AI agent operations
  * Supports customization via environment variables and .env files
  */
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 /**
  * Default timeout values in milliseconds
@@ -102,47 +104,40 @@ export type ValidAgentName = (typeof VALID_AGENT_NAMES)[number];
  * Load .env file if it exists (simple implementation without external dependencies)
  */
 function loadEnvFile(): void {
-  try {
-    const fs = require("node:fs");
-    const path = require("node:path");
+  // Try current directory first, then home directory
+  const envPaths = [
+    path.join(process.cwd(), ".env"),
+    path.join(process.env.HOME || "", ".agent-foreman.env"),
+  ];
 
-    // Try current directory first, then home directory
-    const envPaths = [
-      path.join(process.cwd(), ".env"),
-      path.join(process.env.HOME || "", ".agent-foreman.env"),
-    ];
+  for (const envPath of envPaths) {
+    try {
+      const content = fs.readFileSync(envPath, "utf-8");
+      const lines = content.split("\n");
 
-    for (const envPath of envPaths) {
-      try {
-        const content = fs.readFileSync(envPath, "utf-8");
-        const lines = content.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Skip comments and empty lines
+        if (!trimmed || trimmed.startsWith("#")) continue;
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          // Skip comments and empty lines
-          if (!trimmed || trimmed.startsWith("#")) continue;
-
-          const match = trimmed.match(/^([^=]+)=(.*)$/);
-          if (match) {
-            const key = match[1].trim();
-            let value = match[2].trim();
-            // Remove surrounding quotes if present
-            if ((value.startsWith('"') && value.endsWith('"')) ||
-                (value.startsWith("'") && value.endsWith("'"))) {
-              value = value.slice(1, -1);
-            }
-            // Only set if not already set in environment
-            if (!process.env[key]) {
-              process.env[key] = value;
-            }
+        const match = trimmed.match(/^([^=]+)=(.*)$/);
+        if (match) {
+          const key = match[1].trim();
+          let value = match[2].trim();
+          // Remove surrounding quotes if present
+          if ((value.startsWith('"') && value.endsWith('"')) ||
+              (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+          }
+          // Only set if not already set in environment
+          if (!process.env[key]) {
+            process.env[key] = value;
           }
         }
-      } catch {
-        // File doesn't exist or can't be read, continue
       }
+    } catch {
+      // File doesn't exist or can't be read, continue
     }
-  } catch {
-    // Module loading failed, skip .env loading
   }
 }
 
