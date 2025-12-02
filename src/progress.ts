@@ -157,6 +157,7 @@ export class ProgressBar {
   private current = 0;
   private message: string;
   private width: number;
+  private lastRenderedLength = 0;
 
   constructor(message: string, total: number, width: number = 30) {
     this.message = message;
@@ -206,7 +207,13 @@ export class ProgressBar {
     const percentInfo = chalk.cyan(`${percent}%`);
 
     if (isTTY()) {
-      process.stdout.write(`\r   ${bar} ${percentInfo} ${stepInfo} ${this.message}`);
+      const line = `   ${bar} ${percentInfo} ${stepInfo} ${this.message}`;
+      const padding =
+        this.lastRenderedLength > line.length
+          ? " ".repeat(this.lastRenderedLength - line.length)
+          : "";
+      process.stdout.write(`\r${line}${padding}`);
+      this.lastRenderedLength = line.length;
     } else {
       console.log(`   [${this.current}/${this.total}] ${percent}% - ${this.message}`);
     }
@@ -222,7 +229,15 @@ export class ProgressBar {
     if (isTTY()) {
       const filled = chalk.green("█".repeat(this.width));
       const bar = `[${filled}]`;
-      process.stdout.write(`\r   ${bar} ${chalk.green("100%")} ${chalk.gray(`(${this.total}/${this.total})`)} ${finalMessage}\n`);
+      const line = `   ${bar} ${chalk.green("100%")} ${chalk.gray(
+        `(${this.total}/${this.total})`
+      )} ${finalMessage}`;
+      const padding =
+        this.lastRenderedLength > line.length
+          ? " ".repeat(this.lastRenderedLength - line.length)
+          : "";
+      process.stdout.write(`\r${line}${padding}\n`);
+      this.lastRenderedLength = 0;
     } else {
       console.log(`   [${this.total}/${this.total}] 100% - ${finalMessage} ✓`);
     }

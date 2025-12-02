@@ -118,6 +118,17 @@ export function filterAvailableAgents(agents: AgentConfig[]): {
 export interface CallAgentOptions {
   timeoutMs?: number;
   cwd?: string; // Working directory for the agent
+  /**
+   * Optional callback for streaming stdout chunks as they arrive.
+   * The full stdout is still collected and returned in the result.
+   */
+  onChunk?: (chunk: string) => void;
+  /**
+   * More granular callbacks for stdout/stderr streaming.
+   * When provided, they are invoked in addition to onChunk (for stdout).
+   */
+  onStdoutChunk?: (chunk: string) => void;
+  onStderrChunk?: (chunk: string) => void;
 }
 
 /**
@@ -128,7 +139,7 @@ export async function callAgent(
   prompt: string,
   options: CallAgentOptions = {}
 ): Promise<{ success: boolean; output: string; error?: string }> {
-  const { timeoutMs, cwd } = options;
+  const { timeoutMs, cwd, onChunk, onStdoutChunk, onStderrChunk } = options;
 
   const state: AgentState = {
     config,
@@ -168,11 +179,25 @@ export async function callAgent(
   }
 
   child.stdout?.on("data", (chunk) => {
-    state.stdout.push(chunk.toString());
+    const text = chunk.toString();
+    state.stdout.push(text);
+    if (onChunk) {
+      onChunk(text);
+    }
+    if (onStdoutChunk) {
+      onStdoutChunk(text);
+    }
   });
 
   child.stderr?.on("data", (chunk) => {
-    state.stderr.push(chunk.toString());
+    const text = chunk.toString();
+    state.stderr.push(text);
+    if (onChunk) {
+      onChunk(text);
+    }
+    if (onStderrChunk) {
+      onStderrChunk(text);
+    }
   });
 
   const completion = new Promise<AgentState>((resolve) => {
@@ -280,9 +305,14 @@ export async function callAnyAvailableAgent(
     timeoutMs?: number;
     verbose?: boolean;
     cwd?: string;
+    /**
+     * Optional callback for streaming stdout chunks from the selected agent.
+     * When provided, animated spinners are disabled to avoid corrupting output.
+     */
+    onChunk?: (chunk: string) => void;
   } = {}
 ): Promise<{ success: boolean; output: string; agentUsed?: string; error?: string }> {
-  const { preferredOrder, timeoutMs, verbose = false, cwd } = options;
+  const { preferredOrder, timeoutMs, verbose = false, cwd, onChunk } = options;
   const agentOrder = preferredOrder ?? getAgentPriority();
 
   for (const name of agentOrder) {
@@ -296,14 +326,17 @@ export async function callAnyAvailableAgent(
       continue;
     }
 
-    // Show which agent we're using with animated spinner
+    // Show which agent we're using.
+    // When onChunk is provided, disable animated spinner to avoid corrupting streamed output.
     const startTime = Date.now();
     const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let spinnerIdx = 0;
     let spinnerInterval: NodeJS.Timeout | null = null;
 
-    // Only use animated spinner in TTY mode to avoid conflicts
-    if (isTTY()) {
+    const enableSpinner = isTTY() && !onChunk;
+
+    // Only use animated spinner in TTY mode when we are not streaming output
+    if (enableSpinner) {
       // Print initial message without newline
       process.stdout.write(chalk.blue(`        Using ${name}...`));
       spinnerInterval = setInterval(() => {
@@ -311,14 +344,20 @@ export async function callAnyAvailableAgent(
         // Clear just this line and rewrite (don't use \r from column 0 to avoid parent spinner conflicts)
         process.stdout.clearLine(0);
         process.stdout.cursorTo(0);
-        process.stdout.write(chalk.blue(`        Using ${name}... ${chalk.cyan(spinnerFrames[spinnerIdx])} ${chalk.gray(`(${elapsed}s)`)}`));
+        process.stdout.write(
+          chalk.blue(
+            `        Using ${name}... ${chalk.cyan(spinnerFrames[spinnerIdx])} ${chalk.gray(
+              `(${elapsed}s)`
+            )}`
+          )
+        );
         spinnerIdx = (spinnerIdx + 1) % spinnerFrames.length;
       }, 100);
     } else {
-      console.log(`        Using ${name}...`);
+      console.log(chalk.blue(`        Using ${name}...`));
     }
 
-    const result = await callAgent(agent, prompt, { timeoutMs, cwd });
+    const result = await callAgent(agent, prompt, { timeoutMs, cwd, onChunk });
 
     if (spinnerInterval) {
       clearInterval(spinnerInterval);
@@ -326,7 +365,7 @@ export async function callAnyAvailableAgent(
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
     if (result.success) {
-      if (isTTY()) {
+      if (enableSpinner) {
         process.stdout.clearLine(0);
         process.stdout.cursorTo(0);
       }
@@ -334,7 +373,7 @@ export async function callAnyAvailableAgent(
       return { ...result, agentUsed: name };
     }
 
-    if (isTTY()) {
+    if (enableSpinner) {
       process.stdout.clearLine(0);
       process.stdout.cursorTo(0);
     }

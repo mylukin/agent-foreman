@@ -264,6 +264,45 @@ agent-foreman survey docs/ANALYSIS.md   # Custom output path
 agent-foreman survey -v                 # Verbose mode
 ```
 
+### `analyze` + `run`
+
+Use AI to turn a free-form requirement spec into ordered implementation steps, then execute them one by one:
+
+> 将自由格式的需求文档拆分为有序实现步骤，并依次自动执行：
+
+```bash
+# 1. Analyze a spec file and generate step JSONs
+agent-foreman analyze docs/需求说明.md
+# → Creates a directory like: 「用户登录需求实现步骤」
+
+# 2. Run the generated steps sequentially
+agent-foreman run "用户登录需求实现步骤"
+```
+
+`run` will:
+- Discover all `NNN-*.json` step files under the directory (other `.json` files are ignored with a warning)
+- For each step, start a new AI subprocess to apply the described change
+- After a successful implementation attempt, optionally run step-specific tests defined by the `unit_test.command` field and then perform AI-driven verification based on the `verification` list
+- Automatically retry a failing step up to **5 attempts** (implementation + tests + verification) before giving up
+- Update each step's `status` (`🔴 待完成` → `🟡 进行中` → `🟢 已完成` on success, or back to `🔴 待完成` when tests/verification fail)
+- Maintain a single Markdown progress report `run-progress.md` in the same steps directory, rewriting it after errors and successful validations so it always reflects the latest attempt
+- With `--full-verify`, also re-run tests and verification for steps already marked as completed (`🟢`), reopening them for implementation when regressions are detected
+- With `--verify-only`, run only unit tests (when `unit_test` is defined) and AI-based verification for each step, without performing any new implementation work
+- With `--verify-unittest-only`, run only the `unit_test.command` for each step (if present) without AI verification or implementation; steps without `unit_test` are treated as verification failures
+- With `--verify-generate-unittest`, only check whether each step has `unit_test` configured and, if missing, call AI to generate `unit_test` information and write it back to the step JSON without changing business logic
+
+> `run` 会：
+> - 自动发现目录中的 `NNN-*.json` 步骤文件并按顺序执行（其他 JSON 文件会被忽略并在终端给出告警）；
+> - 为每个步骤单独启动一次命令行 AI 子进程，根据 description 完成实现；
+> - 在实现成功后，优先根据 `unit_test.command` 运行与该步骤相关的测试，再按 `verification` 列表调用 AI 做验证；
+> - 对失败的步骤自动重试，最多尝试 **5 轮**「实现 + 测试 + 验证」，若仍无法通过则终止本次 run；
+> - 根据结果维护步骤 JSON 中的 `status` 字段（`🔴 待完成` → `🟡 进行中` → `🟢 已完成`，或在测试/验证失败后退回 `🔴 待完成`）；
+> - 在步骤目录下维护一份固定文件名为 `run-progress.md` 的执行报告，在每次失败和验证成功后重写，使其始终反映最近一轮尝试的状态；
+> - 当使用 `--full-verify` 时，会对已标记为 `🟢 已完成` 的步骤重新运行 `unit_test` 和 verification，若发现问题则重新打开并进入多轮自动修复流程；
+> - 当使用 `--verify-only` 时，只运行单元测试（若步骤定义了 `unit_test`）和基于 `verification` 的 AI 验证，不做任何实现改动；
+> - 当使用 `--verify-unittest-only` 时，只运行每个步骤的 `unit_test.command`，不调用 AI，也不做实现改动；对于缺少 `unit_test` 的步骤会直接视为验证失败；
+> - 当使用 `--verify-generate-unittest` 时，只检查每个步骤是否配置了 `unit_test`，对缺少配置的步骤调用 AI 生成 `unit_test` 信息写回 JSON，不更改业务实现代码。
+
 ### `init [goal]`
 
 Initialize or update the long-task harness.

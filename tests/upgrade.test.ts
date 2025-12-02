@@ -4,8 +4,18 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+
+// Use a workspace-local "home" directory so tests can freely read/write
+// cache files even when the real HOME is outside the writable sandbox.
+const TEST_HOME = path.join(process.cwd(), ".tmp-upgrade-test-home");
+if (!fsSync.existsSync(TEST_HOME)) {
+  fsSync.mkdirSync(TEST_HOME, { recursive: true });
+}
+process.env.HOME = TEST_HOME;
+process.env.USERPROFILE = TEST_HOME;
 
 import {
   getCurrentVersion,

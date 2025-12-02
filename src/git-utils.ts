@@ -148,10 +148,11 @@ export function gitCommit(cwd: string, message: string): GitCommitResult {
     });
 
     if (result.status !== 0) {
-      // Check if it's "nothing to commit"
+      // Check if it's "nothing to commit" (supports both English and Chinese locales)
+      const output = (result.stdout || "") + (result.stderr || "");
       if (
-        result.stdout?.includes("nothing to commit") ||
-        result.stderr?.includes("nothing to commit")
+        output.includes("nothing to commit") ||
+        output.includes("无文件要提交")
       ) {
         return {
           success: false,
