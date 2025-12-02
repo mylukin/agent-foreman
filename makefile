@@ -1,5 +1,5 @@
 run_analyze:
-	npm run dev -- analyze ./docs/run-command-requirements.md
+	npm run dev -- analyze ./docs/run-multi-attempt-design.md
 
 run_run:
 	npm run dev -- run "实现步骤执行与进度跟踪需求实现步骤"
