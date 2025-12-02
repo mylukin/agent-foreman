@@ -27,6 +27,17 @@ export interface StepJson {
   [key: string]: unknown;
 }
 
+export interface PreviousAttemptFailureContext {
+  attempt: number;
+  maxAttempts: number;
+  fromStatus: StepStatus;
+  toStatus: StepStatus;
+  unitTestCommand?: string;
+  unitTestOutputSnippet?: string;
+  verificationError?: string;
+  aiError?: string;
+}
+
 interface RunStepEntry {
   order: number;
   prefix: string;
@@ -109,6 +120,26 @@ function formatDateTime(dt: Date): string {
   return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
+function buildOutputSnippet(
+  output: string,
+  maxLines = 20,
+  maxLength = 2000,
+): string {
+  const lines = output.split("\n");
+  const sliced = lines.slice(0, maxLines);
+  let snippet = sliced.join("\n");
+
+  if (snippet.length > maxLength) {
+    snippet = `${snippet.slice(0, maxLength - 1)}…`;
+  }
+
+  if (lines.length > maxLines) {
+    snippet = `${snippet}\n... (output truncated)`;
+  }
+
+  return snippet.trim();
+}
+
 function buildRunStepPrompt(params: {
   projectRoot: string;
   stepsDir: string;
@@ -176,6 +207,87 @@ ${verificationLines}
 - 如果你无法完成当前步骤、遇到无法解决的错误、或有任何测试失败，请以非 0 退出码结束，并在输出中简要说明原因。
 
 请现在开始执行该步骤。`;
+}
+
+export function appendPreviousFailureContextToPrompt(params: {
+  basePrompt: string;
+  context?: PreviousAttemptFailureContext;
+}): string {
+  const { basePrompt, context } = params;
+  if (!context) {
+    return basePrompt;
+  }
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push("====== 上一轮尝试失败原因摘要 ======");
+  lines.push("");
+  lines.push(
+    `- 上一轮尝试序号：第 ${context.attempt}/${context.maxAttempts} 轮`,
+  );
+  lines.push(
+    `- 上一轮步骤状态变化：${context.fromStatus} → ${context.toStatus}`,
+  );
+
+  if (context.unitTestCommand) {
+    lines.push(
+      `- 最近一次单元测试命令：${context.unitTestCommand}`,
+    );
+    if (context.unitTestOutputSnippet) {
+      lines.push("- 单元测试关键输出（已截断）：");
+      lines.push(context.unitTestOutputSnippet);
+    }
+  }
+
+  if (context.verificationError) {
+    lines.push(
+      `- verification 阶段的错误信息：${context.verificationError}`,
+    );
+  }
+
+  if (context.aiError) {
+    lines.push(`- AI 实现阶段返回的错误：${context.aiError}`);
+  }
+
+  lines.push("");
+  lines.push(
+    "请在本轮实现中重点根据上述失败原因进行有针对性的修复。",
+  );
+
+  return `${basePrompt}\n\n${lines.join("\n")}`;
+}
+
+function logAttemptFailureSummary(context: PreviousAttemptFailureContext): void {
+  const base = `  ℹ 本轮失败摘要：第 ${context.attempt}/${context.maxAttempts} 轮，步骤状态 ${context.fromStatus} → ${context.toStatus}`;
+
+  if (context.unitTestCommand) {
+    console.log(
+      chalk.yellow(
+        `${base}，最近一次单元测试命令 "${context.unitTestCommand}" 失败`,
+      ),
+    );
+    return;
+  }
+
+  if (context.verificationError) {
+    console.log(
+      chalk.yellow(
+        `${base}，verification 验证失败：${context.verificationError}`,
+      ),
+    );
+    return;
+  }
+
+  if (context.aiError) {
+    console.log(
+      chalk.yellow(
+        `${base}，AI 实现阶段返回错误：${context.aiError}`,
+      ),
+    );
+    return;
+  }
+
+  console.log(chalk.yellow(base));
 }
 
 function buildRunStepValidationPrompt(params: {
@@ -258,7 +370,7 @@ async function discoverStepFiles(stepsDir: string): Promise<{
   return { stepFiles, otherJsonFiles };
 }
 
-async function loadStepEntries(
+export async function loadStepEntries(
   stepsDir: string,
   stepFiles: string[],
 ): Promise<{ entries: RunStepEntry[]; hasParseError: boolean }> {
@@ -328,7 +440,7 @@ async function loadStepEntries(
   return { entries, hasParseError };
 }
 
-async function writeProgressMarkdown(params: {
+export async function writeProgressMarkdown(params: {
   stepsDir: string;
   entries: RunStepEntry[];
   startedAt: Date;
@@ -389,7 +501,7 @@ async function writeProgressMarkdown(params: {
   return filePath;
 }
 
-function extractUnitTestFromOutput(output: string): StepUnitTest | undefined {
+export function extractUnitTestFromOutput(output: string): StepUnitTest | undefined {
   const jsonStr = extractJsonObject(output);
   if (!jsonStr) return undefined;
 
@@ -448,6 +560,8 @@ async function runUnitTestsForStep(
     output: combined,
   };
 }
+
+const MAX_ATTEMPTS = 5;
 
 export async function runStepsDirectory(
   stepsDirArg: string,
@@ -676,77 +790,15 @@ export async function runStepsDirectory(
       continue;
     }
 
-    // 标记为进行中
-    const previousStatus = step.status;
-    step.status = "🟡 进行中";
-    entry.finalStatus = step.status;
+    let shouldAbortRun = false;
+    let lastFailureContext: PreviousAttemptFailureContext | undefined;
 
-    try {
-      await fs.writeFile(
-        entry.filePath,
-        JSON.stringify(step, null, 2),
-        "utf-8",
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "无法写入步骤 JSON 文件";
-      console.log(
-        chalk.red(
-          `✗ 无法更新步骤文件 ${entry.fileName}: ${message}`,
-        ),
-      );
-      entry.success = false;
-      entry.error = message;
-      firstFailure = firstFailure ?? entry;
-
-      const now = new Date();
-      await writeProgressMarkdown({
-        stepsDir,
-        entries,
-        startedAt,
-        finishedAt: now,
-      });
-      break;
-    }
-
-    console.log(
-      chalk.gray(
-        `  状态更新: ${previousStatus} → ${step.status}`,
-      ),
-    );
-
-    const prompt = buildRunStepPrompt({
-      projectRoot: cwd,
-      stepsDir,
-      step,
-      fileName: entry.fileName,
-      order: entry.order,
-      total,
-    });
-
-    console.log(chalk.gray("  正在调用命令行 AI 处理该步骤..."));
-
-    const result = await callAnyAvailableAgent(prompt, {
-      cwd,
-      verbose: true,
-    });
-
-    if (result.success) {
-      step.status = "🟢 已完成";
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const attemptStartStatus = step.status;
+      // 标记为进行中
+      const previousStatus = step.status;
+      step.status = "🟡 进行中";
       entry.finalStatus = step.status;
-      entry.success = true;
-      entry.error = undefined;
-
-      const unitTest = extractUnitTestFromOutput(result.output);
-      if (unitTest) {
-        step.unit_test = unitTest;
-        entry.unitTest = unitTest;
-        console.log(
-          chalk.gray(
-            `  单元测试信息已记录到步骤 JSON（命令：${unitTest.command}）`,
-          ),
-        );
-      }
 
       try {
         await fs.writeFile(
@@ -759,48 +811,237 @@ export async function runStepsDirectory(
           err instanceof Error ? err.message : "无法写入步骤 JSON 文件";
         console.log(
           chalk.red(
-            `✗ 步骤已成功执行，但写回状态到文件时失败：${message}`,
+            `✗ 无法更新步骤文件 ${entry.fileName}: ${message}`,
           ),
         );
         entry.success = false;
         entry.error = message;
         firstFailure = firstFailure ?? entry;
+
+        const now = new Date();
+        await writeProgressMarkdown({
+          stepsDir,
+          entries,
+          startedAt,
+          finishedAt: now,
+        });
+        shouldAbortRun = true;
         break;
       }
 
       console.log(
-        chalk.green(
-          `  ✓ 步骤执行成功，状态已更新为：${step.status}`,
+        chalk.gray(
+          `  状态更新: ${previousStatus} → ${step.status}`,
         ),
       );
 
-      // 普通 run 模式下，执行「单元测试 + verification 验证」
-      if (!options.fullVerify) {
-        // 先执行单元测试（如果存在）
-        if (entry.unitTest && entry.unitTest.command) {
+      const attemptPrefix = `[${entry.order}/${total}]`;
+      if (attempt === 1) {
+        console.log(
+          chalk.gray(
+            `  🔁 ${attemptPrefix} 第 ${attempt}/${MAX_ATTEMPTS} 次尝试执行该步骤（首次尝试）...`,
+          ),
+        );
+      } else {
+        console.log(
+          chalk.gray(
+            `  🔁 ${attemptPrefix} 第 ${attempt}/${MAX_ATTEMPTS} 次尝试执行该步骤（上一轮失败，将基于失败原因进行修复）...`,
+          ),
+        );
+      }
+
+      const basePrompt = buildRunStepPrompt({
+        projectRoot: cwd,
+        stepsDir,
+        step,
+        fileName: entry.fileName,
+        order: entry.order,
+        total,
+      });
+
+      const prompt =
+        attempt > 1 && lastFailureContext
+          ? appendPreviousFailureContextToPrompt({
+              basePrompt,
+              context: lastFailureContext,
+            })
+          : basePrompt;
+
+      console.log(chalk.gray("  正在调用命令行 AI 处理该步骤..."));
+
+      const result = await callAnyAvailableAgent(prompt, {
+        cwd,
+        verbose: true,
+      });
+
+      if (result.success) {
+        step.status = "🟢 已完成";
+        entry.finalStatus = step.status;
+        entry.success = true;
+        entry.error = undefined;
+
+        const unitTest = extractUnitTestFromOutput(result.output);
+        if (unitTest) {
+          step.unit_test = unitTest;
+          entry.unitTest = unitTest;
           console.log(
             chalk.gray(
-              `  🧪 执行单元测试: ${entry.unitTest.command}`,
+              `  单元测试信息已记录到步骤 JSON（命令：${unitTest.command}）`,
             ),
           );
-          const testResult = await runUnitTestsForStep(entry.unitTest, cwd);
-          if (!testResult.success) {
-            console.log(chalk.red("  ✗ 单元测试失败"));
-            if (testResult.error) {
-              testResult.error
-                .split("\n")
-                .slice(0, 10)
-                .forEach((line) => {
-                  if (line.trim()) {
-                    console.log(chalk.red(`    ${line}`));
-                  }
-                });
+        }
+
+        try {
+          await fs.writeFile(
+            entry.filePath,
+            JSON.stringify(step, null, 2),
+            "utf-8",
+          );
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "无法写入步骤 JSON 文件";
+          console.log(
+            chalk.red(
+              `✗ 步骤已成功执行，但写回状态到文件时失败：${message}`,
+            ),
+          );
+          entry.success = false;
+          entry.error = message;
+          firstFailure = firstFailure ?? entry;
+          shouldAbortRun = true;
+          break;
+        }
+
+        console.log(
+          chalk.green(
+            `  ✓ 步骤执行成功，状态已更新为：${step.status}`,
+          ),
+        );
+
+        // 普通 run 模式下，执行「单元测试 + verification 验证」
+        if (!options.fullVerify) {
+          // 先执行单元测试（如果存在）
+          if (entry.unitTest && entry.unitTest.command) {
+            console.log(
+              chalk.gray(
+                `  🧪 执行单元测试: ${entry.unitTest.command}`,
+              ),
+            );
+            const testResult = await runUnitTestsForStep(entry.unitTest, cwd);
+            if (!testResult.success) {
+              console.log(chalk.red("  ✗ 单元测试失败"));
+              if (testResult.error) {
+                testResult.error
+                  .split("\n")
+                  .slice(0, 10)
+                  .forEach((line) => {
+                    if (line.trim()) {
+                      console.log(chalk.red(`    ${line}`));
+                    }
+                  });
+              }
+
+              const unitTestOutputSnippet = buildOutputSnippet(
+                testResult.error || testResult.output || "",
+              );
+
+              step.status = "🔴 待完成";
+              entry.finalStatus = step.status;
+              entry.success = false;
+              entry.error = "单元测试失败";
+
+              lastFailureContext = {
+                attempt,
+                maxAttempts: MAX_ATTEMPTS,
+                fromStatus: attemptStartStatus,
+                toStatus: step.status,
+                unitTestCommand: entry.unitTest.command,
+                unitTestOutputSnippet,
+              };
+
+              if (lastFailureContext) {
+                logAttemptFailureSummary(lastFailureContext);
+              }
+
+              try {
+                await fs.writeFile(
+                  entry.filePath,
+                  JSON.stringify(step, null, 2),
+                  "utf-8",
+                );
+              } catch {
+                // 如果这里写回失败，错误已经在前面处理过，这里不再额外中断
+              }
+
+              const now = new Date();
+              await writeProgressMarkdown({
+                stepsDir,
+                entries,
+                startedAt,
+                finishedAt: now,
+              });
+
+              if (attempt >= MAX_ATTEMPTS) {
+                firstFailure = firstFailure ?? entry;
+                shouldAbortRun = true;
+                break;
+              }
+
+              // 未到最大重试次数，继续下一轮尝试
+              continue;
+            } else {
+              console.log(chalk.green("  ✓ 单元测试通过"));
             }
+          }
+
+          // 再按 verification 列表让 AI 做一次验证
+          const validationPrompt = buildRunStepValidationPrompt({
+            projectRoot: cwd,
+            stepsDir,
+            step,
+            fileName: entry.fileName,
+            order: entry.order,
+            total,
+          });
+
+          console.log(
+            chalk.gray("  正在调用命令行 AI 按 verification 进行验证..."),
+          );
+
+          const validationResult = await callAnyAvailableAgent(
+            validationPrompt,
+            {
+              cwd,
+              verbose: true,
+            },
+          );
+
+          if (!validationResult.success) {
+            console.log(
+              chalk.red(
+                `  ✗ verification 验证未通过：${validationResult.error ?? "原因未知"}`,
+              ),
+            );
+
+            const verificationError =
+              validationResult.error || "verification 验证失败";
 
             step.status = "🔴 待完成";
             entry.finalStatus = step.status;
             entry.success = false;
-            entry.error = "单元测试失败";
+            entry.error = verificationError;
+
+            lastFailureContext = {
+              attempt,
+              maxAttempts: MAX_ATTEMPTS,
+              fromStatus: attemptStartStatus,
+              toStatus: step.status,
+              verificationError,
+            };
+
+            if (lastFailureContext) {
+              logAttemptFailureSummary(lastFailureContext);
+            }
 
             try {
               await fs.writeFile(
@@ -809,7 +1050,7 @@ export async function runStepsDirectory(
                 "utf-8",
               );
             } catch {
-              // 如果这里写回失败，错误已经在前面处理过，这里不再额外中断
+              // 同上，写回失败不再额外中断
             }
 
             const now = new Date();
@@ -820,110 +1061,98 @@ export async function runStepsDirectory(
               finishedAt: now,
             });
 
-            firstFailure = firstFailure ?? entry;
-            break;
+            if (attempt >= MAX_ATTEMPTS) {
+              firstFailure = firstFailure ?? entry;
+              shouldAbortRun = true;
+              break;
+            }
+
+            // 未到最大重试次数，继续下一轮尝试
+            continue;
           } else {
-            console.log(chalk.green("  ✓ 单元测试通过"));
+            console.log(chalk.green("  ✓ verification 验证通过"));
           }
         }
 
-        // 再按 verification 列表让 AI 做一次验证
-        const validationPrompt = buildRunStepValidationPrompt({
-          projectRoot: cwd,
-          stepsDir,
-          step,
-          fileName: entry.fileName,
-          order: entry.order,
-          total,
-        });
-
-        console.log(chalk.gray("  正在调用命令行 AI 按 verification 进行验证..."));
-
-        const validationResult = await callAnyAvailableAgent(validationPrompt, {
-          cwd,
-          verbose: true,
-        });
-
-        if (!validationResult.success) {
+        if (!options.fullVerify) {
           console.log(
-            chalk.red(
-              `  ✗ verification 验证未通过：${validationResult.error ?? "原因未知"}`,
+            chalk.green(
+              `  ✓ 第 ${attempt} 次尝试后步骤已通过所有测试与验证`,
             ),
           );
-
-          step.status = "🔴 待完成";
-          entry.finalStatus = step.status;
-          entry.success = false;
-          entry.error = validationResult.error || "verification 验证失败";
-
-          try {
-            await fs.writeFile(
-              entry.filePath,
-              JSON.stringify(step, null, 2),
-              "utf-8",
-            );
-          } catch {
-            // 同上，写回失败不再额外中断
-          }
-
-          const now = new Date();
-          await writeProgressMarkdown({
-            stepsDir,
-            entries,
-            startedAt,
-            finishedAt: now,
-          });
-
-          firstFailure = firstFailure ?? entry;
-          break;
-        } else {
-          console.log(chalk.green("  ✓ verification 验证通过"));
         }
-      }
 
-      const now = new Date();
-      await writeProgressMarkdown({
-        stepsDir,
-        entries,
-        startedAt,
-        finishedAt: now,
-      });
-    } else {
-      step.status = "🔴 待完成";
-      entry.finalStatus = step.status;
-      entry.success = false;
-      entry.error = result.error || "AI 子进程执行失败";
+        const now = new Date();
+        await writeProgressMarkdown({
+          stepsDir,
+          entries,
+          startedAt,
+          finishedAt: now,
+        });
 
-      try {
-        await fs.writeFile(
-          entry.filePath,
-          JSON.stringify(step, null, 2),
-          "utf-8",
-        );
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "无法写入步骤 JSON 文件";
+        // 当前轮次实现 + 验证均成功，结束重试循环
+        break;
+      } else {
+        step.status = "🔴 待完成";
+        entry.finalStatus = step.status;
+        entry.success = false;
+        const aiError = result.error || "AI 子进程执行失败";
+        entry.error = aiError;
+
+        lastFailureContext = {
+          attempt,
+          maxAttempts: MAX_ATTEMPTS,
+          fromStatus: attemptStartStatus,
+          toStatus: step.status,
+          aiError,
+        };
+
+        if (lastFailureContext) {
+          logAttemptFailureSummary(lastFailureContext);
+        }
+
+        try {
+          await fs.writeFile(
+            entry.filePath,
+            JSON.stringify(step, null, 2),
+            "utf-8",
+          );
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "无法写回失败状态到步骤文件";
+          console.log(
+            chalk.red(
+              `✗ 无法写回失败状态到步骤文件：${message}`,
+            ),
+          );
+        }
+
         console.log(
           chalk.red(
-            `✗ 无法写回失败状态到步骤文件：${message}`,
+            `✗ 步骤执行失败：${entry.error}`,
           ),
         );
+
+        const now = new Date();
+        await writeProgressMarkdown({
+          stepsDir,
+          entries,
+          startedAt,
+          finishedAt: now,
+        });
+
+        if (attempt >= MAX_ATTEMPTS) {
+          firstFailure = firstFailure ?? entry;
+          shouldAbortRun = true;
+          break;
+        }
+
+        // 未到最大重试次数，继续下一轮尝试
+        continue;
       }
+    }
 
-      console.log(
-        chalk.red(
-          `✗ 步骤执行失败：${entry.error}`,
-        ),
-      );
-      firstFailure = firstFailure ?? entry;
-
-      const now = new Date();
-      await writeProgressMarkdown({
-        stepsDir,
-        entries,
-        startedAt,
-        finishedAt: now,
-      });
+    if (shouldAbortRun) {
       break;
     }
   }

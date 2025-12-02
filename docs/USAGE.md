@@ -280,16 +280,22 @@ agent-foreman run "用户登录需求实现步骤"
 ```
 
 `run` will:
-- Discover all `NNN-*.json` step files under the directory
-- For each step, start a new AI subprocess, apply the described change, and run the listed verifications
-- Update each step's `status` (`🔴 待完成` → `🟡 进行中` → `🟢 已完成` on success)
-- Write a Markdown progress report (`run-progress-*.md`) into the same steps directory
+- Discover all `NNN-*.json` step files under the directory (other `.json` files are ignored with a warning)
+- For each step, start a new AI subprocess to apply the described change
+- After a successful implementation attempt, optionally run step-specific tests defined by the `unit_test.command` field and then perform AI-driven verification based on the `verification` list
+- Automatically retry a failing step up to **5 attempts** (implementation + tests + verification) before giving up
+- Update each step's `status` (`🔴 待完成` → `🟡 进行中` → `🟢 已完成` on success, or back to `🔴 待完成` when tests/verification fail)
+- Maintain a single Markdown progress report `run-progress.md` in the same steps directory, rewriting it after errors and successful validations so it always reflects the latest attempt
+- With `--full-verify`, also re-run tests and verification for steps already marked as completed (`🟢`), reopening them for implementation when regressions are detected
 
 > `run` 会：
-> - 自动发现目录中的 `NNN-*.json` 步骤文件并按顺序执行；
-> - 为每个步骤单独启动一次命令行 AI 子进程，根据 description 完成实现并按 verification 生成/运行测试；
-> - 在成功时将该步骤的 `status` 更新为 `"🟢 已完成"`；
-> - 在步骤目录下生成一份 `run-progress-*.md` 执行报告，记录本次 run 的完整过程。
+> - 自动发现目录中的 `NNN-*.json` 步骤文件并按顺序执行（其他 JSON 文件会被忽略并在终端给出告警）；
+> - 为每个步骤单独启动一次命令行 AI 子进程，根据 description 完成实现；
+> - 在实现成功后，优先根据 `unit_test.command` 运行与该步骤相关的测试，再按 `verification` 列表调用 AI 做验证；
+> - 对失败的步骤自动重试，最多尝试 **5 轮**「实现 + 测试 + 验证」，若仍无法通过则终止本次 run；
+> - 根据结果维护步骤 JSON 中的 `status` 字段（`🔴 待完成` → `🟡 进行中` → `🟢 已完成`，或在测试/验证失败后退回 `🔴 待完成`）；
+> - 在步骤目录下维护一份固定文件名为 `run-progress.md` 的执行报告，在每次失败和验证成功后重写，使其始终反映最近一轮尝试的状态；
+> - 当使用 `--full-verify` 时，会对已标记为 `🟢 已完成` 的步骤重新运行 `unit_test` 和 verification，若发现问题则重新打开并进入多轮自动修复流程。
 
 ### `init [goal]`
 

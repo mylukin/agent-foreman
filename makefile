@@ -1,5 +1,5 @@
 PRD=./docs/run-multi-attempt-design.md
-STEPS=
+STEPS="run\ 命令多轮自动修复与验证需求实现步骤"
 
 run_analyze:
 	npm run dev -- analyze $(PRD)
