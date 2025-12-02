@@ -36,7 +36,7 @@
         "./skills/project-survey",
         "./skills/init-harness",
         "./skills/feature-step",
-        "./skills/feature-auto-complete"
+        "./skills/feature-run"
       ]
     }
   ]

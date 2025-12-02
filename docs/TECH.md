@@ -271,12 +271,12 @@ plugins/agent-foreman/
 │   ├── project-survey/
 │   ├── init-harness/
 │   ├── feature-step/
-│   └── feature-auto-complete/
+│   └── feature-run/
 └── commands/               # 4 slash commands
     ├── survey.md
     ├── init.md
     ├── step.md
-    └── auto.md
+    └── run.md
 ```
 
 ---

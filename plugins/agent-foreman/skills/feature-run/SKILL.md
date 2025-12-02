@@ -1,9 +1,9 @@
 ---
-name: feature-auto-complete
+name: feature-run
 description: Automatically complete all pending features from the feature list in priority order
 ---
 
-# 🔄 Feature Auto-Complete
+# 🔄 Feature Run
 
 **Loop**: `status → step → implement → complete → repeat`
 
