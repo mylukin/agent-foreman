@@ -18,3 +18,9 @@ run_run_verify_unittest_only:
 
 run_run_verify_generate_unittest:
 	npm run dev -- run "${STEPS}" --verify-generate-unittest
+
+install_nodes:
+	npm install
+
+install: install_nodes
+	npm link
