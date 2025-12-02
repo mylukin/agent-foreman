@@ -2030,4 +2030,244 @@ describe("Verifier", () => {
       );
     });
   });
+
+  // ============================================================================
+  // E2E Integration Tests for runAutomatedChecks
+  // ============================================================================
+
+  describe("runAutomatedChecks - E2E integration", () => {
+    it("should include E2E check when e2eInfo is provided with smoke mode", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        return { stdout: "success" };
+      });
+
+      const capabilities: VerificationCapabilities = {
+        hasTests: true,
+        testCommand: "npm test",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+      };
+
+      const options: AutomatedCheckOptions = {
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+        e2eMode: "smoke",
+      };
+
+      const results = await runAutomatedChecks(testDir, capabilities, options);
+
+      // Should have test + e2e checks
+      const e2eCheck = results.find(r => r.type === "e2e");
+      expect(e2eCheck).toBeDefined();
+      expect(commands.some(cmd => cmd.includes("playwright") && cmd.includes("@smoke"))).toBe(true);
+    });
+
+    it("should run full E2E tests when e2eMode is full", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        return { stdout: "success" };
+      });
+
+      const capabilities: VerificationCapabilities = {
+        hasTests: true,
+        testCommand: "npm test",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+      };
+
+      const options: AutomatedCheckOptions = {
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+        e2eMode: "full",
+      };
+
+      const results = await runAutomatedChecks(testDir, capabilities, options);
+
+      const e2eCheck = results.find(r => r.type === "e2e");
+      expect(e2eCheck).toBeDefined();
+      // Full mode should run without grep filter
+      expect(commands.some(cmd => cmd === "npx playwright test")).toBe(true);
+    });
+
+    it("should skip E2E tests when skipE2E is true", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        return { stdout: "success" };
+      });
+
+      const capabilities: VerificationCapabilities = {
+        hasTests: true,
+        testCommand: "npm test",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+      };
+
+      const options: AutomatedCheckOptions = {
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+        },
+        skipE2E: true,
+      };
+
+      const results = await runAutomatedChecks(testDir, capabilities, options);
+
+      const e2eCheck = results.find(r => r.type === "e2e");
+      expect(e2eCheck).toBeUndefined();
+      expect(commands.every(cmd => !cmd.includes("playwright"))).toBe(true);
+    });
+
+    it("should use e2eTags when provided in tags mode", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        return { stdout: "success" };
+      });
+
+      const capabilities: VerificationCapabilities = {
+        hasTests: true,
+        testCommand: "npm test",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+      };
+
+      const options: AutomatedCheckOptions = {
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+        e2eTags: ["@auth", "@login"],
+        e2eMode: "tags",
+      };
+
+      const results = await runAutomatedChecks(testDir, capabilities, options);
+
+      const e2eCheck = results.find(r => r.type === "e2e");
+      expect(e2eCheck).toBeDefined();
+      expect(commands.some(cmd => cmd.includes("--grep") && cmd.includes("@auth|@login"))).toBe(true);
+    });
+
+    it("should handle E2E test failure separately", async () => {
+      setExecMock((cmd: string) => {
+        if (cmd.includes("playwright")) {
+          const error = new Error("E2E tests failed") as Error & { stdout: string; stderr: string };
+          error.stdout = "";
+          error.stderr = "Test failed";
+          throw error;
+        }
+        return { stdout: "success" };
+      });
+
+      const capabilities: VerificationCapabilities = {
+        hasTests: true,
+        testCommand: "npm test",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+      };
+
+      const options: AutomatedCheckOptions = {
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+        },
+        e2eMode: "full",
+      };
+
+      const results = await runAutomatedChecks(testDir, capabilities, options);
+
+      const e2eCheck = results.find(r => r.type === "e2e");
+      expect(e2eCheck).toBeDefined();
+      expect(e2eCheck?.success).toBe(false);
+
+      // Unit tests should still pass
+      const testCheck = results.find(r => r.type === "test");
+      expect(testCheck?.success).toBe(true);
+    });
+
+    it("should not include E2E check when e2eInfo is not available", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        return { stdout: "success" };
+      });
+
+      const capabilities: VerificationCapabilities = {
+        hasTests: true,
+        testCommand: "npm test",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+      };
+
+      const options: AutomatedCheckOptions = {
+        e2eInfo: {
+          available: false,
+        },
+      };
+
+      const results = await runAutomatedChecks(testDir, capabilities, options);
+
+      const e2eCheck = results.find(r => r.type === "e2e");
+      expect(e2eCheck).toBeUndefined();
+    });
+
+    it("should use default smoke mode when no e2eMode specified", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        return { stdout: "success" };
+      });
+
+      const capabilities: VerificationCapabilities = {
+        hasTests: true,
+        testCommand: "npm test",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+      };
+
+      const options: AutomatedCheckOptions = {
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+        // No e2eMode specified - should default based on testMode
+      };
+
+      const results = await runAutomatedChecks(testDir, capabilities, options);
+
+      const e2eCheck = results.find(r => r.type === "e2e");
+      expect(e2eCheck).toBeDefined();
+    });
+  });
 });
