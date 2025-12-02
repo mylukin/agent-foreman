@@ -38,6 +38,13 @@ export interface PreviousAttemptFailureContext {
   aiError?: string;
 }
 
+export interface RunStepsOptions {
+  fullVerify?: boolean;
+  verifyOnly?: boolean;
+  verifyUnitTestOnly?: boolean;
+  verifyGenerateUnitTest?: boolean;
+}
+
 interface RunStepEntry {
   order: number;
   prefix: string;
@@ -565,7 +572,7 @@ const MAX_ATTEMPTS = 5;
 
 export async function runStepsDirectory(
   stepsDirArg: string,
-  options: { fullVerify?: boolean } = {},
+  options: RunStepsOptions = {},
 ): Promise<void> {
   const cwd = process.cwd();
   const stepsDir = path.isAbsolute(stepsDirArg)
@@ -647,6 +654,39 @@ export async function runStepsDirectory(
     return;
   }
 
+  const verifyOnly = options.verifyOnly === true;
+  const verifyUnitTestOnly = options.verifyUnitTestOnly === true;
+  const verifyGenerateUnitTest = options.verifyGenerateUnitTest === true;
+  const fullVerify = options.fullVerify === true;
+
+  const enabledModesCount = [
+    verifyOnly,
+    verifyUnitTestOnly,
+    verifyGenerateUnitTest,
+    fullVerify,
+  ].filter(Boolean).length;
+
+  if (enabledModesCount > 1) {
+    console.log(
+      chalk.red(
+        "✗ runStepsDirectory 选项冲突：fullVerify、verifyOnly、verifyUnitTestOnly、verifyGenerateUnitTest 不能同时启用多个。",
+      ),
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const mode: "normal" | "full-verify" | "verify-only" | "verify-unit-test-only" | "verify-generate-unit-test" =
+    verifyOnly
+      ? "verify-only"
+      : verifyUnitTestOnly
+        ? "verify-unit-test-only"
+        : verifyGenerateUnitTest
+          ? "verify-generate-unit-test"
+          : fullVerify
+            ? "full-verify"
+            : "normal";
+
   const total = entries.length;
   let firstFailure: RunStepEntry | undefined;
 
@@ -665,6 +705,9 @@ export async function runStepsDirectory(
       status: entry.initialStatus ?? "🔴 待完成",
       verification: entry.verification,
     };
+    if (entry.unitTest) {
+      step.unit_test = entry.unitTest;
+    }
 
     console.log("");
     console.log(
@@ -683,10 +726,289 @@ export async function runStepsDirectory(
       ),
     );
 
+    if (mode === "verify-generate-unit-test") {
+      console.log(
+        chalk.gray(
+          "  当前运行模式：仅检查并为缺少配置的步骤生成 unit_test。",
+        ),
+      );
+
+      if (entry.unitTest && entry.unitTest.command) {
+        console.log(
+          chalk.gray(
+            `  已存在 unit_test 配置，命令：${entry.unitTest.command}，跳过生成。`,
+          ),
+        );
+        entry.finalStatus = step.status;
+        entry.success = true;
+        entry.error = undefined;
+        continue;
+      }
+
+      console.log(
+        chalk.gray(
+          "  当前步骤尚未配置 unit_test，将尝试调用命令行 AI 生成单元测试并写入步骤 JSON...",
+        ),
+      );
+
+      const basePrompt = buildRunStepPrompt({
+        projectRoot: cwd,
+        stepsDir,
+        step,
+        fileName: entry.fileName,
+        order: entry.order,
+        total,
+      });
+      const generatePrompt = `${basePrompt}
+
+====== 重要模式说明：仅生成单元测试 ======
+
+当前运行在 \`--verify-generate-unittest\` 模式下，本轮任务只允许：
+- 为当前步骤补充或生成单元测试代码；
+- 运行必要的测试命令确认单元测试可执行；
+- 在输出末尾附加包含 \`unit_test\` 字段的 JSON（与普通实现模式一致）。
+
+禁止事项：
+- 不要对业务实现代码做与测试无关的改动；
+- 不要尝试实现新的功能逻辑，只针对已有实现编写或完善单元测试。`;
+
+      const result = await callAnyAvailableAgent(generatePrompt, {
+        cwd,
+        verbose: true,
+      });
+
+      if (!result.success) {
+        const errorMessage = result.error || "生成单元测试失败";
+        console.log(chalk.red(`  ✗ 无法生成单元测试：${errorMessage}`));
+        entry.finalStatus = step.status;
+        entry.success = false;
+        entry.error = errorMessage;
+        firstFailure = firstFailure ?? entry;
+        break;
+      }
+
+      const unitTest = extractUnitTestFromOutput(result.output);
+      if (!unitTest) {
+        const errorMessage = "AI 输出中未找到合法的 unit_test 配置";
+        console.log(chalk.red(`  ✗ ${errorMessage}`));
+        entry.finalStatus = step.status;
+        entry.success = false;
+        entry.error = errorMessage;
+        firstFailure = firstFailure ?? entry;
+        break;
+      }
+
+      step.unit_test = unitTest;
+      entry.unitTest = unitTest;
+
+      try {
+        await fs.writeFile(entry.filePath, JSON.stringify(step, null, 2), "utf-8");
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "无法写入步骤 JSON 文件";
+        console.log(
+          chalk.red(
+            `✗ 步骤已成功生成单元测试，但写回状态到文件时失败：${message}`,
+          ),
+        );
+        entry.finalStatus = step.status;
+        entry.success = false;
+        entry.error = message;
+        firstFailure = firstFailure ?? entry;
+        break;
+      }
+
+      console.log(
+        chalk.green(
+          `  ✓ 单元测试已生成并写入步骤 JSON（命令：${unitTest.command}）`,
+        ),
+      );
+
+      entry.finalStatus = step.status;
+      entry.success = true;
+      entry.error = undefined;
+      continue;
+    }
+
+    if (mode === "verify-unit-test-only") {
+      console.log(
+        chalk.gray(
+          "  当前运行模式：仅执行 unit_test 中定义的单元测试，不做实现或 AI verification。",
+        ),
+      );
+
+      if (!entry.unitTest || !entry.unitTest.command) {
+        const errorMessage = "未配置 unit_test，无法执行单元测试";
+        console.log(chalk.red(`  ✗ ${errorMessage}`));
+        entry.finalStatus = step.status;
+        entry.success = false;
+        entry.error = errorMessage;
+        firstFailure = firstFailure ?? entry;
+        break;
+      }
+
+      console.log(
+        chalk.gray(
+          `  🧪 执行单元测试: ${entry.unitTest.command}`,
+        ),
+      );
+      const testResult = await runUnitTestsForStep(entry.unitTest, cwd);
+      if (!testResult.success) {
+        console.log(chalk.red("  ✗ 单元测试失败"));
+        if (testResult.error) {
+          testResult.error
+            .split("\n")
+            .slice(0, 10)
+            .forEach((line) => {
+              if (line.trim()) {
+                console.log(chalk.red(`    ${line}`));
+              }
+            });
+        }
+
+        if (step.status !== "🔴 待完成") {
+          step.status = "🔴 待完成";
+        }
+        entry.finalStatus = step.status;
+        entry.success = false;
+        entry.error = "单元测试失败";
+
+        try {
+          await fs.writeFile(
+            entry.filePath,
+            JSON.stringify(step, null, 2),
+            "utf-8",
+          );
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "无法写入步骤 JSON 文件";
+          console.log(
+            chalk.red(
+              `✗ 无法写回失败状态到步骤文件：${message}`,
+            ),
+          );
+        }
+
+        firstFailure = firstFailure ?? entry;
+        break;
+      }
+
+      console.log(chalk.green("  ✓ 单元测试通过"));
+      entry.finalStatus = step.status;
+      entry.success = true;
+      entry.error = undefined;
+      continue;
+    }
+
+    if (mode === "verify-only") {
+      console.log(
+        chalk.gray(
+          "  当前运行模式：仅执行单元测试和 verification，不做实现改动。",
+        ),
+      );
+
+      let testsFailed = false;
+      let failureMessage: string | undefined;
+
+      if (entry.unitTest && entry.unitTest.command) {
+        console.log(
+          chalk.gray(
+            `  🧪 执行单元测试: ${entry.unitTest.command}`,
+          ),
+        );
+        const testResult = await runUnitTestsForStep(entry.unitTest, cwd);
+        if (!testResult.success) {
+          console.log(chalk.red("  ✗ 单元测试失败"));
+          if (testResult.error) {
+            testResult.error
+              .split("\n")
+              .slice(0, 10)
+              .forEach((line) => {
+                if (line.trim()) {
+                  console.log(chalk.red(`    ${line}`));
+                }
+              });
+          }
+          testsFailed = true;
+          failureMessage = "单元测试失败";
+        } else {
+          console.log(chalk.green("  ✓ 单元测试通过"));
+        }
+      }
+
+      if (!testsFailed) {
+        const validationPrompt = buildRunStepValidationPrompt({
+          projectRoot: cwd,
+          stepsDir,
+          step,
+          fileName: entry.fileName,
+          order: entry.order,
+          total,
+        });
+
+        console.log(
+          chalk.gray("  正在调用命令行 AI 按 verification 进行验证..."),
+        );
+
+        const validationResult = await callAnyAvailableAgent(
+          validationPrompt,
+          {
+            cwd,
+            verbose: true,
+          },
+        );
+
+        if (!validationResult.success) {
+          const verificationError =
+            validationResult.error || "verification 验证失败";
+          failureMessage = verificationError;
+        } else {
+          console.log(chalk.green("  ✓ verification 验证通过"));
+        }
+      }
+
+      if (failureMessage) {
+        console.log(chalk.red(`  ✗ 验证失败：${failureMessage}`));
+        if (step.status !== "🔴 待完成") {
+          step.status = "🔴 待完成";
+        }
+        entry.finalStatus = step.status;
+        entry.success = false;
+        entry.error = failureMessage;
+
+        try {
+          await fs.writeFile(
+            entry.filePath,
+            JSON.stringify(step, null, 2),
+            "utf-8",
+          );
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "无法写回失败状态到步骤文件";
+          console.log(
+            chalk.red(
+              `✗ 无法写回失败状态到步骤文件：${message}`,
+            ),
+          );
+        }
+
+        firstFailure = firstFailure ?? entry;
+        break;
+      }
+
+      console.log(
+        chalk.green("  ✓ 单元测试和 verification 均通过（未进行实现）。"),
+      );
+      entry.finalStatus = step.status;
+      entry.success = true;
+      entry.error = undefined;
+      continue;
+    }
+
     let needImplementation = step.status !== "🟢 已完成";
 
     // 如果当前为已完成状态，且开启了 fullVerify，则先进行一次「仅测试」的回归验证
-    if (step.status === "🟢 已完成" && options.fullVerify) {
+    if (step.status === "🟢 已完成" && mode === "full-verify") {
       console.log(
         chalk.gray(
           "  当前步骤已标记为已完成，将仅重新运行测试进行回归验证...",
@@ -919,7 +1241,7 @@ export async function runStepsDirectory(
         );
 
         // 普通 run 模式下，执行「单元测试 + verification 验证」
-        if (!options.fullVerify) {
+        if (mode !== "full-verify") {
           // 先执行单元测试（如果存在）
           if (entry.unitTest && entry.unitTest.command) {
             console.log(
@@ -1074,7 +1396,7 @@ export async function runStepsDirectory(
           }
         }
 
-        if (!options.fullVerify) {
+        if (mode !== "full-verify") {
           console.log(
             chalk.green(
               `  ✓ 第 ${attempt} 次尝试后步骤已通过所有测试与验证`,
