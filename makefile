@@ -1,5 +1,5 @@
 PRD=./docs/run-multi-attempt-design.md
-STEPS=实现步骤执行与进度跟踪需求实现步骤
+STEPS=
 
 run_analyze:
 	npm run dev -- analyze $(PRD)
