@@ -33,3 +33,4 @@ npm-debug.log*
 # Generated harness files (for testing)
 ai/
 CLAUDE.md
+AGENTS.md
