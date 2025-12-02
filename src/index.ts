@@ -49,6 +49,7 @@ import type { FeatureVerificationSummary } from "./verification-types.js";
 import type { InitMode, Feature } from "./types.js";
 import { isGitRepo, hasUncommittedChanges, gitAdd, gitCommit, gitInit } from "./git-utils.js";
 import { generateTDDGuidance, generateUnitTestSkeleton, type TDDGuidance } from "./tdd-guidance.js";
+import { verifyTestFilesExist, discoverFeatureTestFiles } from "./test-gate.js";
 import {
   detectAndAnalyzeProject,
   mergeOrCreateFeatures,
@@ -1162,6 +1163,52 @@ async function runComplete(
     process.exit(1);
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // Test File Gate: Verify required test files exist before verification
+  // ─────────────────────────────────────────────────────────────────
+  if (feature.testRequirements) {
+    console.log(chalk.bold.blue("\n═══════════════════════════════════════════════════════════════"));
+    console.log(chalk.bold.blue("                    TEST FILE VERIFICATION"));
+    console.log(chalk.bold.blue("═══════════════════════════════════════════════════════════════\n"));
+
+    const gateResult = await verifyTestFilesExist(cwd, feature);
+
+    if (!gateResult.passed) {
+      console.log(chalk.red("   ✗ Required test files are missing:"));
+
+      if (gateResult.missingUnitTests.length > 0) {
+        console.log(chalk.yellow("\n   Missing Unit Tests:"));
+        gateResult.missingUnitTests.forEach((pattern) => {
+          console.log(chalk.white(`     • ${pattern}`));
+        });
+      }
+
+      if (gateResult.missingE2ETests.length > 0) {
+        console.log(chalk.yellow("\n   Missing E2E Tests:"));
+        gateResult.missingE2ETests.forEach((pattern) => {
+          console.log(chalk.white(`     • ${pattern}`));
+        });
+      }
+
+      if (gateResult.errors.length > 0) {
+        console.log(chalk.red("\n   Errors:"));
+        gateResult.errors.forEach((error) => {
+          console.log(chalk.red(`     • ${error}`));
+        });
+      }
+
+      console.log(chalk.cyan("\n   Create the required tests before completing this feature."));
+      console.log(chalk.gray("   See TDD guidance from 'agent-foreman step' for test file suggestions."));
+      process.exit(1);
+    }
+
+    console.log(chalk.green("   ✓ All required test files exist"));
+    if (gateResult.foundTestFiles.length > 0) {
+      console.log(chalk.gray(`   Found: ${gateResult.foundTestFiles.slice(0, 3).join(", ")}${gateResult.foundTestFiles.length > 3 ? ` and ${gateResult.foundTestFiles.length - 3} more` : ""}`));
+    }
+    console.log("");
+  }
+
   // Step 1: Run verification (unless skipped)
   if (skipVerify) {
     console.log(chalk.yellow("⚠ Skipping verification (--skip-verify flag)"));
@@ -1248,6 +1295,17 @@ async function runComplete(
 
     // Verdict is "pass" or user confirmed "needs_review"
     console.log(chalk.green("\n   ✓ Verification passed!"));
+  }
+
+  // Discover and populate testFiles if testRequirements defined
+  if (feature.testRequirements) {
+    const discoveredFiles = await discoverFeatureTestFiles(cwd, feature);
+    if (discoveredFiles.length > 0) {
+      // Update feature with discovered test files
+      featureList.features = featureList.features.map((f) =>
+        f.id === featureId ? { ...f, testFiles: discoveredFiles } : f
+      );
+    }
   }
 
   // Step 2: Update status to passing
