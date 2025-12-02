@@ -263,6 +263,13 @@ export interface FeatureVerificationSummary {
 export type TestMode = "full" | "quick" | "skip";
 
 /**
+ * Verification workflow mode
+ * - "tdd": TDD mode - runs tests only, skips AI analysis
+ * - "ai": AI mode - runs full AI-powered verification with code analysis
+ */
+export type VerificationMode = "tdd" | "ai";
+
+/**
  * E2E test execution mode
  */
 export type E2ETestMode = "full" | "smoke" | "tags" | "skip";

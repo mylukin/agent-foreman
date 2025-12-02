@@ -22,6 +22,7 @@ import type {
   TestMode,
   E2ECapabilityInfo,
   E2ETestMode,
+  VerificationMode,
 } from "./verification-types.js";
 import {
   getSelectiveTestCommand,
@@ -128,6 +129,33 @@ export async function getGitDiffForFeature(
       };
     }
   }
+}
+
+// ============================================================================
+// Verification Mode Selection
+// ============================================================================
+
+/**
+ * Determine the verification mode for a feature based on its configuration
+ *
+ * TDD mode is activated when the feature has explicit test requirements defined.
+ * In TDD mode, verification runs tests without AI analysis.
+ *
+ * @param feature - The feature to check
+ * @returns 'tdd' if testRequirements.unit.required OR testRequirements.e2e.required, otherwise 'ai'
+ */
+export function determineVerificationMode(feature: Feature): VerificationMode {
+  // Check if feature has TDD test requirements
+  const hasUnitTestRequirement = feature.testRequirements?.unit?.required === true;
+  const hasE2ETestRequirement = feature.testRequirements?.e2e?.required === true;
+
+  // Return 'tdd' if any test requirement is explicitly required
+  if (hasUnitTestRequirement || hasE2ETestRequirement) {
+    return "tdd";
+  }
+
+  // Default to AI-powered verification
+  return "ai";
 }
 
 // ============================================================================
@@ -632,6 +660,11 @@ export async function verifyFeature(
   } = options;
 
   console.log(chalk.bold("\n   Verifying feature: " + feature.id));
+
+  // Determine verification mode based on feature configuration
+  const verificationMode = determineVerificationMode(feature);
+  const modeColor = verificationMode === "tdd" ? chalk.cyan : chalk.blue;
+  console.log(chalk.gray(`   Verification mode: ${modeColor(verificationMode.toUpperCase())}`));
 
   // Show test mode if not default
   if (testMode !== "full") {

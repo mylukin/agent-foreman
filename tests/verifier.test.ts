@@ -84,6 +84,7 @@ import {
   formatVerificationResult,
   isTransientError,
   calculateBackoff,
+  determineVerificationMode,
   RETRY_CONFIG,
   type AutomatedCheckOptions,
 } from "../src/verifier.js";
@@ -2268,6 +2269,136 @@ describe("Verifier", () => {
 
       const e2eCheck = results.find(r => r.type === "e2e");
       expect(e2eCheck).toBeDefined();
+    });
+  });
+
+  describe("determineVerificationMode", () => {
+    const createFeature = (overrides: Partial<Feature> = {}): Feature => ({
+      id: "test.feature",
+      description: "Test feature",
+      module: "test",
+      priority: 1,
+      status: "failing",
+      acceptance: ["Test criterion"],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual",
+      notes: "",
+      ...overrides,
+    });
+
+    it("should return 'ai' for features without testRequirements", () => {
+      const feature = createFeature();
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'ai' when testRequirements exists but unit.required is false", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: false,
+            pattern: "tests/**/*.test.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'ai' when testRequirements exists but e2e.required is false", () => {
+      const feature = createFeature({
+        testRequirements: {
+          e2e: {
+            required: false,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'tdd' when unit.required is true", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: true,
+            pattern: "tests/**/*.test.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'tdd' when e2e.required is true", () => {
+      const feature = createFeature({
+        testRequirements: {
+          e2e: {
+            required: true,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'tdd' when both unit.required and e2e.required are true", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: true,
+            pattern: "tests/**/*.test.ts",
+          },
+          e2e: {
+            required: true,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'tdd' when unit.required is true and e2e.required is false", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: true,
+            pattern: "tests/**/*.test.ts",
+          },
+          e2e: {
+            required: false,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'ai' when testRequirements is empty object", () => {
+      const feature = createFeature({
+        testRequirements: {},
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'ai' when testRequirements has undefined required fields", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            pattern: "tests/**/*.test.ts",
+          } as any, // required field is undefined
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
     });
   });
 });
