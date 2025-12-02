@@ -62,6 +62,13 @@ export interface AnalyzeAIOptions {
   onAgentChunk?: (phase: AnalyzeAgentStreamPhase, chunk: string) => void;
 }
 
+interface JsonFixResult {
+  success: boolean;
+  output?: string;
+  agentUsed?: string;
+  error?: string;
+}
+
 /**
  * Detect primary language of spec text.
  * Returns "zh" when the content is predominantly Chinese, otherwise "en".
@@ -129,6 +136,10 @@ export function buildStepsPrompt(specText: string, requirementName: string): str
   - completion：字符串，仅允许 "done" 或 "todo"：
     - "done" 表示你认为当前项目代码已经基本实现了这个步骤；
     - "todo" 表示仍然需要补充实现或验证该步骤，不确定时也应保守地标为 "todo"。
+  - 在 JSON 字符串中不要使用未转义的英文双引号：
+    - ❌ 错误示例："description": "输出"步骤目录中未找到任何 JSON 步骤文件""
+    - ✅ 正确示例："description": "输出\\"步骤目录中未找到任何 JSON 步骤文件\\""
+    - 或者改用中文引号："description": "输出“步骤目录中未找到任何 JSON 步骤文件”"
 
 重要约束：
 - 必须覆盖整个需求：即使大部分功能已经在代码中出现，也要保证 steps 列表能够完整覆盖需求文档的所有关键点；
@@ -313,6 +324,65 @@ export function parseStepsResponse(response: string): StepDefinition[] {
 }
 
 /**
+ * Attempt to repair invalid steps JSON using AI.
+ * This is a best-effort fallback: if repair fails, the original parse error is surfaced.
+ */
+async function fixStepsJsonWithAI(
+  rawResponse: string,
+  requirementName: string,
+  options: AnalyzeAIOptions = {}
+): Promise<JsonFixResult> {
+  const { cwd } = options;
+
+  const jsonSnippet = extractJsonObject(rawResponse) ?? rawResponse;
+
+  const prompt = `你是一名严格的 JSON 格式修复助手。
+
+当前任务：
+- 下面是一段应该符合步骤结构的 JSON 文本，但其中可能存在语法错误（例如未转义的英文双引号、缺少逗号、多余的逗号等）。
+- 你的目标是修复这些 JSON 语法错误，使其成为合法的 JSON。
+- 不要改变字段语义，只修复语法问题；尽量保留原有的 steps 内容和顺序。
+
+上下文信息：
+- 当前需求名字为：${requirementName}
+
+修复要求：
+- 返回的必须是一个 JSON 对象，顶层包含 "steps" 字段，对应一个数组；
+- 不要输出任何解释性文字、不要使用 Markdown 代码块，只输出最终修复后的纯 JSON。
+
+下面是需要修复的原始 JSON 文本（可能包含语法错误）：
+
+${jsonSnippet}
+`;
+
+  const result = await callAnyAvailableAgent(prompt, {
+    cwd,
+  });
+
+  if (!result || !result.success || !result.output) {
+    return {
+      success: false,
+      error: result?.error || "Failed to fix steps JSON with AI",
+    };
+  }
+
+  const fixedJson = extractJsonObject(result.output) ?? result.output.trim();
+
+  if (!fixedJson) {
+    return {
+      success: false,
+      error: "AI JSON fix did not return a JSON object",
+    };
+  }
+
+  return {
+    success: true,
+    output: fixedJson,
+    agentUsed: result.agentUsed,
+  };
+}
+
+/**
  * Generate requirement name and steps from spec text using AI agents
  */
 export async function analyzeRequirementsWithAI(
@@ -336,7 +406,6 @@ export async function analyzeRequirementsWithAI(
   onPhase?.("name:start");
   const nameResult = await callAnyAvailableAgent(namePrompt, {
     cwd,
-    timeoutMs: getTimeout("AI_DEFAULT"),
     // Requirement-name phase usually has very small JSON; we don't stream it by default.
     onChunk: onAgentChunk ? (chunk) => onAgentChunk("name", chunk) : undefined,
   });
@@ -376,7 +445,6 @@ export async function analyzeRequirementsWithAI(
   onPhase?.("steps:start");
   const stepsResult = await callAnyAvailableAgent(stepsPrompt, {
     cwd,
-    timeoutMs: getTimeout("AI_DEFAULT"),
     onChunk: onAgentChunk ? (chunk) => onAgentChunk("steps", chunk) : undefined,
   });
 
@@ -394,15 +462,41 @@ export async function analyzeRequirementsWithAI(
   try {
     steps = parseStepsResponse(stepsResult.output);
   } catch (err) {
-    const message =
-      err instanceof Error
-        ? `Failed to parse steps: ${err.message}`
-        : "Failed to parse steps";
-    onPhase?.("steps:error", { error: message, agentUsed: stepsResult.agentUsed });
-    return {
-      success: false,
-      error: message,
-    };
+    // First parse failed - ask AI to repair the JSON, then try parsing again.
+    const fixResult = await fixStepsJsonWithAI(
+      stepsResult.output,
+      requirementName,
+      { cwd }
+    );
+
+    if (!fixResult.success || !fixResult.output) {
+      const message =
+        err instanceof Error
+          ? `Failed to parse steps: ${err.message}`
+          : "Failed to parse steps";
+      onPhase?.("steps:error", { error: message, agentUsed: stepsResult.agentUsed });
+      return {
+        success: false,
+        error: message,
+      };
+    }
+
+    try {
+      steps = parseStepsResponse(fixResult.output);
+    } catch (err2) {
+      const message =
+        err2 instanceof Error
+          ? `Failed to parse steps: ${err2.message}`
+          : "Failed to parse steps";
+      onPhase?.("steps:error", {
+        error: message,
+        agentUsed: fixResult.agentUsed ?? stepsResult.agentUsed,
+      });
+      return {
+        success: false,
+        error: message,
+      };
+    }
   }
 
   onPhase?.("steps:success", {

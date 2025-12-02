@@ -560,6 +560,22 @@ async function runAnalyze(specPath: string) {
     )
   );
 
+  let stepsHeartbeat: NodeJS.Timeout | null = null;
+  let stepsStartTime: number | null = null;
+
+  const logStepsHeartbeat = () => {
+    if (stepsStartTime == null) return;
+    const elapsedSeconds = Math.floor((Date.now() - stepsStartTime) / 1000);
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+    const formatted =
+      minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+    const message = isZh
+      ? `  AI 仍在拆分实现步骤... (已用时 ${formatted})`
+      : `  AI is still generating implementation steps... (elapsed ${formatted})`;
+    console.log(chalk.gray(message));
+  };
+
   const aiResult = await analyzeSpecFile(specPath, cwd, {
     onPhase: (phase, info) => {
       switch (phase) {
@@ -599,9 +615,17 @@ async function runAnalyze(specPath: string) {
                 : "🤖 Calling AI to generate implementation steps..."
             )
           );
+          stepsStartTime = Date.now();
+          if (!stepsHeartbeat) {
+            stepsHeartbeat = setInterval(logStepsHeartbeat, 10000);
+          }
           break;
         }
         case "steps:success": {
+          if (stepsHeartbeat) {
+            clearInterval(stepsHeartbeat);
+            stepsHeartbeat = null;
+          }
           const count = info?.stepCount;
           const message = isZh
             ? count != null
@@ -614,6 +638,10 @@ async function runAnalyze(specPath: string) {
           break;
         }
         case "steps:error": {
+          if (stepsHeartbeat) {
+            clearInterval(stepsHeartbeat);
+            stepsHeartbeat = null;
+          }
           const errorMessage = info?.error;
           if (errorMessage) {
             console.log(

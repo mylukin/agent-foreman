@@ -254,9 +254,67 @@ describe("analyze.ts", () => {
         agentUsed: "gemini",
       });
 
+       // AI JSON fixer also fails
+       vi.mocked(callAnyAvailableAgent).mockResolvedValueOnce({
+         success: false,
+         output: "",
+         error: "fix failed",
+         agentUsed: "gemini",
+       });
+
       const result = await analyzeRequirementsWithAI(specText, { cwd: "/project" });
       expect(result.success).toBe(false);
       expect(result.error).toContain("Failed to parse steps");
+    });
+
+    it("should repair invalid steps JSON via AI fixer", async () => {
+      const nameResponse = JSON.stringify({ requirementName: "用户登录" });
+      const invalidStepsResponse = `{
+        "steps": [
+          {
+            "description": "实现登录接口" "slug": "setup-auth-api",
+            "verification": []
+          }
+        ]
+      }`;
+      const fixedStepsResponse = JSON.stringify({
+        steps: [
+          {
+            slug: "setup-auth-api",
+            description: "实现登录接口",
+            verification: [],
+            completion: "todo",
+          },
+        ] as StepDefinition[],
+      });
+
+      vi.mocked(callAnyAvailableAgent).mockResolvedValueOnce({
+        success: true,
+        output: nameResponse,
+        agentUsed: "gemini",
+      });
+
+      // First steps call returns invalid JSON
+      vi.mocked(callAnyAvailableAgent).mockResolvedValueOnce({
+        success: true,
+        output: invalidStepsResponse,
+        agentUsed: "gemini",
+      });
+
+      // JSON fixer returns corrected JSON
+      vi.mocked(callAnyAvailableAgent).mockResolvedValueOnce({
+        success: true,
+        output: fixedStepsResponse,
+        agentUsed: "gemini",
+      });
+
+      const result = await analyzeRequirementsWithAI(specText, { cwd: "/project" });
+
+      expect(result.success).toBe(true);
+      expect(result.requirementName).toBe("用户登录");
+      expect(result.steps).toHaveLength(1);
+      expect(result.steps?.[0].slug).toBe("setup-auth-api");
+      expect(callAnyAvailableAgent).toHaveBeenCalledTimes(3);
     });
   });
 });
