@@ -48,6 +48,7 @@ import {
 import type { FeatureVerificationSummary } from "./verification-types.js";
 import type { InitMode, Feature } from "./types.js";
 import { isGitRepo, hasUncommittedChanges, gitAdd, gitCommit, gitInit } from "./git-utils.js";
+import { generateTDDGuidance, generateUnitTestSkeleton, type TDDGuidance } from "./tdd-guidance.js";
 import {
   detectAndAnalyzeProject,
   mergeOrCreateFeatures,
@@ -597,6 +598,24 @@ async function runStep(
   if (outputJson) {
     const stats = getFeatureStats(featureList.features);
     const completion = getCompletionPercentage(featureList.features);
+
+    // Generate TDD guidance for JSON output (suppress all console output during detection)
+    let tddGuidance: TDDGuidance | null = null;
+    try {
+      // Temporarily suppress console output during capability detection
+      const originalLog = console.log;
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      console.log = () => {};
+      try {
+        const capabilities = await detectCapabilities(cwd, { verbose: false });
+        tddGuidance = generateTDDGuidance(feature, capabilities, cwd);
+      } finally {
+        console.log = originalLog;
+      }
+    } catch {
+      // Ignore errors in guidance generation for JSON mode
+    }
+
     const output = {
       feature: {
         id: feature.id,
@@ -616,6 +635,7 @@ async function runStep(
       },
       completion,
       cwd,
+      tddGuidance,
     };
     console.log(JSON.stringify(output, null, 2));
     return;
@@ -775,6 +795,60 @@ async function runStep(
 
   // Output feature guidance (for AI consumption)
   console.log(generateFeatureGuidance(feature));
+
+  // ─────────────────────────────────────────────────────────────────
+  // TDD Guidance Section (display only, not in quiet mode)
+  // ─────────────────────────────────────────────────────────────────
+  try {
+    const capabilities = await detectCapabilities(cwd, { verbose: false });
+    const tddGuidance = generateTDDGuidance(feature, capabilities, cwd);
+
+    console.log(chalk.bold.magenta("\n═══════════════════════════════════════════════════════════════"));
+    console.log(chalk.bold.magenta("                    TDD GUIDANCE"));
+    console.log(chalk.bold.magenta("═══════════════════════════════════════════════════════════════\n"));
+
+    // Suggested test file paths
+    console.log(chalk.bold("📝 Suggested Test Files:"));
+    if (tddGuidance.suggestedTestFiles.unit.length > 0) {
+      console.log(chalk.cyan(`   Unit: ${tddGuidance.suggestedTestFiles.unit[0]}`));
+    }
+    if (tddGuidance.suggestedTestFiles.e2e.length > 0) {
+      console.log(chalk.blue(`   E2E:  ${tddGuidance.suggestedTestFiles.e2e[0]}`));
+    }
+
+    // Acceptance to test case mapping
+    console.log(chalk.bold("\n📋 Acceptance → Test Mapping:"));
+    tddGuidance.acceptanceMapping.forEach((m, i) => {
+      console.log(chalk.gray(`   ${i + 1}. "${m.criterion}"`));
+      console.log(chalk.green(`      → Unit: ${m.unitTestCase}`));
+      if (m.e2eScenario) {
+        console.log(chalk.blue(`      → E2E:  ${m.e2eScenario}`));
+      }
+    });
+
+    // Test skeleton preview (first 3 test cases)
+    const testCasesPreview = tddGuidance.testCaseStubs.unit.slice(0, 3);
+    if (testCasesPreview.length > 0 && capabilities?.testFramework) {
+      const framework = capabilities.testFramework.toLowerCase();
+      const supportedFrameworks = ["vitest", "jest", "mocha"];
+      if (supportedFrameworks.includes(framework)) {
+        console.log(chalk.bold("\n📄 Test Skeleton Preview:"));
+        console.log(chalk.gray(`   Framework: ${capabilities.testFramework}`));
+        console.log(chalk.gray("   ```"));
+        testCasesPreview.forEach((testCase) => {
+          console.log(chalk.white(`   it("${testCase}", () => { ... });`));
+        });
+        if (tddGuidance.testCaseStubs.unit.length > 3) {
+          console.log(chalk.gray(`   // ... ${tddGuidance.testCaseStubs.unit.length - 3} more test cases`));
+        }
+        console.log(chalk.gray("   ```"));
+      }
+    }
+
+    console.log(chalk.bold.magenta("\n═══════════════════════════════════════════════════════════════\n"));
+  } catch {
+    // Silently skip TDD guidance if capabilities detection fails
+  }
 }
 
 async function runStatus(outputJson: boolean = false, quiet: boolean = false) {
