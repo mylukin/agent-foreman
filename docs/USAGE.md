@@ -264,6 +264,33 @@ agent-foreman survey docs/ANALYSIS.md   # Custom output path
 agent-foreman survey -v                 # Verbose mode
 ```
 
+### `analyze` + `run`
+
+Use AI to turn a free-form requirement spec into ordered implementation steps, then execute them one by one:
+
+> 将自由格式的需求文档拆分为有序实现步骤，并依次自动执行：
+
+```bash
+# 1. Analyze a spec file and generate step JSONs
+agent-foreman analyze docs/需求说明.md
+# → Creates a directory like: 「用户登录需求实现步骤」
+
+# 2. Run the generated steps sequentially
+agent-foreman run "用户登录需求实现步骤"
+```
+
+`run` will:
+- Discover all `NNN-*.json` step files under the directory
+- For each step, start a new AI subprocess, apply the described change, and run the listed verifications
+- Update each step's `status` (`🔴 待完成` → `🟡 进行中` → `🟢 已完成` on success)
+- Write a Markdown progress report (`run-progress-*.md`) into the same steps directory
+
+> `run` 会：
+> - 自动发现目录中的 `NNN-*.json` 步骤文件并按顺序执行；
+> - 为每个步骤单独启动一次命令行 AI 子进程，根据 description 完成实现并按 verification 生成/运行测试；
+> - 在成功时将该步骤的 `status` 更新为 `"🟢 已完成"`；
+> - 在步骤目录下生成一份 `run-progress-*.md` 执行报告，记录本次 run 的完整过程。
+
 ### `init [goal]`
 
 Initialize or update the long-task harness.
