@@ -284,11 +284,13 @@ agent-foreman init "你的项目目标"
 |------|------|
 | `survey` | 生成项目分析报告 |
 | `init <goal>` | 初始化或升级框架 |
-| `step` | 显示下一个要做的任务 |
-| `status` | 查看项目进度 |
-| `impact <feature_id>` | 分析改动的影响范围 |
-| `complete <feature_id>` | 验证 + 标记完成 + 自动提交 |
-| `check <feature_id>` | 只验证不完成 |
+| `analyze <spec_path>` | 分析需求文档并生成有序的步骤 JSON 文件 |
+| `run <steps_dir>` | 执行 `analyze` 生成的 JSON 步骤 |
+| `step` | 显示下一个要处理的功能 |
+| `status` | 显示当前项目状态 |
+| `impact <feature_id>` | 分析更改的影响范围 |
+| `complete <feature_id>` | 验证、标记完成并自动提交 |
+| `check <feature_id>` | 预览验证结果（不执行完成） |
 | `agents` | 查看可用的 AI 代理 |
 | `detect-capabilities` | 检测项目的验证能力 |
 
@@ -302,6 +304,14 @@ agent-foreman init "你的项目目标"
 | `--skip-verify` | 跳过 AI 验证 |
 | `--no-commit` | 不自动提交 |
 | `--test-pattern <pattern>` | 指定测试文件匹配模式 |
+
+**`run` 模式：**
+
+- `run <steps_dir>`：默认模式，对每个步骤执行「实现 → 单元测试（若定义了 `unit_test`）→ AI 验证」，在失败时最多自动重试 5 轮。
+- `run <steps_dir> --full-verify`：对已标记为 `🟢 已完成` 的步骤重新运行单测和验证，发现回归时重新打开并进入多轮自动修复流程。
+- `run <steps_dir> --verify-only`：仅执行单元测试和基于 `verification` 的 AI 验证，不对代码做新的实现改动。
+- `run <steps_dir> --verify-unittest-only`：仅执行每个步骤中的 `unit_test.command`，不调用 AI，也不做实现改动；对于缺少 `unit_test` 的步骤会直接视为验证失败。
+- `run <steps_dir> --verify-generate-unittest`：仅检查每个步骤是否配置了 `unit_test`，对缺少配置的步骤调用 AI 生成 `unit_test` 信息写回 JSON，不更改业务实现代码。
 
 ### init 模式
 
