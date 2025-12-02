@@ -7,6 +7,21 @@ import * as path from "node:path";
 import { callAnyAvailableAgent, checkAvailableAgents } from "./agents.js";
 import { getTimeout } from "./timeout-config.js";
 
+export type AnalyzePhase =
+  | "name:start"
+  | "name:success"
+  | "name:error"
+  | "steps:start"
+  | "steps:success"
+  | "steps:error";
+
+export interface AnalyzePhaseInfo {
+  agentUsed?: string;
+  error?: string;
+  stepCount?: number;
+  requirementName?: string;
+}
+
 export interface VerificationItem {
   type: string;
   description: string;
@@ -35,8 +50,36 @@ export interface AnalyzeAIResult {
   error?: string;
 }
 
+export type AnalyzeAgentStreamPhase = "name" | "steps";
+
 export interface AnalyzeAIOptions {
   cwd?: string;
+  onPhase?: (phase: AnalyzePhase, info?: AnalyzePhaseInfo) => void;
+  /**
+   * Optional callback for streaming raw stdout chunks from the underlying AI agent.
+   * The phase indicates whether the chunk comes from the requirement-name or steps call.
+   */
+  onAgentChunk?: (phase: AnalyzeAgentStreamPhase, chunk: string) => void;
+}
+
+/**
+ * Detect primary language of spec text.
+ * Returns "zh" when the content is predominantly Chinese, otherwise "en".
+ */
+export function detectSpecLanguage(specText: string): "zh" | "en" {
+  const chineseMatches = specText.match(/[\u4e00-\u9fff]/g) ?? [];
+  const latinMatches = specText.match(/[A-Za-z]/g) ?? [];
+
+  const chineseCount = chineseMatches.length;
+  const latinCount = latinMatches.length;
+  const total = chineseCount + latinCount;
+
+  if (total === 0) {
+    return "en";
+  }
+
+  const chineseRatio = chineseCount / total;
+  return chineseRatio >= 0.3 ? "zh" : "en";
 }
 
 /**
@@ -276,7 +319,7 @@ export async function analyzeRequirementsWithAI(
   specText: string,
   options: AnalyzeAIOptions = {}
 ): Promise<AnalyzeAIResult> {
-  const { cwd } = options;
+  const { cwd, onPhase, onAgentChunk } = options;
 
   const agents = checkAvailableAgents();
   const hasAgent = agents.some((a) => a.available);
@@ -290,15 +333,21 @@ export async function analyzeRequirementsWithAI(
 
   // First: generate requirement name
   const namePrompt = buildRequirementNamePrompt(specText);
+  onPhase?.("name:start");
   const nameResult = await callAnyAvailableAgent(namePrompt, {
     cwd,
     timeoutMs: getTimeout("AI_DEFAULT"),
+    // Requirement-name phase usually has very small JSON; we don't stream it by default.
+    onChunk: onAgentChunk ? (chunk) => onAgentChunk("name", chunk) : undefined,
   });
 
   if (!nameResult.success) {
+    const errorMessage =
+      nameResult.error || "Failed to generate requirement name with AI";
+    onPhase?.("name:error", { error: errorMessage, agentUsed: nameResult.agentUsed });
     return {
       success: false,
-      error: nameResult.error || "Failed to generate requirement name with AI",
+      error: errorMessage,
     };
   }
 
@@ -306,26 +355,38 @@ export async function analyzeRequirementsWithAI(
   try {
     requirementName = parseRequirementNameResponse(nameResult.output);
   } catch (err) {
+    const message =
+      err instanceof Error
+        ? `Failed to parse requirement name: ${err.message}`
+        : "Failed to parse requirement name";
+    onPhase?.("name:error", { error: message, agentUsed: nameResult.agentUsed });
     return {
       success: false,
-      error:
-        err instanceof Error
-          ? `Failed to parse requirement name: ${err.message}`
-          : "Failed to parse requirement name",
+      error: message,
     };
   }
 
+  onPhase?.("name:success", {
+    agentUsed: nameResult.agentUsed,
+    requirementName,
+  });
+
   // Second: generate ordered steps
   const stepsPrompt = buildStepsPrompt(specText, requirementName);
+  onPhase?.("steps:start");
   const stepsResult = await callAnyAvailableAgent(stepsPrompt, {
     cwd,
     timeoutMs: getTimeout("AI_DEFAULT"),
+    onChunk: onAgentChunk ? (chunk) => onAgentChunk("steps", chunk) : undefined,
   });
 
   if (!stepsResult.success) {
+    const errorMessage =
+      stepsResult.error || "Failed to generate steps with AI";
+    onPhase?.("steps:error", { error: errorMessage, agentUsed: stepsResult.agentUsed });
     return {
       success: false,
-      error: stepsResult.error || "Failed to generate steps with AI",
+      error: errorMessage,
     };
   }
 
@@ -333,14 +394,21 @@ export async function analyzeRequirementsWithAI(
   try {
     steps = parseStepsResponse(stepsResult.output);
   } catch (err) {
+    const message =
+      err instanceof Error
+        ? `Failed to parse steps: ${err.message}`
+        : "Failed to parse steps";
+    onPhase?.("steps:error", { error: message, agentUsed: stepsResult.agentUsed });
     return {
       success: false,
-      error:
-        err instanceof Error
-          ? `Failed to parse steps: ${err.message}`
-          : "Failed to parse steps",
+      error: message,
     };
   }
+
+  onPhase?.("steps:success", {
+    agentUsed: stepsResult.agentUsed ?? nameResult.agentUsed,
+    stepCount: steps.length,
+  });
 
   return {
     success: true,
@@ -390,7 +458,8 @@ export function slugify(value: string): string {
  */
 export async function analyzeSpecFile(
   specPath: string,
-  cwd: string
+  cwd: string,
+  options: AnalyzeAIOptions = {}
 ): Promise<AnalyzeAIResult & { specPath: string }> {
   const fullPath = path.isAbsolute(specPath)
     ? specPath
@@ -410,7 +479,7 @@ export async function analyzeSpecFile(
     };
   }
 
-  const result = await analyzeRequirementsWithAI(content, { cwd });
+  const result = await analyzeRequirementsWithAI(content, { cwd, ...options });
   return {
     ...result,
     specPath: fullPath,

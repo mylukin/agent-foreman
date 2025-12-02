@@ -59,9 +59,11 @@ import {
   analyzeSpecFile,
   sanitizeNameForPath,
   slugify,
+  detectSpecLanguage,
   type StepDefinition,
 } from "./analyze.js";
 import { runStepsDirectory } from "./run.js";
+import { glob } from "glob";
 
 /**
  * Auto-detect project goal from README or package.json
@@ -518,15 +520,148 @@ async function runSurvey(outputPath: string, verbose: boolean, bilingual: boolea
 async function runAnalyze(specPath: string) {
   const cwd = process.cwd();
 
-  console.log(chalk.blue("🧩 Analyzing requirement document with AI..."));
+  const fullSpecPath = path.isAbsolute(specPath)
+    ? specPath
+    : path.join(cwd, specPath);
 
-  const aiResult = await analyzeSpecFile(specPath, cwd);
+  let specContent = "";
+  try {
+    specContent = await fs.readFile(fullSpecPath, "utf-8");
+  } catch {
+    // Ignore here; analyzeSpecFile will surface a proper error message
+  }
+
+  const specLanguage = specContent ? detectSpecLanguage(specContent) : "en";
+  const isZh = specLanguage === "zh";
+
+  console.log(
+    chalk.blue(
+      isZh
+        ? "🧩 正在使用 AI 分析需求文档..."
+        : "🧩 Analyzing requirement document with AI..."
+    )
+  );
+
+  // Phase 1: Quick project scan to show activity and context
+  console.log(
+    chalk.cyan(
+      isZh ? "📂 正在扫描项目结构..." : "📂 Scanning project structure..."
+    )
+  );
+
+  await showAnalyzeProjectScanProgress(cwd, isZh);
+
+  // Phase 2: AI analysis with two static phases (requirement name & steps)
+  console.log(
+    chalk.cyan(
+      isZh
+        ? "🤖 正在调用 AI 生成需求名字..."
+        : "🤖 Calling AI to generate requirement name..."
+    )
+  );
+
+  const aiResult = await analyzeSpecFile(specPath, cwd, {
+    onPhase: (phase, info) => {
+      switch (phase) {
+        case "name:start": {
+          break;
+        }
+        case "name:success": {
+          const name = info?.requirementName;
+          const message = isZh
+            ? name
+              ? `✓ 需求名字生成完成：${name}`
+              : "✓ 需求名字生成完成"
+            : name
+              ? `✓ Requirement name generated: ${name}`
+              : "✓ Requirement name generated";
+          console.log(chalk.green(message));
+          break;
+        }
+        case "name:error": {
+          const errorMessage = info?.error;
+          if (errorMessage) {
+            console.log(
+              chalk.red(
+                isZh
+                  ? `✗ 生成需求名字失败：${errorMessage}`
+                  : `✗ Failed to generate requirement name: ${errorMessage}`
+              )
+            );
+          }
+          break;
+        }
+        case "steps:start": {
+          console.log(
+            chalk.cyan(
+              isZh
+                ? "🤖 正在调用 AI 拆分实现步骤..."
+                : "🤖 Calling AI to generate implementation steps..."
+            )
+          );
+          break;
+        }
+        case "steps:success": {
+          const count = info?.stepCount;
+          const message = isZh
+            ? count != null
+              ? `✓ 实现步骤拆分完成（共 ${count} 步）`
+              : "✓ 实现步骤拆分完成"
+            : count != null
+              ? `✓ Implementation steps generated (${count} steps)`
+              : "✓ Implementation steps generated";
+          console.log(chalk.green(message));
+          break;
+        }
+        case "steps:error": {
+          const errorMessage = info?.error;
+          if (errorMessage) {
+            console.log(
+              chalk.red(
+                isZh
+                  ? `✗ 拆分实现步骤失败：${errorMessage}`
+                  : `✗ Failed to generate implementation steps: ${errorMessage}`
+              )
+            );
+          }
+          break;
+        }
+      }
+    },
+    onAgentChunk: (phase, chunk) => {
+      // 仅在拆分实现步骤阶段透传 AI 输出
+      if (phase === "steps") {
+        process.stdout.write(chunk);
+      }
+    },
+  });
 
   if (!aiResult.success || !aiResult.requirementName || !aiResult.steps) {
-    console.log(chalk.red(`✗ Analyze failed: ${aiResult.error ?? "Unknown error"}`));
-    console.log(chalk.yellow("  Make sure gemini, codex, or claude CLI is installed and responding correctly"));
+    console.log(
+      chalk.red(
+        isZh
+          ? `✗ Analyze 失败：${aiResult.error ?? "未知错误"}`
+          : `✗ Analyze failed: ${aiResult.error ?? "Unknown error"}`
+      )
+    );
+    console.log(
+      chalk.yellow(
+        isZh
+          ? "  请确认 gemini、codex 或 claude CLI 已正确安装并可正常响应"
+          : "  Make sure gemini, codex, or claude CLI is installed and responding correctly"
+      )
+    );
     process.exit(1);
   }
+
+  // Phase 3: Generate step JSON files with progress
+  console.log(
+    chalk.cyan(
+      isZh
+        ? "📝 正在生成实现步骤 JSON 文件..."
+        : "📝 Generating implementation step JSON files..."
+    )
+  );
 
   const requirementName = aiResult.requirementName.trim();
   const safeBaseName = sanitizeNameForPath(`${requirementName}需求实现步骤`);
@@ -545,6 +680,11 @@ async function runAnalyze(specPath: string) {
 
   const steps: StepDefinition[] = aiResult.steps;
   const usedSlugs = new Set<string>();
+  const stepsProgress = createProgressBar(
+    isZh ? "写入步骤文件..." : "Writing step files...",
+    steps.length
+  );
+  stepsProgress.start();
 
   for (let index = 0; index < steps.length; index++) {
     const step = steps[index];
@@ -580,10 +720,109 @@ async function runAnalyze(specPath: string) {
     };
 
     await fs.writeFile(filePath, JSON.stringify(stepJson, null, 2), "utf-8");
+
+    const message = isZh
+      ? `写入 ${fileName}`
+      : `Writing ${fileName}`;
+    stepsProgress.update(index + 1, chalk.gray(message));
   }
 
-  console.log(chalk.green(`✓ Generated ${steps.length} steps for requirement: ${requirementName}`));
-  console.log(chalk.green(`✓ Steps written to directory: ${safeBaseName}`));
+  stepsProgress.complete(
+    isZh ? "所有步骤文件写入完成" : "All step files written"
+  );
+
+  console.log(
+    chalk.green(
+      isZh
+        ? `✓ 已为需求生成 ${steps.length} 个实现步骤：${requirementName}`
+        : `✓ Generated ${steps.length} steps for requirement: ${requirementName}`
+    )
+  );
+  console.log(
+    chalk.green(
+      isZh
+        ? `✓ 步骤文件已写入目录：${safeBaseName}`
+        : `✓ Steps written to directory: ${safeBaseName}`
+    )
+  );
+}
+
+async function showAnalyzeProjectScanProgress(
+  cwd: string,
+  isZh: boolean
+): Promise<void> {
+  const sourcePatterns = [
+    "**/*.{ts,tsx,js,jsx,mjs,cjs}",
+    "**/*.{py,go,rs,java,kt,rb,php,cs,swift,scala}",
+    "**/*.{c,cpp,h,hpp}",
+    "**/*.{json,md,yaml,yml}",
+  ];
+
+  const ignorePatterns = [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    ".git/**",
+    "vendor/**",
+    "__pycache__/**",
+  ];
+
+  const allFiles: string[] = [];
+  for (const pattern of sourcePatterns) {
+    const matches = await glob(pattern, {
+      cwd,
+      ignore: ignorePatterns,
+      nodir: true,
+    });
+    allFiles.push(...matches);
+  }
+
+  const uniqueFiles = Array.from(new Set(allFiles)).sort();
+
+  if (uniqueFiles.length === 0) {
+    console.log(
+      chalk.yellow(
+        isZh
+          ? "  未找到可用于分析的源代码或配置文件，将仅基于需求文档调用 AI。"
+          : "  No source or config files found; AI will rely on the requirement document only."
+      )
+    );
+    return;
+  }
+
+  const total = uniqueFiles.length;
+  const progressBar = createProgressBar(
+    isZh
+      ? "扫描项目源代码与测试文件..."
+      : "Scanning project source and test files...",
+    total
+  );
+  progressBar.start();
+
+  const stride = total <= 50 ? 1 : Math.ceil(total / 40);
+
+  for (let index = 0; index < total; index++) {
+    if (index % stride !== 0 && index !== total - 1) {
+      continue;
+    }
+    const file = uniqueFiles[index];
+    const message = isZh
+      ? chalk.gray(`分析 ${file}`)
+      : chalk.gray(`Analyzing ${file}`);
+    progressBar.update(index + 1, message);
+  }
+
+  progressBar.complete(
+    isZh ? "项目结构扫描完成" : "Project structure scan completed"
+  );
+
+  console.log(
+    chalk.gray(
+      isZh
+        ? `  已发现 ${total} 个相关文件`
+        : `  Found ${total} relevant files`
+    )
+  );
 }
 
 /**
