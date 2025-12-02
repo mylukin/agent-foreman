@@ -11,6 +11,7 @@ import {
   extractJsonObject,
   sanitizeNameForPath,
   slugify,
+  detectSpecLanguage,
   type StepDefinition,
 } from "../src/analyze.js";
 
@@ -157,6 +158,24 @@ describe("analyze.ts", () => {
 
     it("should fall back when nothing left", () => {
       expect(slugify("!!!")).toBe("step");
+    });
+  });
+
+  describe("detectSpecLanguage", () => {
+    it("should detect Chinese for Chinese spec text", () => {
+      const text = "这是一个中文需求文档，包含多句描述。";
+      expect(detectSpecLanguage(text)).toBe("zh");
+    });
+
+    it("should detect English for English spec text", () => {
+      const text =
+        "This is an English requirement document with some description about the feature.";
+      expect(detectSpecLanguage(text)).toBe("en");
+    });
+
+    it("should prefer English when mixed but mostly English", () => {
+      const text = "This is an English spec, 只包含少量中文。";
+      expect(detectSpecLanguage(text)).toBe("en");
     });
   });
 
