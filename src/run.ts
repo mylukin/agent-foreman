@@ -4,18 +4,25 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { callAnyAvailableAgent } from "./agents.js";
-import { getTimeout } from "./timeout-config.js";
-import type { VerificationItem } from "./analyze.js";
+import { extractJsonObject, type VerificationItem } from "./analyze.js";
 
 export type StepStatus = "🔴 待完成" | "🟡 进行中" | "🟢 已完成";
+
+export interface StepUnitTest {
+  command: string;
+  files?: string[];
+  notes?: string;
+}
 
 export interface StepJson {
   id: string;
   description: string;
   status: StepStatus;
   verification: VerificationItem[];
+  unit_test?: StepUnitTest;
   // Allow extra fields for forward compatibility
   [key: string]: unknown;
 }
@@ -30,6 +37,7 @@ interface RunStepEntry {
   initialStatus?: StepStatus;
   finalStatus?: StepStatus;
   verification?: VerificationItem[];
+  unitTest?: StepUnitTest;
   parseError?: string;
   success?: boolean;
   error?: string;
@@ -148,12 +156,78 @@ ${verificationLines}
    - type 为 "manual" 或其他类型时：给出清晰的人工验证说明，必要时也可以补充自动化测试。
 3. 充分利用你在本地可用的命令（例如 npm、pnpm、yarn、pytest、go test 等）运行测试，确保相关测试全部通过。
 4. 遵循本仓库已有的代码风格和项目结构，尽量保持改动最小且聚焦当前步骤。
+5. 在完成实现和单元测试编写后，请根据你实际使用的测试命令，在输出末尾附加一个仅包含 \`unit_test\` 字段的 JSON 对象，用于记录如何重新运行与本步骤相关的单元测试。格式示例：
+
+{
+  "unit_test": {
+    "command": "npm test -- tests/run-command.test.ts",
+    "files": ["tests/run-command.test.ts"],
+    "notes": "覆盖 runStepsDirectory 的主要场景"
+  }
+}
+
+要求：
+- 只输出上述 JSON 对象，不要使用 Markdown 代码块；
+- JSON 中必须使用英文双引号；
+- 如果你认为本步骤不需要或无法编写专门的单元测试，可以省略 \`unit_test\` 字段（不要输出空字段）。
 
 退出约定：
 - 当且仅当你认为当前步骤已经完全实现，且所有相关测试均通过时，才以退出码 0 正常结束；
 - 如果你无法完成当前步骤、遇到无法解决的错误、或有任何测试失败，请以非 0 退出码结束，并在输出中简要说明原因。
 
 请现在开始执行该步骤。`;
+}
+
+function buildRunStepValidationPrompt(params: {
+  projectRoot: string;
+  stepsDir: string;
+  step: StepJson;
+  fileName: string;
+  order: number;
+  total: number;
+}): string {
+  const { projectRoot, stepsDir, step, fileName, order, total } = params;
+
+  const verificationLines =
+    step.verification.length > 0
+      ? step.verification
+          .map(
+            (v, index) =>
+              `${index + 1}. [${v.type}] ${v.description}`,
+          )
+          .join("\n")
+      : "（当前步骤没有显式的 verification 条目，但你仍需要根据描述选择合理的测试或验证方式。）";
+
+  return `你是 agent-foreman 工程中的测试验证助手，负责在本地代码仓库中根据步骤描述和 verification 列表重新运行测试，进行回归验证。
+
+当前项目根目录（工作目录）为：
+${projectRoot}
+
+步骤文件所在目录为：
+${stepsDir}
+
+本次要验证的步骤信息如下：
+- 顺序：第 ${order} 步 / 共 ${total} 步
+- 步骤文件：${fileName}
+- 步骤 ID：${step.id}
+- 当前步骤在 JSON 中的状态：${step.status}
+- 描述（description）：
+${step.description}
+
+验证项目（verification）列表如下，请务必全部覆盖：
+${verificationLines}
+
+你的任务（仅限测试验证，不允许修改任何代码或配置）：
+1. 只根据上述描述和 verification 条目，选择并执行合适的测试命令（例如 npm test / pnpm test / 自定义脚本等），验证该步骤对应的功能是否仍然正确。
+2. 你可以阅读代码和测试文件，但禁止修改任何源代码、配置文件、测试文件或文档内容——本轮仅做「回归验证」，不做实现改动。
+3. 如果你认为所有与本步骤相关的测试均已覆盖且全部通过，则以退出码 0 正常结束。
+4. 如果有任意测试失败、发现明显缺陷、或你无法确认该步骤已经完全满足描述和 verification 要求，请以非 0 退出码结束，并在输出中简要说明失败原因或风险点。
+
+退出约定：
+- 退出码 0：表示本次回归验证通过，当前步骤可以继续保持为“🟢 已完成”状态；
+- 非 0 退出码：表示本次回归验证未通过或存在不确定性，调用方会根据需要重新打开步骤并进入实现阶段。
+
+请现在开始执行回归验证，仅运行测试和检查结果，不要修改任何代码或配置。`;
 }
 
 async function discoverStepFiles(stepsDir: string): Promise<{
@@ -225,6 +299,7 @@ async function loadStepEntries(
       entry.initialStatus = step.status;
       entry.finalStatus = step.status;
       entry.verification = step.verification;
+      entry.unitTest = step.unit_test;
 
       const expectedId = `step-${prefix}`;
       if (step.id !== expectedId) {
@@ -261,11 +336,7 @@ async function writeProgressMarkdown(params: {
 }): Promise<string> {
   const { stepsDir, entries, startedAt, finishedAt } = params;
 
-  const timestamp = finishedAt
-    .toISOString()
-    .replace(/[-:]/g, "")
-    .replace(/\..+$/, "");
-  const fileName = `run-progress-${timestamp}.md`;
+  const fileName = "run-progress.md";
   const filePath = path.join(stepsDir, fileName);
 
   const total = entries.length;
@@ -318,7 +389,70 @@ async function writeProgressMarkdown(params: {
   return filePath;
 }
 
-export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
+function extractUnitTestFromOutput(output: string): StepUnitTest | undefined {
+  const jsonStr = extractJsonObject(output);
+  if (!jsonStr) return undefined;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    return undefined;
+  }
+
+  if (!parsed || typeof parsed !== "object") return undefined;
+
+  const obj = parsed as { unit_test?: unknown };
+  const rawUnit = obj.unit_test;
+  if (!rawUnit || typeof rawUnit !== "object") return undefined;
+
+  const u = rawUnit as { command?: unknown; files?: unknown; notes?: unknown };
+
+  if (typeof u.command !== "string" || !u.command.trim()) return undefined;
+  const command = u.command.trim();
+
+  let files: string[] | undefined;
+  if (Array.isArray(u.files)) {
+    files = u.files.filter((f): f is string => typeof f === "string" && f.trim().length > 0);
+  }
+
+  const notes = typeof u.notes === "string" && u.notes.trim().length > 0 ? u.notes.trim() : undefined;
+
+  return { command, files, notes };
+}
+
+async function runUnitTestsForStep(
+  unitTest: StepUnitTest,
+  cwd: string,
+): Promise<{ success: boolean; error?: string; output?: string }> {
+  const result = spawnSync(unitTest.command, {
+    cwd,
+    shell: true,
+    encoding: "utf-8",
+  });
+
+  const stdout = (result.stdout || "").toString();
+  const stderr = (result.stderr || "").toString();
+  const combined = `${stdout}${stdout && stderr ? "\n" : ""}${stderr}`;
+
+  if (result.status === 0) {
+    return { success: true, output: combined };
+  }
+
+  const message =
+    combined.trim() || `Unit test command exited with code ${result.status ?? "unknown"}`;
+
+  return {
+    success: false,
+    error: message,
+    output: combined,
+  };
+}
+
+export async function runStepsDirectory(
+  stepsDirArg: string,
+  options: { fullVerify?: boolean } = {},
+): Promise<void> {
   const cwd = process.cwd();
   const stepsDir = path.isAbsolute(stepsDirArg)
     ? stepsDirArg
@@ -435,6 +569,113 @@ export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
       ),
     );
 
+    let needImplementation = step.status !== "🟢 已完成";
+
+    // 如果当前为已完成状态，且开启了 fullVerify，则先进行一次「仅测试」的回归验证
+    if (step.status === "🟢 已完成" && options.fullVerify) {
+      console.log(
+        chalk.gray(
+          "  当前步骤已标记为已完成，将仅重新运行测试进行回归验证...",
+        ),
+      );
+
+      // 如果步骤包含 unit_test 信息，先按其内容运行单元测试
+      if (entry.unitTest && entry.unitTest.command) {
+        console.log(
+          chalk.gray(
+            `  🧪 执行单元测试: ${entry.unitTest.command}`,
+          ),
+        );
+        const testResult = await runUnitTestsForStep(entry.unitTest, cwd);
+        if (testResult.success) {
+          console.log(chalk.green("  ✓ 单元测试通过"));
+        } else {
+          console.log(chalk.red("  ✗ 单元测试失败"));
+          if (testResult.error) {
+            testResult.error
+              .split("\n")
+              .slice(0, 10)
+              .forEach((line) => {
+                if (line.trim()) {
+                  console.log(chalk.red(`    ${line}`));
+                }
+              });
+          }
+
+          entry.finalStatus = step.status;
+          entry.success = false;
+          entry.error = "单元测试失败";
+
+          const now = new Date();
+          await writeProgressMarkdown({
+            stepsDir,
+            entries,
+            startedAt,
+            finishedAt: now,
+          });
+
+          console.log(
+            chalk.yellow(
+              "  ⚠ 单元测试未通过，将重新打开该步骤并进入实现阶段...",
+            ),
+          );
+          needImplementation = true;
+        }
+      }
+
+      // 如果单元测试通过（或不存在），再调用 AI 按 verification 做回归验证
+      if (!needImplementation) {
+        const validationPrompt = buildRunStepValidationPrompt({
+          projectRoot: cwd,
+          stepsDir,
+          step,
+          fileName: entry.fileName,
+          order: entry.order,
+          total,
+        });
+
+        console.log(chalk.gray("  正在调用命令行 AI 进行回归测试验证..."));
+
+        const validationResult = await callAnyAvailableAgent(validationPrompt, {
+          cwd,
+          verbose: true,
+        });
+
+        if (validationResult.success) {
+          // 回归测试通过，保持状态为已完成，不进入实现阶段
+          entry.finalStatus = step.status;
+          entry.success = true;
+          entry.error = undefined;
+          console.log(
+            chalk.green(
+              "  ✓ 回归测试通过，保持状态为：🟢 已完成",
+            ),
+          );
+
+          // 更新进度报告
+          const now = new Date();
+          await writeProgressMarkdown({
+            stepsDir,
+            entries,
+            startedAt,
+            finishedAt: now,
+          });
+          continue;
+        }
+
+        console.log(
+          chalk.yellow(
+            `  ⚠ 回归测试未通过或存在问题（${validationResult.error ?? "原因未知"}），将重新打开该步骤并进入实现阶段...`,
+          ),
+        );
+        needImplementation = true;
+      }
+    }
+
+    if (!needImplementation) {
+      continue;
+    }
+
     // 标记为进行中
     const previousStatus = step.status;
     step.status = "🟡 进行中";
@@ -457,6 +698,14 @@ export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
       entry.success = false;
       entry.error = message;
       firstFailure = firstFailure ?? entry;
+
+      const now = new Date();
+      await writeProgressMarkdown({
+        stepsDir,
+        entries,
+        startedAt,
+        finishedAt: now,
+      });
       break;
     }
 
@@ -479,7 +728,6 @@ export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
 
     const result = await callAnyAvailableAgent(prompt, {
       cwd,
-      timeoutMs: getTimeout("AI_DEFAULT"),
       verbose: true,
     });
 
@@ -488,6 +736,17 @@ export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
       entry.finalStatus = step.status;
       entry.success = true;
       entry.error = undefined;
+
+      const unitTest = extractUnitTestFromOutput(result.output);
+      if (unitTest) {
+        step.unit_test = unitTest;
+        entry.unitTest = unitTest;
+        console.log(
+          chalk.gray(
+            `  单元测试信息已记录到步骤 JSON（命令：${unitTest.command}）`,
+          ),
+        );
+      }
 
       try {
         await fs.writeFile(
@@ -514,6 +773,121 @@ export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
           `  ✓ 步骤执行成功，状态已更新为：${step.status}`,
         ),
       );
+
+      // 普通 run 模式下，执行「单元测试 + verification 验证」
+      if (!options.fullVerify) {
+        // 先执行单元测试（如果存在）
+        if (entry.unitTest && entry.unitTest.command) {
+          console.log(
+            chalk.gray(
+              `  🧪 执行单元测试: ${entry.unitTest.command}`,
+            ),
+          );
+          const testResult = await runUnitTestsForStep(entry.unitTest, cwd);
+          if (!testResult.success) {
+            console.log(chalk.red("  ✗ 单元测试失败"));
+            if (testResult.error) {
+              testResult.error
+                .split("\n")
+                .slice(0, 10)
+                .forEach((line) => {
+                  if (line.trim()) {
+                    console.log(chalk.red(`    ${line}`));
+                  }
+                });
+            }
+
+            step.status = "🔴 待完成";
+            entry.finalStatus = step.status;
+            entry.success = false;
+            entry.error = "单元测试失败";
+
+            try {
+              await fs.writeFile(
+                entry.filePath,
+                JSON.stringify(step, null, 2),
+                "utf-8",
+              );
+            } catch {
+              // 如果这里写回失败，错误已经在前面处理过，这里不再额外中断
+            }
+
+            const now = new Date();
+            await writeProgressMarkdown({
+              stepsDir,
+              entries,
+              startedAt,
+              finishedAt: now,
+            });
+
+            firstFailure = firstFailure ?? entry;
+            break;
+          } else {
+            console.log(chalk.green("  ✓ 单元测试通过"));
+          }
+        }
+
+        // 再按 verification 列表让 AI 做一次验证
+        const validationPrompt = buildRunStepValidationPrompt({
+          projectRoot: cwd,
+          stepsDir,
+          step,
+          fileName: entry.fileName,
+          order: entry.order,
+          total,
+        });
+
+        console.log(chalk.gray("  正在调用命令行 AI 按 verification 进行验证..."));
+
+        const validationResult = await callAnyAvailableAgent(validationPrompt, {
+          cwd,
+          verbose: true,
+        });
+
+        if (!validationResult.success) {
+          console.log(
+            chalk.red(
+              `  ✗ verification 验证未通过：${validationResult.error ?? "原因未知"}`,
+            ),
+          );
+
+          step.status = "🔴 待完成";
+          entry.finalStatus = step.status;
+          entry.success = false;
+          entry.error = validationResult.error || "verification 验证失败";
+
+          try {
+            await fs.writeFile(
+              entry.filePath,
+              JSON.stringify(step, null, 2),
+              "utf-8",
+            );
+          } catch {
+            // 同上，写回失败不再额外中断
+          }
+
+          const now = new Date();
+          await writeProgressMarkdown({
+            stepsDir,
+            entries,
+            startedAt,
+            finishedAt: now,
+          });
+
+          firstFailure = firstFailure ?? entry;
+          break;
+        } else {
+          console.log(chalk.green("  ✓ verification 验证通过"));
+        }
+      }
+
+      const now = new Date();
+      await writeProgressMarkdown({
+        stepsDir,
+        entries,
+        startedAt,
+        finishedAt: now,
+      });
     } else {
       step.status = "🔴 待完成";
       entry.finalStatus = step.status;
@@ -542,17 +916,17 @@ export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
         ),
       );
       firstFailure = firstFailure ?? entry;
+
+      const now = new Date();
+      await writeProgressMarkdown({
+        stepsDir,
+        entries,
+        startedAt,
+        finishedAt: now,
+      });
       break;
     }
   }
-
-  const finishedAt = new Date();
-  const progressPath = await writeProgressMarkdown({
-    stepsDir,
-    entries,
-    startedAt,
-    finishedAt,
-  });
 
   const successCount = entries.filter((e) => e.success).length;
   const totalSteps = entries.length;
@@ -580,5 +954,12 @@ export async function runStepsDirectory(stepsDirArg: string): Promise<void> {
     console.log(chalk.green("✓ 所有步骤均已成功执行"));
   }
 
+  const finishedAt = new Date();
+  const progressPath = await writeProgressMarkdown({
+    stepsDir,
+    entries,
+    startedAt,
+    finishedAt,
+  });
   console.log(chalk.gray(`  执行进度报告已写入：${progressPath}`));
 }
