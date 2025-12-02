@@ -366,6 +366,43 @@ export interface TestCapabilityInfo extends CapabilityCommand {
 }
 
 /**
+ * E2E test-specific capability information
+ * Supports Playwright and other E2E testing frameworks
+ */
+export interface E2ECapabilityInfo extends CapabilityCommand {
+  /**
+   * Base E2E test command
+   * Example: "npx playwright test"
+   */
+  command?: string;
+
+  /**
+   * Template for running E2E tests filtered by tags
+   * Use {tags} placeholder for tag pattern
+   * Example: "npx playwright test --grep {tags}"
+   */
+  grepTemplate?: string;
+
+  /**
+   * Template for running specific E2E test files
+   * Use {files} placeholder for file paths
+   * Example: "npx playwright test {files}"
+   */
+  fileTemplate?: string;
+
+  /**
+   * E2E test framework name
+   * Example: "playwright", "cypress", "puppeteer"
+   */
+  framework?: string;
+
+  /**
+   * Config file path (e.g., "playwright.config.ts")
+   */
+  configFile?: string;
+}
+
+/**
  * Custom verification rule discovered by AI
  * Extends standard capabilities with project-specific commands
  */
@@ -397,6 +434,8 @@ export interface ExtendedCapabilities extends VerificationCapabilities {
   detectedAt: string;
   /** Optional: structured test info with selective execution templates */
   testInfo?: TestCapabilityInfo;
+  /** Optional: E2E test info (Playwright, Cypress, etc.) */
+  e2eInfo?: E2ECapabilityInfo;
   /** Optional: type check command info */
   typeCheckInfo?: CapabilityCommand;
   /** Optional: lint command info */

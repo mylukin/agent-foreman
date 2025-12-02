@@ -20,6 +20,7 @@ import type {
   ExtendedCapabilities,
   CapabilityCommand,
   TestCapabilityInfo,
+  E2ECapabilityInfo,
   CapabilityCache,
   CustomRule,
   CustomRuleType,
@@ -53,6 +54,18 @@ interface AICapabilityResponse {
     selectiveFileTemplate?: string;
     /** Template for running tests by name pattern, e.g., "pnpm test --testNamePattern {pattern}" */
     selectiveNameTemplate?: string;
+  };
+  e2e?: {
+    available: boolean;
+    command?: string;
+    framework?: string;
+    confidence?: number;
+    /** Config file path, e.g., "playwright.config.ts" */
+    configFile?: string;
+    /** Template for grep filtering by tags, e.g., "npx playwright test --grep {tags}" */
+    grepTemplate?: string;
+    /** Template for running specific files, e.g., "npx playwright test {files}" */
+    fileTemplate?: string;
   };
   typecheck?: {
     available: boolean;
@@ -283,9 +296,10 @@ Explore this project and discover:
 1. **Package manager** - Which package manager is used (npm, pnpm, yarn, bun, etc.)
 2. **Config files** - Which files define the project's build/test configuration
 3. **Run tests** - Find and verify the test command, including selective test execution
-4. **Type check** - Find static type checking command (if applicable)
-5. **Lint** - Find code linting command (if applicable)
-6. **Build** - Find the build/compile command (if applicable)
+4. **E2E tests** - Find E2E testing framework (Playwright, Cypress, etc.) if present
+5. **Type check** - Find static type checking command (if applicable)
+6. **Lint** - Find code linting command (if applicable)
+7. **Build** - Find the build/compile command (if applicable)
 
 ## How to Explore
 
@@ -301,6 +315,7 @@ Explore this project and discover:
 - **Only report commands you have verified** - Read the actual config files
 - **Use the project's own scripts when available** - Prefer configured commands over generic ones
 - **Detect selective test execution** - How to run specific test files or filter by test name
+- **Detect E2E testing** - Look for playwright.config.ts, cypress.config.js, or similar
 
 ## Output Format
 
@@ -312,11 +327,20 @@ Return ONLY a JSON object (no markdown, no explanation):
   "packageManager": "<npm|pnpm|yarn|bun|pip|cargo|go|gradle|maven|etc>",
   "test": {
     "available": true,
-    "command": "<exact command to run ALL tests>",
+    "command": "<exact command to run ALL unit tests>",
     "framework": "<test framework name: vitest|jest|mocha|pytest|go|cargo|junit|etc>",
     "confidence": 0.95,
     "selectiveFileTemplate": "<command template to run specific files, use {files} placeholder>",
     "selectiveNameTemplate": "<command template to filter by test name, use {pattern} placeholder>"
+  },
+  "e2e": {
+    "available": true,
+    "command": "<exact command to run ALL E2E tests>",
+    "framework": "<E2E framework: playwright|cypress|puppeteer|selenium|etc>",
+    "confidence": 0.95,
+    "configFile": "<config file path, e.g. playwright.config.ts>",
+    "grepTemplate": "<command to filter by tags, use {tags} placeholder, e.g. npx playwright test --grep {tags}>",
+    "fileTemplate": "<command to run specific files, use {files} placeholder>"
   },
   "typecheck": {
     "available": true,
@@ -448,6 +472,24 @@ function toTestCapabilityInfo(
   };
 }
 
+function toE2ECapabilityInfo(
+  info?: AICapabilityResponse["e2e"]
+): E2ECapabilityInfo {
+  if (!info) {
+    return { available: false, confidence: 0 };
+  }
+
+  return {
+    available: info.available,
+    command: info.command,
+    framework: info.framework,
+    confidence: info.confidence ?? (info.available ? 0.8 : 0),
+    configFile: info.configFile,
+    grepTemplate: info.grepTemplate,
+    fileTemplate: info.fileTemplate,
+  };
+}
+
 function toCustomRules(
   rules?: Array<{ id: string; description: string; command: string; type: string }>
 ): CustomRule[] | undefined {
@@ -484,6 +526,7 @@ function createMinimalDiscoveryResult(): DiscoveryResult {
       languages: [],
       detectedAt: new Date().toISOString(),
       testInfo: { available: false, confidence: 0 },
+      e2eInfo: { available: false, confidence: 0 },
       typeCheckInfo: { available: false, confidence: 0 },
       lintInfo: { available: false, confidence: 0 },
       buildInfo: { available: false, confidence: 0 },
@@ -522,6 +565,7 @@ export async function discoverCapabilitiesWithAI(
 
   const confidences = [
     data.test?.confidence ?? 0,
+    data.e2e?.confidence ?? 0,
     data.typecheck?.confidence ?? 0,
     data.lint?.confidence ?? 0,
     data.build?.confidence ?? 0,
@@ -548,6 +592,7 @@ export async function discoverCapabilitiesWithAI(
     languages: data.languages,
     detectedAt: new Date().toISOString(),
     testInfo: toTestCapabilityInfo(data.test, data.packageManager),
+    e2eInfo: toE2ECapabilityInfo(data.e2e),
     typeCheckInfo: toCapabilityCommand(data.typecheck),
     lintInfo: toCapabilityCommand(data.lint),
     buildInfo: toCapabilityCommand(data.build),
@@ -687,6 +732,12 @@ export function formatExtendedCapabilities(caps: ExtendedCapabilities): string {
     lines.push(`  Tests: ${caps.testInfo.framework || "custom"} (${caps.testInfo.command})`);
   } else {
     lines.push("  Tests: Not detected");
+  }
+
+  if (caps.e2eInfo?.available) {
+    lines.push(`  E2E: ${caps.e2eInfo.framework || "custom"} (${caps.e2eInfo.command})`);
+  } else {
+    lines.push("  E2E: Not detected");
   }
 
   if (caps.typeCheckInfo?.available) {

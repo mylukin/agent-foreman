@@ -445,6 +445,78 @@ The project appears to be well configured.`;
       expect(result.capabilities.customRules).toHaveLength(1);
       expect(result.capabilities.customRules?.[0].id).toBe("e2e-test");
     });
+
+    it("should detect E2E capabilities when Playwright is present", async () => {
+      const aiSpy = vi.spyOn(agents, "callAnyAvailableAgent");
+      aiSpy.mockResolvedValue({
+        success: true,
+        output: JSON.stringify({
+          languages: ["typescript"],
+          configFiles: ["package.json", "playwright.config.ts"],
+          test: { available: true, command: "npm test", framework: "vitest" },
+          e2e: {
+            available: true,
+            command: "npx playwright test",
+            framework: "playwright",
+            confidence: 0.95,
+            configFile: "playwright.config.ts",
+            grepTemplate: "npx playwright test --grep {tags}",
+            fileTemplate: "npx playwright test {files}",
+          },
+        }),
+        agentUsed: "test",
+      });
+
+      const result = await discoverCapabilitiesWithAI(tempDir);
+
+      expect(result.capabilities.e2eInfo).toBeDefined();
+      expect(result.capabilities.e2eInfo?.available).toBe(true);
+      expect(result.capabilities.e2eInfo?.command).toBe("npx playwright test");
+      expect(result.capabilities.e2eInfo?.framework).toBe("playwright");
+      expect(result.capabilities.e2eInfo?.confidence).toBe(0.95);
+      expect(result.capabilities.e2eInfo?.configFile).toBe("playwright.config.ts");
+      expect(result.capabilities.e2eInfo?.grepTemplate).toBe("npx playwright test --grep {tags}");
+      expect(result.capabilities.e2eInfo?.fileTemplate).toBe("npx playwright test {files}");
+    });
+
+    it("should set e2eInfo.available to false when E2E not present", async () => {
+      const aiSpy = vi.spyOn(agents, "callAnyAvailableAgent");
+      aiSpy.mockResolvedValue({
+        success: true,
+        output: JSON.stringify({
+          languages: ["typescript"],
+          configFiles: ["package.json"],
+          test: { available: true, command: "npm test" },
+          // No e2e field
+        }),
+        agentUsed: "test",
+      });
+
+      const result = await discoverCapabilitiesWithAI(tempDir);
+
+      expect(result.capabilities.e2eInfo).toBeDefined();
+      expect(result.capabilities.e2eInfo?.available).toBe(false);
+      expect(result.capabilities.e2eInfo?.confidence).toBe(0);
+    });
+
+    it("should include E2E confidence in average confidence calculation", async () => {
+      const aiSpy = vi.spyOn(agents, "callAnyAvailableAgent");
+      aiSpy.mockResolvedValue({
+        success: true,
+        output: JSON.stringify({
+          languages: ["typescript"],
+          configFiles: ["package.json"],
+          test: { available: true, command: "npm test", confidence: 0.9 },
+          e2e: { available: true, command: "npx playwright test", confidence: 0.8 },
+        }),
+        agentUsed: "test",
+      });
+
+      const result = await discoverCapabilitiesWithAI(tempDir);
+
+      // Average of 0.9 (test) and 0.8 (e2e) = 0.85
+      expect(result.capabilities.confidence).toBeCloseTo(0.85, 10);
+    });
   });
 });
 
