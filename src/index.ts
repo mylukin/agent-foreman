@@ -146,10 +146,50 @@ async function main() {
             type: "boolean",
             default: false,
             describe: "Also re-verify steps already marked as completed (🟢)",
+          })
+          .option("verify-only", {
+            type: "boolean",
+            default: false,
+            describe: "Only run verification (unit tests + AI verification), no implementation",
+          })
+          .option("verify-unittest-only", {
+            type: "boolean",
+            default: false,
+            describe: "Only run unit tests for each step, no AI verification or implementation",
+          })
+          .option("verify-generate-unittest", {
+            type: "boolean",
+            default: false,
+            describe: "Only check and generate unit tests for steps without unit_test configuration",
           }),
       async (argv) => {
+        const fullVerify = argv["full-verify"] as boolean;
+        const verifyOnly = argv["verify-only"] as boolean;
+        const verifyUnitTestOnly = argv["verify-unittest-only"] as boolean;
+        const verifyGenerateUnitTest =
+          argv["verify-generate-unittest"] as boolean;
+
+        const enabledModes = [
+          fullVerify ? "full-verify" : null,
+          verifyOnly ? "verify-only" : null,
+          verifyUnitTestOnly ? "verify-unittest-only" : null,
+          verifyGenerateUnitTest ? "verify-generate-unittest" : null,
+        ].filter((m): m is string => m !== null);
+
+        if (enabledModes.length > 1) {
+          console.log(
+            chalk.red(
+              "✗ 选项 --full-verify、--verify-only、--verify-unittest-only、--verify-generate-unittest 不能同时使用，请只选择一个模式。",
+            ),
+          );
+          process.exit(1);
+        }
+
         await runStepsDirectory(argv.steps_dir as string, {
-          fullVerify: argv["full-verify"] as boolean,
+          fullVerify,
+          verifyOnly,
+          verifyUnitTestOnly,
+          verifyGenerateUnitTest,
         });
       }
     )

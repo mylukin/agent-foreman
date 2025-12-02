@@ -1004,4 +1004,132 @@ process.exit(0);
       files: unitTestSpec.files,
     });
   });
+
+  it("in verifyOnly mode, runs unit tests and AI verification without re-implementation and keeps status when all pass", async () => {
+    const dir = await createTempDir();
+    const fileName = await writeStep(dir, 1, "verify-only-mode", {
+      status: "🟢 已完成",
+      unit_test: {
+        command: `${process.execPath} -e "process.exit(0)"`,
+      },
+    });
+
+    vi.mocked(callAnyAvailableAgent).mockResolvedValue({
+      success: true,
+      output: "validation ok",
+      agentUsed: "test-agent",
+    });
+
+    const cwd = process.cwd();
+    try {
+      process.chdir(dir);
+      await runStepsDirectory(".", { verifyOnly: true });
+    } finally {
+      process.chdir(cwd);
+    }
+
+    const stepContent = JSON.parse(
+      await fs.readFile(path.join(dir, fileName), "utf-8"),
+    );
+
+    // Status should remain completed
+    expect(stepContent.status).toBe("🟢 已完成");
+
+    // Should call AI exactly once for verification, not for implementation
+    expect(callAnyAvailableAgent).toHaveBeenCalledTimes(1);
+
+    const progressContent = await readRunProgressContent(dir);
+    expect(progressContent).toBeTruthy();
+    if (progressContent) {
+      const row = getStatusAndErrorFromProgress(progressContent, fileName);
+      expect(row.afterStatus).toBe("🟢 已完成");
+      expect(row.result).toBe("成功");
+      expect(row.error).toBe("");
+    }
+  });
+
+  it("in verifyUnitTestOnly mode, runs only unit tests and fails when unit_test is missing", async () => {
+    const dir = await createTempDir();
+    const fileName = await writeStep(dir, 1, "verify-unittest-only-missing-unit");
+
+    const cwd = process.cwd();
+    try {
+      process.chdir(dir);
+      await runStepsDirectory(".", { verifyUnitTestOnly: true });
+    } finally {
+      process.chdir(cwd);
+    }
+
+    const stepContent = JSON.parse(
+      await fs.readFile(path.join(dir, fileName), "utf-8"),
+    );
+
+    // Status should remain pending but result is failure because no unit_test
+    expect(stepContent.status).toBe("🔴 待完成");
+    expect(process.exitCode).toBe(1);
+
+    // AI should never be called in unit-test-only mode
+    expect(callAnyAvailableAgent).not.toHaveBeenCalled();
+
+    const progressContent = await readRunProgressContent(dir);
+    expect(progressContent).toBeTruthy();
+    if (progressContent) {
+      const row = getStatusAndErrorFromProgress(progressContent, fileName);
+      expect(row.afterStatus).toBe("🔴 待完成");
+      expect(row.result).toBe("失败");
+      expect(row.error).toContain("unit_test");
+    }
+  });
+
+  it("in verifyGenerateUnitTest mode, generates unit_test when missing and writes it back", async () => {
+    const dir = await createTempDir();
+    const fileName = await writeStep(dir, 1, "verify-generate-unit", {
+      status: "🔴 待完成",
+    });
+
+    const unitTestSpec = {
+      command: `${process.execPath} -e "process.exit(0)"`,
+      files: ["tests/sample.test.ts"],
+    };
+
+    const aiOutput = [
+      "Only generating tests.",
+      JSON.stringify({ unit_test: unitTestSpec }),
+      "Done.",
+    ].join("\n");
+
+    vi.mocked(callAnyAvailableAgent).mockResolvedValue({
+      success: true,
+      output: aiOutput,
+      agentUsed: "test-agent",
+    });
+
+    const cwd = process.cwd();
+    try {
+      process.chdir(dir);
+      await runStepsDirectory(".", { verifyGenerateUnitTest: true });
+    } finally {
+      process.chdir(cwd);
+    }
+
+    const stepContent = JSON.parse(
+      await fs.readFile(path.join(dir, fileName), "utf-8"),
+    );
+
+    expect(stepContent.unit_test).toEqual({
+      command: unitTestSpec.command,
+      files: unitTestSpec.files,
+    });
+    // Status is not changed by generate-unittest mode
+    expect(stepContent.status).toBe("🔴 待完成");
+
+    const progressContent = await readRunProgressContent(dir);
+    expect(progressContent).toBeTruthy();
+    if (progressContent) {
+      const row = getStatusAndErrorFromProgress(progressContent, fileName);
+      expect(row.afterStatus).toBe("🔴 待完成");
+      expect(row.result).toBe("成功");
+      expect(row.error).toBe("");
+    }
+  });
 });
