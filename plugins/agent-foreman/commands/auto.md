@@ -35,7 +35,9 @@ Read and understand the acceptance criteria carefully. Implement the feature to 
 ```bash
 agent-foreman complete <feature_id>
 ```
-This verifies the implementation and marks it as passing if successful.
+This verifies the implementation using quick mode (runs only related tests based on testPattern) and marks it as passing if successful.
+
+Use `--full` flag for comprehensive testing: `agent-foreman complete <feature_id> --full`
 
 ### Step 5: Loop or Exit
 - If more features remain with status `failing` or `needs_review` → **Go back to Step 1**

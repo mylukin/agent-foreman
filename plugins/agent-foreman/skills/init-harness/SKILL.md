@@ -39,7 +39,22 @@ agent-foreman init --mode scan
 | `ai/feature_list.json` | Feature backlog with status tracking |
 | `ai/progress.log` | Session handoff audit log |
 | `ai/init.sh` | Bootstrap script (install/dev/check) |
+| `ai/capabilities.json` | Detected project capabilities (test/lint/build) |
 | `CLAUDE.md` | Instructions for AI agents |
 | `docs/PROJECT_SURVEY.md` | Auto-generated when scanning existing project |
 
 **Tip:** For existing projects, run `agent-foreman survey` first for better results.
+
+## Auto-Generated Test Patterns
+
+During init, each feature automatically gets a `testPattern` field based on its module:
+
+```json
+{
+  "id": "auth.login",
+  "module": "auth",
+  "testPattern": "tests/auth/**/*.test.*"  // Auto-generated
+}
+```
+
+This enables the default quick mode in `agent-foreman complete` to run only related tests, making verification faster.

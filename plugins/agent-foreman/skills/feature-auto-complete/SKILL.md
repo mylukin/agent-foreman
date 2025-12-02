@@ -110,5 +110,23 @@ agent-foreman status
 agent-foreman step
 
 # Complete a specific feature (auto-runs verification)
+# Uses quick mode by default - runs only related tests based on testPattern
 agent-foreman complete <feature_id>
+
+# Full mode - run all tests (slower, for final verification)
+agent-foreman complete <feature_id> --full
 ```
+
+## Test Pattern Auto-Generation
+
+During `agent-foreman init`, each feature automatically gets a `testPattern` field based on its module:
+
+```json
+{
+  "id": "auth.login",
+  "module": "auth",
+  "testPattern": "tests/auth/**/*.test.*"  // Auto-generated
+}
+```
+
+This enables quick mode to run only related tests, making verification faster.

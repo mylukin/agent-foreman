@@ -280,13 +280,13 @@ async function main() {
           .option("quick", {
             alias: "q",
             type: "boolean",
-            default: false,
-            describe: "Run only related tests (selective test execution)",
+            default: true,
+            describe: "Run only related tests (selective test execution, default)",
           })
           .option("full", {
             type: "boolean",
             default: false,
-            describe: "Force full test suite (default for final verification)",
+            describe: "Force full test suite",
           })
           .option("test-pattern", {
             type: "string",
@@ -298,20 +298,18 @@ async function main() {
             describe: "Skip E2E tests entirely (run unit tests only)",
           }),
       async (argv) => {
-        // Determine test mode: --full > --quick > default (full for final verification)
-        const testMode = argv.full ? "full" : argv.quick ? "quick" : "full";
+        // Determine test mode: --full > --quick (default)
+        // Quick mode is now the default for faster iteration
+        const testMode = argv.full ? "full" : "quick";
         // Determine E2E mode:
         // - --skip-e2e: skip
         // - --full (explicit): full E2E
-        // - --quick: tags (or smoke if no feature tags)
-        // - default (no --full): smoke E2E only
+        // - quick (default): tags (or smoke if no feature tags)
         const e2eMode = argv.skipE2e
           ? "skip"
           : argv.full
             ? "full"
-            : argv.quick
-              ? undefined // Will be determined by tags in verifier
-              : "smoke"; // Default: run only @smoke E2E
+            : undefined; // Quick mode: determined by tags in verifier
         await runComplete(
           argv.feature_id!,
           argv.notes,
@@ -356,8 +354,8 @@ async function main() {
           .option("quick", {
             alias: "q",
             type: "boolean",
-            default: false,
-            describe: "Run only related tests (selective test execution)",
+            default: true,
+            describe: "Run only related tests (selective test execution, default)",
           })
           .option("full", {
             type: "boolean",
@@ -374,15 +372,14 @@ async function main() {
             describe: "Skip E2E tests entirely (run unit tests only)",
           }),
       async (argv) => {
-        const testMode = argv.full ? "full" : argv.quick ? "quick" : "full";
+        // Determine test mode: --full > --quick (default)
+        const testMode = argv.full ? "full" : "quick";
         // Determine E2E mode same as complete command
         const e2eMode = argv.skipE2e
           ? "skip"
           : argv.full
             ? "full"
-            : argv.quick
-              ? undefined // Determined by tags in verifier
-              : "smoke"; // Default: @smoke only
+            : undefined; // Quick mode: determined by tags in verifier
         await runCheck(argv.feature_id!, argv.verbose, argv.skipChecks, !argv.noAutonomous, testMode, argv.testPattern, argv.skipE2e, e2eMode);
       }
     )

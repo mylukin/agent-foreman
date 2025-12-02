@@ -23,6 +23,7 @@ import {
   deprecateFeature,
   addFeature,
   createFeature,
+  generateTestPattern,
 } from "../src/feature-list.js";
 import type { Feature, FeatureList, DiscoveredFeature } from "../src/types.js";
 
@@ -463,6 +464,76 @@ describe("Feature List Operations", () => {
       expect(feature.priority).toBe(5);
       expect(feature.status).toBe("blocked");
       expect(feature.tags).toEqual(["important"]);
+    });
+
+    it("should auto-generate testPattern if not provided", () => {
+      const feature = createFeature("auth.login", "Login feature", "auth", ["Login works"]);
+
+      expect(feature.testPattern).toBe("tests/auth/**/*.test.*");
+    });
+
+    it("should use provided testPattern over auto-generated", () => {
+      const feature = createFeature("auth.login", "Login feature", "auth", ["Login works"], {
+        testPattern: "custom/path/*.spec.ts",
+      });
+
+      expect(feature.testPattern).toBe("custom/path/*.spec.ts");
+    });
+  });
+
+  describe("generateTestPattern", () => {
+    it("should generate module-based test pattern", () => {
+      const pattern = generateTestPattern("auth", "auth.login");
+      expect(pattern).toBe("tests/auth/**/*.test.*");
+    });
+
+    it("should sanitize module names with special characters", () => {
+      const pattern = generateTestPattern("my-module", "my-module.feature");
+      expect(pattern).toBe("tests/my-module/**/*.test.*");
+    });
+
+    it("should handle modules with underscores", () => {
+      const pattern = generateTestPattern("my_module", "my_module.feature");
+      expect(pattern).toBe("tests/my_module/**/*.test.*");
+    });
+
+    it("should remove invalid characters from module name", () => {
+      const pattern = generateTestPattern("module/with/slashes", "bad.feature");
+      expect(pattern).toBe("tests/modulewithslashes/**/*.test.*");
+    });
+
+    it("should handle complex feature IDs", () => {
+      const pattern = generateTestPattern("verification", "verify.store.migration");
+      expect(pattern).toBe("tests/verification/**/*.test.*");
+    });
+  });
+
+  describe("discoveredToFeature with testPattern", () => {
+    it("should auto-generate testPattern for discovered features", () => {
+      const discovered: DiscoveredFeature = {
+        id: "api.users",
+        description: "Users API",
+        module: "api",
+        source: "route",
+        confidence: 0.8,
+      };
+      const feature = discoveredToFeature(discovered, 0);
+
+      expect(feature.testPattern).toBe("tests/api/**/*.test.*");
+    });
+
+    it("should generate different patterns for different modules", () => {
+      const authFeature = discoveredToFeature(
+        { id: "auth.login", description: "d", module: "auth", source: "route", confidence: 0.8 },
+        0
+      );
+      const userFeature = discoveredToFeature(
+        { id: "user.profile", description: "d", module: "user", source: "route", confidence: 0.8 },
+        0
+      );
+
+      expect(authFeature.testPattern).toBe("tests/auth/**/*.test.*");
+      expect(userFeature.testPattern).toBe("tests/user/**/*.test.*");
     });
   });
 });

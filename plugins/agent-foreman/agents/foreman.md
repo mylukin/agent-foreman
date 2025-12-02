@@ -33,7 +33,11 @@ agent-foreman status
 agent-foreman step
 
 # Complete feature (auto-verifies + auto-commits)
+# Uses quick mode by default - runs only related tests based on testPattern
 agent-foreman complete <feature_id>
+
+# Full mode - run all tests (slower, for final verification)
+agent-foreman complete <feature_id> --full
 
 # Initialize new project
 agent-foreman init "Your project goal"

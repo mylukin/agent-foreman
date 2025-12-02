@@ -70,10 +70,11 @@ agent-foreman step
 agent-foreman step <feature_id>
 
 # Complete feature (auto-runs verification + auto-commit)
+# Quick mode is default - runs only related tests based on testPattern
 agent-foreman complete <feature_id>
 
-# Quick mode - run only related tests (faster for E2E heavy projects)
-agent-foreman complete <feature_id> --quick
+# Full mode - run all tests (slower, for final verification)
+agent-foreman complete <feature_id> --full
 
 # Skip verification (not recommended)
 agent-foreman complete <feature_id> --skip-verify
@@ -141,7 +142,9 @@ Write criteria as testable statements:
 
 **Required fields**: `id`, `description`, `module`, `priority`, `status`, `acceptance`, `version`, `origin`
 
-**Optional fields**: `testPattern` (glob pattern for selective test execution)
+**Auto-generated fields**: `testPattern` (auto-generated during init as `tests/{module}/**/*.test.*`)
+
+**Optional fields**: `testPattern` (can be overridden), `e2eTags` (Playwright tags for E2E filtering)
 
 **Status values**: `failing` | `passing` | `blocked` | `needs_review` | `deprecated`
 
