@@ -58,6 +58,9 @@ describe("run.ts", () => {
 
   beforeEach(() => {
     vi.mocked(callAnyAvailableAgent).mockReset();
+    // Reset exitCode before each test to avoid cross-test leakage
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (process as any).exitCode = undefined;
   });
 
   afterEach(async () => {
@@ -114,9 +117,9 @@ describe("run.ts", () => {
     expect(firstContent.status).toBe("🟢 已完成");
     expect(secondContent.status).toBe("🟢 已完成");
 
-    // Should have generated a progress markdown file
-    const progressFiles = stepFiles.filter((f) =>
-      f.startsWith("run-progress-") && f.endsWith(".md"),
+    // Should have generated a progress markdown file in the steps directory
+    const progressFiles = stepFiles.filter(
+      (f) => f.startsWith("run-progress") && f.endsWith(".md"),
     );
     expect(progressFiles.length).toBe(1);
   });
@@ -157,6 +160,72 @@ describe("run.ts", () => {
     expect(secondContent.status).toBe("🔴 待完成");
   });
 
+  it("should only run validation for completed steps when fullVerify is enabled and keep status when tests pass", async () => {
+    const dir = await createTempDir();
+    await writeStep(dir, 1, "first", { status: "🟢 已完成" });
+
+    // First call: validation succeeds
+    vi.mocked(callAnyAvailableAgent).mockResolvedValue({
+      success: true,
+      output: "ok",
+      agentUsed: "gemini",
+    });
+
+    const cwd = process.cwd();
+    try {
+      process.chdir(dir);
+      await runStepsDirectory(".", { fullVerify: true });
+    } finally {
+      process.chdir(cwd);
+    }
+
+    const stepContent = JSON.parse(
+      await fs.readFile(path.join(dir, "001-first.json"), "utf-8"),
+    );
+
+    // 状态保持为已完成
+    expect(stepContent.status).toBe("🟢 已完成");
+
+    // 仅调用一次 AI（验证），不进入实现阶段
+    expect(callAnyAvailableAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("should reopen completed steps when validation fails and then run implementation when fullVerify is enabled", async () => {
+    const dir = await createTempDir();
+    await writeStep(dir, 1, "first", { status: "🟢 已完成" });
+
+    // First call: validation fails, second call: implementation succeeds
+    vi.mocked(callAnyAvailableAgent)
+      .mockResolvedValueOnce({
+        success: false,
+        output: "",
+        error: "tests failed",
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        output: "ok",
+        agentUsed: "gemini",
+      });
+
+    const cwd = process.cwd();
+    try {
+      process.chdir(dir);
+      await runStepsDirectory(".", { fullVerify: true });
+    } finally {
+      process.chdir(cwd);
+    }
+
+    const stepContent = JSON.parse(
+      await fs.readFile(path.join(dir, "001-first.json"), "utf-8"),
+    );
+
+    // 最终状态应为已完成
+    expect(stepContent.status).toBe("🟢 已完成");
+
+    // 调用了两次 AI：一次验证 + 一次实现
+    expect(callAnyAvailableAgent).toHaveBeenCalledTimes(2);
+  });
+
   it("should fail fast when step JSON structure is invalid", async () => {
     const dir = await createTempDir();
     const filePath = path.join(dir, "001-invalid.json");
@@ -175,10 +244,9 @@ describe("run.ts", () => {
 
     // Should generate a progress markdown file describing the failure
     const files = await fs.readdir(dir);
-    const progressFiles = files.filter((f) =>
-      f.startsWith("run-progress-") && f.endsWith(".md"),
+    const progressFiles = files.filter(
+      (f) => f.startsWith("run-progress") && f.endsWith(".md"),
     );
     expect(progressFiles.length).toBe(1);
   });
 });
-
