@@ -89,6 +89,7 @@ describe("analyze.ts", () => {
       expect(steps[0].slug).toBe("setup-auth-api");
       expect(steps[0].description).toContain("认证接口");
       expect(steps[0].verification).toHaveLength(2);
+      expect(steps[0].completion).toBeUndefined();
     });
 
     it("should derive slug from description when missing", () => {
@@ -103,6 +104,25 @@ describe("analyze.ts", () => {
 
       const steps = parseStepsResponse(response);
       expect(steps[0].slug).toContain("实现通知模块");
+    });
+
+    it("should parse completion field when present", () => {
+      const response = JSON.stringify({
+        steps: [
+          {
+            slug: "check-existing-auth",
+            description: "检查现有认证实现是否满足需求",
+            completion: "done",
+            verification: [
+              { type: "integration", description: "验证登录接口在现有代码中的行为" },
+            ],
+          },
+        ],
+      });
+
+      const steps = parseStepsResponse(response);
+      expect(steps).toHaveLength(1);
+      expect(steps[0].completion).toBe("done");
     });
 
     it("should throw when no valid steps", () => {
@@ -162,6 +182,7 @@ describe("analyze.ts", () => {
             slug: "setup-auth-api",
             description: "实现登录接口",
             verification: [{ type: "unit", description: "为登录接口编写单元测试" }],
+            completion: "todo",
           },
         ] as StepDefinition[],
       });
@@ -183,6 +204,7 @@ describe("analyze.ts", () => {
       expect(result.success).toBe(true);
       expect(result.requirementName).toBe("用户登录");
       expect(result.steps).toHaveLength(1);
+      expect(result.steps?.[0].completion).toBe("todo");
       expect(result.agentUsed).toBe("gemini");
 
       expect(callAnyAvailableAgent).toHaveBeenCalledTimes(2);
@@ -219,4 +241,3 @@ describe("analyze.ts", () => {
     });
   });
 });
-

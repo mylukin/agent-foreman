@@ -548,6 +548,11 @@ async function runAnalyze(specPath: string) {
 
   for (let index = 0; index < steps.length; index++) {
     const step = steps[index];
+    const completion = step.completion === "done" ? "done" : "todo";
+    const status =
+      completion === "done"
+        ? "🟢 已完成"
+        : "🔴 待完成";
     const stepNumber = index + 1;
     const stepIndex = String(stepNumber).padStart(3, "0");
 
@@ -570,7 +575,7 @@ async function runAnalyze(specPath: string) {
     const stepJson = {
       id: `step-${stepIndex}`,
       description: step.description,
-      status: "🔴 待完成",
+      status,
       verification: step.verification ?? [],
     };
 

@@ -16,6 +16,15 @@ export interface StepDefinition {
   slug: string;
   description: string;
   verification: VerificationItem[];
+  /**
+   * Completion status inferred by AI when analyzing current project code
+   * - "done": step appears already implemented in the codebase
+   * - "todo": step still needs work or verification
+   *
+   * This is used only internally to decide initial JSON status; it is not
+   * written back to the generated step JSON files.
+   */
+  completion?: "done" | "todo";
 }
 
 export interface AnalyzeAIResult {
@@ -58,7 +67,12 @@ ${specText}`;
  * Build prompt to generate ordered implementation steps from spec text
  */
 export function buildStepsPrompt(specText: string, requirementName: string): string {
-  return `你是一名资深软件架构师，请根据下面的「需求名字」和「需求文档」，将需求拆分成若干个按执行顺序排列的「最小实现单元」步骤。
+  return `你是一名资深软件架构师，请在「当前项目代码」的基础上，根据下面的「需求名字」和「需求文档」，将需求拆分成若干个按执行顺序排列的「最小实现单元」步骤。
+
+你的分析必须同时满足：
+- 充分探索当前工作目录下的项目代码（包括源代码、测试、配置等），理解目前已经实现的功能；
+- 根据需求文档列出覆盖「完整需求范围」的一组实现步骤（不要因为某些功能已实现就不列出对应步骤）；
+- 对每一个步骤，逐一判断：当前项目代码中是否已经基本实现该步骤描述的功能。
 
 输出要求：
 - 每一个步骤对应一个实现单元（尽可能细粒度，但不要过度碎片化）
@@ -69,6 +83,16 @@ export function buildStepsPrompt(specText: string, requirementName: string): str
   - verification：一个数组，列出该实现单元的所有测试项目；每一项包含：
     - type：测试类型，例如 "unit"、"integration"、"ui"、"manual" 等
     - description：该测试项目需要验证的内容（用于后续生成单元测试或 UI 自动化测试）
+  - completion：字符串，仅允许 "done" 或 "todo"：
+    - "done" 表示你认为当前项目代码已经基本实现了这个步骤；
+    - "todo" 表示仍然需要补充实现或验证该步骤，不确定时也应保守地标为 "todo"。
+
+重要约束：
+- 必须覆盖整个需求：即使大部分功能已经在代码中出现，也要保证 steps 列表能够完整覆盖需求文档的所有关键点；
+- 必须逐个步骤判断完成状态：不要假设步骤是按连续区间完成的，允许出现「第 1、4、5 步已完成，但第 2、3 步仍未完成」的情况；
+- 如果你认为所有实现类步骤都已经是 "done"，且需求没有遗漏：
+  - 仍然要完整输出这些实现步骤（标记为 "done"）；
+  - 同时在 steps 末尾补充 1 个或若干个专门用于整体回归验证的步骤（例如总体集成测试、端到端验证、文档核对等），并将这些验证步骤的 completion 标记为 "todo"，用于驱动后续验证流程。
 
 只返回 JSON，不要任何额外说明，格式如下：
 
@@ -78,6 +102,7 @@ export function buildStepsPrompt(specText: string, requirementName: string): str
     {
       "slug": "setup-auth-api",
       "description": "在后端项目中新增认证模块，提供登录和注册接口……",
+      "completion": "todo",
       "verification": [
         {
           "type": "unit",
@@ -192,6 +217,7 @@ export function parseStepsResponse(response: string): StepDefinition[] {
       slug?: unknown;
       description?: unknown;
       verification?: unknown;
+      completion?: unknown;
     };
 
     const description = typeof s.description === "string" ? s.description.trim() : "";
@@ -220,10 +246,19 @@ export function parseStepsResponse(response: string): StepDefinition[] {
       }
     }
 
+    let completion: "done" | "todo" | undefined;
+    if (typeof s.completion === "string") {
+      const normalized = s.completion.trim().toLowerCase();
+      if (normalized === "done" || normalized === "todo") {
+        completion = normalized;
+      }
+    }
+
     steps.push({
       slug,
       description,
       verification,
+      completion,
     });
   }
 
@@ -381,4 +416,3 @@ export async function analyzeSpecFile(
     specPath: fullPath,
   };
 }
-
