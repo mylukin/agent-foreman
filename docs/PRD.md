@@ -73,11 +73,11 @@ From Anthropic's research:
 Single-line entries for session handoff:
 
 ```text
-INIT 2025-01-15T10:00:00Z goal="Build REST API" note="initialized harness"
-STEP 2025-01-15T10:30:00Z feature=auth.login status=passing summary="Implemented login"
-CHANGE 2025-01-15T11:00:00Z feature=auth.login action=refactor reason="Improved error handling"
-REPLAN 2025-01-15T12:00:00Z summary="Splitting auth into submodules"
-VERIFY 2025-01-15T13:00:00Z feature=auth.login result=pass
+2025-01-15T10:00:00Z INIT goal="Build REST API" note="initialized harness"
+2025-01-15T10:30:00Z STEP feature=auth.login status=passing summary="Implemented login"
+2025-01-15T11:00:00Z CHANGE feature=auth.login action=refactor reason="Improved error handling"
+2025-01-15T12:00:00Z REPLAN summary="Splitting auth into submodules"
+2025-01-15T13:00:00Z VERIFY feature=auth.login result=pass
 ```
 
 **Log Types:** `INIT` | `STEP` | `CHANGE` | `REPLAN` | `VERIFY`

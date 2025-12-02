@@ -10,9 +10,10 @@ export const PROGRESS_LOG_PATH = "ai/progress.log";
 
 /**
  * Format a progress log entry as a single line
+ * Format: TIMESTAMP TYPE key=value ...
  */
 export function formatLogEntry(entry: ProgressLogEntry): string {
-  const parts = [entry.type, entry.timestamp];
+  const parts = [entry.timestamp, entry.type];
 
   if (entry.goal) parts.push(`goal="${escapeQuotes(entry.goal)}"`);
   if (entry.feature) parts.push(`feature=${entry.feature}`);
@@ -43,17 +44,18 @@ function unescapeQuotes(str: string): string {
 
 /**
  * Parse a progress log entry from a line
+ * Format: TIMESTAMP TYPE key=value ...
  */
 export function parseLogEntry(line: string): ProgressLogEntry | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
-  // Match type and timestamp at the beginning
-  const match = trimmed.match(/^(INIT|STEP|CHANGE|REPLAN|VERIFY)\s+(\S+)/);
+  // Match timestamp and type at the beginning
+  const match = trimmed.match(/^(\S+)\s+(INIT|STEP|CHANGE|REPLAN|VERIFY)/);
   if (!match) return null;
 
-  const type = match[1] as ProgressLogType;
-  const timestamp = match[2];
+  const timestamp = match[1];
+  const type = match[2] as ProgressLogType;
 
   // Extract quoted fields
   const extractQuotedField = (name: string): string | undefined => {

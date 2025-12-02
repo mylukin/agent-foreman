@@ -112,7 +112,7 @@ describe("Progress Log Operations", () => {
   describe("parseLogEntry", () => {
     it("should parse INIT entry correctly", () => {
       const line =
-        'INIT 2024-01-15T10:00:00Z goal="Build auth" note="setup" summary="Created"';
+        '2024-01-15T10:00:00Z INIT goal="Build auth" note="setup" summary="Created"';
       const parsed = parseLogEntry(line);
 
       expect(parsed).not.toBeNull();
@@ -125,7 +125,7 @@ describe("Progress Log Operations", () => {
 
     it("should parse STEP entry correctly", () => {
       const line =
-        'STEP 2024-01-15T11:00:00Z feature=auth.login status=passing tests="npm test" summary="Done"';
+        '2024-01-15T11:00:00Z STEP feature=auth.login status=passing tests="npm test" summary="Done"';
       const parsed = parseLogEntry(line);
 
       expect(parsed?.type).toBe("STEP");
@@ -136,7 +136,7 @@ describe("Progress Log Operations", () => {
 
     it("should parse CHANGE entry correctly", () => {
       const line =
-        'CHANGE 2024-01-15T12:00:00Z feature=auth.login action=mark_needs_review reason="Impact" summary="Updated"';
+        '2024-01-15T12:00:00Z CHANGE feature=auth.login action=mark_needs_review reason="Impact" summary="Updated"';
       const parsed = parseLogEntry(line);
 
       expect(parsed?.type).toBe("CHANGE");
@@ -145,7 +145,7 @@ describe("Progress Log Operations", () => {
     });
 
     it("should parse REPLAN entry correctly", () => {
-      const line = 'REPLAN 2024-01-15T13:00:00Z note="Major change" summary="Replanned"';
+      const line = '2024-01-15T13:00:00Z REPLAN note="Major change" summary="Replanned"';
       const parsed = parseLogEntry(line);
 
       expect(parsed?.type).toBe("REPLAN");
@@ -163,7 +163,7 @@ describe("Progress Log Operations", () => {
     });
 
     it("should handle escaped quotes", () => {
-      const line = 'INIT 2024-01-15T10:00:00Z goal="Build \\"awesome\\" app" summary="Test"';
+      const line = '2024-01-15T10:00:00Z INIT goal="Build \\"awesome\\" app" summary="Test"';
       const parsed = parseLogEntry(line);
 
       expect(parsed?.goal).toBe('Build "awesome" app');

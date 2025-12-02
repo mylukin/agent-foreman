@@ -96,8 +96,8 @@ The auto-complete loop stops when:
 Each completed feature is logged to `ai/progress.log`:
 
 ```log
-STEP 2025-01-15T10:30:00Z feature=auth.login status=passing summary="Auto-completed login flow"
-STEP 2025-01-15T11:00:00Z feature=auth.logout status=passing summary="Auto-completed logout flow"
+2025-01-15T10:30:00Z STEP feature=auth.login status=passing summary="Auto-completed login flow"
+2025-01-15T11:00:00Z STEP feature=auth.logout status=passing summary="Auto-completed logout flow"
 ```
 
 ## Related Commands
