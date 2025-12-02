@@ -96,7 +96,7 @@ describe("E2E Workflow Tests", () => {
       execSync('git commit -m "Initial setup"', { cwd: tempDir, stdio: "pipe" });
 
       // Step 3: Verify status shows correct stats
-      const statusResult = spawnSync("node", [CLI_PATH, "status"], {
+      const statusResult = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -105,7 +105,7 @@ describe("E2E Workflow Tests", () => {
       expect(statusResult.stdout).toContain("0%"); // 0 of 2 passing
 
       // Step 4: Run step command to get next feature
-      const stepResult = spawnSync("node", [CLI_PATH, "step", "--json", "--allow-dirty"], {
+      const stepResult = spawnSync(process.execPath, [CLI_PATH, "step", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -114,7 +114,7 @@ describe("E2E Workflow Tests", () => {
       expect(stepOutput.feature.id).toBe("core.setup");
 
       // Step 5: Complete the first feature
-      const completeResult = spawnSync("node", [CLI_PATH, "complete", "core.setup", "--skip-verify", "--no-commit"], {
+      const completeResult = spawnSync(process.execPath, [CLI_PATH, "complete", "core.setup", "--skip-verify", "--no-commit"], {
         cwd: tempDir,
         encoding: "utf-8",
         timeout: 10000,
@@ -130,7 +130,7 @@ describe("E2E Workflow Tests", () => {
       expect(updatedFeatureList.features[1].status).toBe("failing");
 
       // Step 7: Verify status shows updated stats
-      const statusResult2 = spawnSync("node", [CLI_PATH, "status"], {
+      const statusResult2 = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -140,7 +140,7 @@ describe("E2E Workflow Tests", () => {
       expect(statusResult2.stdout).toContain("50%");
 
       // Step 8: Verify next step shows dependent feature
-      const stepResult2 = spawnSync("node", [CLI_PATH, "step", "--json", "--allow-dirty"], {
+      const stepResult2 = spawnSync(process.execPath, [CLI_PATH, "step", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -149,7 +149,7 @@ describe("E2E Workflow Tests", () => {
       expect(stepOutput2.feature.id).toBe("core.tests");
 
       // Step 9: Complete the second feature
-      const completeResult2 = spawnSync("node", [CLI_PATH, "complete", "core.tests", "--skip-verify", "--no-commit"], {
+      const completeResult2 = spawnSync(process.execPath, [CLI_PATH, "complete", "core.tests", "--skip-verify", "--no-commit"], {
         cwd: tempDir,
         encoding: "utf-8",
         timeout: 10000,
@@ -158,7 +158,7 @@ describe("E2E Workflow Tests", () => {
       expect(completeResult2.stdout).toContain("Marked 'core.tests' as passing");
 
       // Step 10: Verify all features complete
-      const stepResult3 = spawnSync("node", [CLI_PATH, "step", "--allow-dirty"], {
+      const stepResult3 = spawnSync(process.execPath, [CLI_PATH, "step", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -166,7 +166,7 @@ describe("E2E Workflow Tests", () => {
       expect(stepResult3.stdout).toContain("All features are passing");
 
       // Step 11: Verify final status
-      const statusResult3 = spawnSync("node", [CLI_PATH, "status"], {
+      const statusResult3 = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -216,7 +216,7 @@ describe("E2E Workflow Tests", () => {
       execSync('git commit -m "init"', { cwd: tempDir, stdio: "pipe" });
 
       // Complete the feature
-      spawnSync("node", [CLI_PATH, "complete", "test.verify", "--skip-verify", "--no-commit"], {
+      spawnSync(process.execPath, [CLI_PATH, "complete", "test.verify", "--skip-verify", "--no-commit"], {
         cwd: tempDir,
         encoding: "utf-8",
         timeout: 10000,
@@ -274,7 +274,7 @@ describe("E2E Workflow Tests", () => {
       execSync('git commit -m "init"', { cwd: tempDir, stdio: "pipe" });
 
       // Complete the feature
-      spawnSync("node", [CLI_PATH, "complete", "test.progress", "--skip-verify", "--no-commit"], {
+      spawnSync(process.execPath, [CLI_PATH, "complete", "test.progress", "--skip-verify", "--no-commit"], {
         cwd: tempDir,
         encoding: "utf-8",
         timeout: 10000,
@@ -313,7 +313,7 @@ describe("E2E Workflow Tests", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "status"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -345,7 +345,7 @@ describe("E2E Workflow Tests", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "status", "--json"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status", "--json"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -403,7 +403,7 @@ describe("E2E Workflow Tests", () => {
       );
 
       // Step returns a feature (implementation determines exact selection logic)
-      const result = spawnSync("node", [CLI_PATH, "step", "--json", "--allow-dirty"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "step", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -456,7 +456,7 @@ describe("E2E Workflow Tests", () => {
       );
 
       // Should still return something (best effort)
-      const result = spawnSync("node", [CLI_PATH, "step", "--json", "--allow-dirty"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "step", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -476,7 +476,7 @@ describe("E2E Workflow Tests", () => {
         "{ invalid json }"
       );
 
-      const result = spawnSync("node", [CLI_PATH, "status"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -487,7 +487,7 @@ describe("E2E Workflow Tests", () => {
 
     it("should handle missing ai directory", async () => {
       // Don't create ai directory
-      const result = spawnSync("node", [CLI_PATH, "status"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });

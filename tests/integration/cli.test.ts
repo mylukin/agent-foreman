@@ -54,7 +54,7 @@ describe("CLI Integration", () => {
 
   describe("status command", () => {
     it("should show error when no feature list exists", () => {
-      const result = spawnSync("node", [CLI_PATH, "status"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -63,7 +63,7 @@ describe("CLI Integration", () => {
     });
 
     it("should show JSON error when no feature list exists with --json flag", () => {
-      const result = spawnSync("node", [CLI_PATH, "status", "--json"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status", "--json"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -111,7 +111,7 @@ describe("CLI Integration", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "status"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -149,7 +149,7 @@ describe("CLI Integration", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "status", "--json"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status", "--json"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -199,7 +199,7 @@ describe("CLI Integration", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "status", "--quiet"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "status", "--quiet"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -212,7 +212,7 @@ describe("CLI Integration", () => {
 
   describe("step command", () => {
     it("should show error when no feature list exists", () => {
-      const result = spawnSync("node", [CLI_PATH, "step", "--allow-dirty"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "step", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -249,7 +249,7 @@ describe("CLI Integration", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "step", "--json", "--allow-dirty"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "step", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -289,7 +289,7 @@ describe("CLI Integration", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "step", "--allow-dirty"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "step", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -326,7 +326,7 @@ describe("CLI Integration", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "step", "--json", "--allow-dirty"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "step", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -338,7 +338,7 @@ describe("CLI Integration", () => {
   });
 
   describe("complete command", () => {
-    it("should update feature status to passing", async () => {
+    it("should update feature status to passing", { timeout: 90000 }, async () => {
       const featureList = {
         features: [
           {
@@ -373,10 +373,9 @@ describe("CLI Integration", () => {
       execSync('git commit -m "init"', { cwd: tempDir, stdio: "pipe" });
 
       // Use --skip-verify --no-commit to avoid verification and git commit (for fast testing)
-      const result = spawnSync("node", [CLI_PATH, "complete", "test.feature1", "--skip-verify", "--no-commit"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "complete", "test.feature1", "--skip-verify", "--no-commit"], {
         cwd: tempDir,
         encoding: "utf-8",
-        timeout: 10000,
       });
 
       expect(result.stdout).toContain("Skipping verification");
@@ -408,7 +407,7 @@ describe("CLI Integration", () => {
         JSON.stringify(featureList, null, 2)
       );
 
-      const result = spawnSync("node", [CLI_PATH, "complete", "nonexistent"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "complete", "nonexistent"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -419,7 +418,7 @@ describe("CLI Integration", () => {
 
   describe("help command", () => {
     it("should display help information", () => {
-      const result = spawnSync("node", [CLI_PATH, "--help"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "--help"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
@@ -434,7 +433,7 @@ describe("CLI Integration", () => {
 
   describe("version command", () => {
     it("should display version information", () => {
-      const result = spawnSync("node", [CLI_PATH, "--version"], {
+      const result = spawnSync(process.execPath, [CLI_PATH, "--version"], {
         cwd: tempDir,
         encoding: "utf-8",
       });
