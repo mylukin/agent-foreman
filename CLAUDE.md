@@ -75,12 +75,6 @@ agent-foreman complete <feature_id>
 # Quick mode - run only related tests (faster for E2E heavy projects)
 agent-foreman complete <feature_id> --quick
 
-# Full mode - run complete test suite (default)
-agent-foreman complete <feature_id> --full
-
-# Explicit test pattern
-agent-foreman complete <feature_id> --test-pattern "tests/auth/**"
-
 # Skip verification (not recommended)
 agent-foreman complete <feature_id> --skip-verify
 
@@ -152,31 +146,6 @@ Write criteria as testable statements:
 **Status values**: `failing` | `passing` | `blocked` | `needs_review` | `deprecated`
 
 **Origin values**: `init-auto` | `init-from-routes` | `init-from-tests` | `manual` | `replan`
-
-### Version Upgrade Workflow
-
-When releasing a new version, update ALL these files:
-
-| File | Field |
-|------|-------|
-| `package.json` | `version` |
-| `package-lock.json` | `version` (auto-updated by npm) |
-| `.claude-plugin/marketplace.json` | `metadata.version` and `plugins[0].version` |
-| `plugins/agent-foreman/.claude-plugin/plugin.json` | `version` |
-
-**Recommended steps:**
-
-```bash
-# 1. Bump version (updates package.json and package-lock.json)
-npm version patch  # or minor/major
-
-# 2. Manually update marketplace.json and plugin.json to match
-
-# 3. Commit, push, and publish
-git add -A && git commit -m "chore: bump version to x.x.x"
-git push origin main
-npm publish
-```
 
 ---
 
