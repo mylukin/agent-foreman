@@ -6,7 +6,46 @@
 - **范围**：
   - 仅影响 `src/run.ts` 中 `runStepsDirectory` 的行为；
   - 不改变 `analyze` 命令输出的 JSON 结构（只是允许新增 `unit_test` 字段）；
-  - CLI 入口与参数形式保持不变（`run <steps_dir>` 与 `run <steps_dir> --full-verify`）。
+  - CLI 入口与参数形式基于 `run <steps_dir>` 扩展了多种验证模式：
+    - 默认模式：`run <steps_dir>`，执行「实现 + 单元测试 + verification」并支持最多 5 轮自动修复；
+    - 回归验证模式：`run <steps_dir> --full-verify`，对已完成步骤额外运行单测和 verification，发现问题时重新打开并进入多轮实现；
+    - 仅验证模式：`run <steps_dir> --verify-only`，只运行单元测试和 verification，不做任何实现改动；
+    - 仅单元测试模式：`run <steps_dir> --verify-unittest-only`，只运行 `unit_test` 中定义的单元测试，不调用 AI，也不做实现改动；
+    - 单测补全模式：`run <steps_dir> --verify-generate-unittest`，只为缺少 `unit_test` 配置的步骤生成单元测试信息并写回 JSON，不改动业务实现。
+
+在本仓库中，为了方便针对本 PRD 进行开发与回归验证，`makefile` 中提供了与上述模式一一对应的辅助命令（以本设计文档作为输入）：
+
+```make
+PRD=./docs/run-multi-attempt-design.md
+STEPS="run 命令多轮自动修复与验证需求实现步骤"
+
+run_analyze:
+	npm run dev -- analyze $(PRD)
+
+run_run:
+	npm run dev -- run "${STEPS}"
+
+run_run_verify:
+	npm run dev -- run "${STEPS}" --full-verify
+
+run_run_verify_only:
+	npm run dev -- run "${STEPS}" --verify-only
+
+run_run_verify_unittest_only:
+	npm run dev -- run "${STEPS}" --verify-unittest-only
+
+run_run_verify_generate_unittest:
+	npm run dev -- run "${STEPS}" --verify-generate-unittest
+```
+
+对应关系总结：
+
+- `make run_analyze`：对本 PRD 文档执行 `analyze`，生成「`run 命令多轮自动修复与验证需求实现步骤`」目录；
+- `make run_run`：在默认模式下对上述步骤目录执行 `run`；
+- `make run_run_verify`：等价于 `run <steps_dir> --full-verify`，做回归验证；
+- `make run_run_verify_only`：等价于 `run <steps_dir> --verify-only`，仅做（单测 + verification）验证；
+- `make run_run_verify_unittest_only`：等价于 `run <steps_dir> --verify-unittest-only`，仅跑单元测试；
+- `make run_run_verify_generate_unittest`：等价于 `run <steps_dir> --verify-generate-unittest`，为缺少单测配置的步骤补齐 `unit_test`。
 
 ## 2. 步骤 JSON 结构扩展
 
