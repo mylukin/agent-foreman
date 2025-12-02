@@ -123,6 +123,12 @@ export interface CallAgentOptions {
    * The full stdout is still collected and returned in the result.
    */
   onChunk?: (chunk: string) => void;
+  /**
+   * More granular callbacks for stdout/stderr streaming.
+   * When provided, they are invoked in addition to onChunk (for stdout).
+   */
+  onStdoutChunk?: (chunk: string) => void;
+  onStderrChunk?: (chunk: string) => void;
 }
 
 /**
@@ -133,7 +139,7 @@ export async function callAgent(
   prompt: string,
   options: CallAgentOptions = {}
 ): Promise<{ success: boolean; output: string; error?: string }> {
-  const { timeoutMs, cwd, onChunk } = options;
+  const { timeoutMs, cwd, onChunk, onStdoutChunk, onStderrChunk } = options;
 
   const state: AgentState = {
     config,
@@ -178,10 +184,20 @@ export async function callAgent(
     if (onChunk) {
       onChunk(text);
     }
+    if (onStdoutChunk) {
+      onStdoutChunk(text);
+    }
   });
 
   child.stderr?.on("data", (chunk) => {
-    state.stderr.push(chunk.toString());
+    const text = chunk.toString();
+    state.stderr.push(text);
+    if (onChunk) {
+      onChunk(text);
+    }
+    if (onStderrChunk) {
+      onStderrChunk(text);
+    }
   });
 
   const completion = new Promise<AgentState>((resolve) => {
