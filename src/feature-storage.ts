@@ -386,3 +386,106 @@ export async function needsMigration(cwd: string): Promise<boolean> {
     return false;
   }
 }
+
+// ============================================================================
+// Migration Execution
+// ============================================================================
+
+/**
+ * Result of a migration operation
+ */
+export interface MigrationResult {
+  /** Number of features successfully migrated */
+  migrated: number;
+  /** Errors encountered during migration */
+  errors: string[];
+  /** Whether the migration was successful overall */
+  success: boolean;
+}
+
+/**
+ * Migrate from legacy feature_list.json to modular markdown format
+ *
+ * This function:
+ * 1. Loads the existing feature_list.json
+ * 2. Creates the ai/features/ directory structure
+ * 3. Writes each feature to its own markdown file
+ * 4. Builds and saves index.json
+ * 5. Backs up the old file as feature_list.json.bak
+ *
+ * @param cwd - The project root directory
+ * @returns MigrationResult with count and errors
+ */
+export async function migrateToMarkdown(cwd: string): Promise<MigrationResult> {
+  const legacyPath = path.join(cwd, LEGACY_FEATURE_LIST_PATH);
+  const backupPath = `${legacyPath}.bak`;
+  const result: MigrationResult = {
+    migrated: 0,
+    errors: [],
+    success: false,
+  };
+
+  // 1. Load existing feature_list.json
+  let legacyData: { features: Feature[]; metadata: { projectGoal: string; createdAt: string; updatedAt: string; version: string } };
+  try {
+    const content = await fs.readFile(legacyPath, "utf-8");
+    legacyData = JSON.parse(content);
+  } catch (error) {
+    result.errors.push(`Failed to load feature_list.json: ${(error as Error).message}`);
+    return result;
+  }
+
+  // 2. Create ai/features/ directory structure
+  try {
+    await fs.mkdir(path.join(cwd, FEATURES_DIR), { recursive: true });
+  } catch (error) {
+    result.errors.push(`Failed to create features directory: ${(error as Error).message}`);
+    return result;
+  }
+
+  // 3. Write each feature to {module}/{name}.md
+  const indexFeatures: Record<string, { status: FeatureStatus; priority: number; module: string; description: string }> = {};
+
+  for (const feature of legacyData.features) {
+    try {
+      await saveSingleFeature(cwd, feature);
+
+      // Add to index
+      indexFeatures[feature.id] = {
+        status: feature.status,
+        priority: feature.priority,
+        module: feature.module,
+        description: feature.description,
+      };
+
+      result.migrated++;
+    } catch (error) {
+      result.errors.push(`Failed to migrate feature ${feature.id}: ${(error as Error).message}`);
+    }
+  }
+
+  // 4. Build and save index.json
+  try {
+    const index: FeatureIndex = {
+      version: "2.0.0",
+      updatedAt: new Date().toISOString(),
+      metadata: legacyData.metadata,
+      features: indexFeatures,
+    };
+    await saveFeatureIndex(cwd, index);
+  } catch (error) {
+    result.errors.push(`Failed to save index.json: ${(error as Error).message}`);
+    return result;
+  }
+
+  // 5. Backup old file as feature_list.json.bak
+  try {
+    await fs.copyFile(legacyPath, backupPath);
+  } catch (error) {
+    result.errors.push(`Failed to backup feature_list.json: ${(error as Error).message}`);
+    // Continue anyway - migration was successful even if backup failed
+  }
+
+  result.success = result.errors.length === 0;
+  return result;
+}

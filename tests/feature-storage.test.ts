@@ -16,6 +16,7 @@ import {
   loadSingleFeature,
   saveSingleFeature,
   needsMigration,
+  migrateToMarkdown,
 } from "../src/feature-storage.js";
 import type { Feature, FeatureIndex } from "../src/types.js";
 
@@ -777,5 +778,208 @@ describe("needsMigration", () => {
 
     const result = await needsMigration(tempDir);
     expect(result).toBe(false);
+  });
+});
+
+describe("migrateToMarkdown", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "feature-storage-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  const createLegacyFeatureList = async (features: Feature[]) => {
+    const data = {
+      features,
+      metadata: {
+        projectGoal: "Test project",
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+        version: "1.0.0",
+      },
+    };
+    await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/feature_list.json"),
+      JSON.stringify(data, null, 2)
+    );
+  };
+
+  it("should load existing feature_list.json", async () => {
+    const features: Feature[] = [
+      {
+        id: "cli.survey",
+        description: "Generate survey",
+        module: "cli",
+        priority: 10,
+        status: "passing",
+        acceptance: ["Works"],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+    ];
+    await createLegacyFeatureList(features);
+
+    const result = await migrateToMarkdown(tempDir);
+
+    expect(result.migrated).toBe(1);
+    expect(result.success).toBe(true);
+  });
+
+  it("should create ai/features/ directory structure", async () => {
+    await createLegacyFeatureList([]);
+
+    await migrateToMarkdown(tempDir);
+
+    const dirExists = await fs
+      .access(path.join(tempDir, "ai/features"))
+      .then(() => true)
+      .catch(() => false);
+    expect(dirExists).toBe(true);
+  });
+
+  it("should write each feature to {module}/{name}.md", async () => {
+    const features: Feature[] = [
+      {
+        id: "cli.survey",
+        description: "Generate survey",
+        module: "cli",
+        priority: 10,
+        status: "passing",
+        acceptance: ["Works"],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+      {
+        id: "auth.login",
+        description: "User login",
+        module: "auth",
+        priority: 5,
+        status: "failing",
+        acceptance: ["Login works"],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+    ];
+    await createLegacyFeatureList(features);
+
+    await migrateToMarkdown(tempDir);
+
+    // Check feature files exist
+    const cliSurveyExists = await fs
+      .access(path.join(tempDir, "ai/features/cli/survey.md"))
+      .then(() => true)
+      .catch(() => false);
+    const authLoginExists = await fs
+      .access(path.join(tempDir, "ai/features/auth/login.md"))
+      .then(() => true)
+      .catch(() => false);
+
+    expect(cliSurveyExists).toBe(true);
+    expect(authLoginExists).toBe(true);
+  });
+
+  it("should build and save index.json", async () => {
+    const features: Feature[] = [
+      {
+        id: "cli.survey",
+        description: "Generate survey",
+        module: "cli",
+        priority: 10,
+        status: "passing",
+        acceptance: ["Works"],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+    ];
+    await createLegacyFeatureList(features);
+
+    await migrateToMarkdown(tempDir);
+
+    const index = await loadFeatureIndex(tempDir);
+    expect(index).not.toBeNull();
+    expect(index?.version).toBe("2.0.0");
+    expect(index?.features["cli.survey"]).toBeDefined();
+    expect(index?.features["cli.survey"].status).toBe("passing");
+  });
+
+  it("should backup old file as feature_list.json.bak", async () => {
+    await createLegacyFeatureList([]);
+
+    await migrateToMarkdown(tempDir);
+
+    const backupExists = await fs
+      .access(path.join(tempDir, "ai/feature_list.json.bak"))
+      .then(() => true)
+      .catch(() => false);
+    expect(backupExists).toBe(true);
+  });
+
+  it("should return MigrationResult with count and errors", async () => {
+    const features: Feature[] = [
+      {
+        id: "test.one",
+        description: "Test one",
+        module: "test",
+        priority: 1,
+        status: "failing",
+        acceptance: [],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+      {
+        id: "test.two",
+        description: "Test two",
+        module: "test",
+        priority: 2,
+        status: "passing",
+        acceptance: [],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+    ];
+    await createLegacyFeatureList(features);
+
+    const result = await migrateToMarkdown(tempDir);
+
+    expect(result.migrated).toBe(2);
+    expect(result.errors).toEqual([]);
+    expect(result.success).toBe(true);
+  });
+
+  it("should return error if feature_list.json doesn't exist", async () => {
+    const result = await migrateToMarkdown(tempDir);
+
+    expect(result.migrated).toBe(0);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.success).toBe(false);
   });
 });
