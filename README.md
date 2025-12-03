@@ -109,7 +109,7 @@ agent-foreman brings these same patterns to AI:
 
 | Human Practice | AI Equivalent |
 |----------------|---------------|
-| Scrum board | `feature_list.json` |
+| Scrum board | `features/` |
 | Sprint notes | `progress.log` |
 | CI/CD pipeline | `init.sh check` |
 | Code review | Acceptance criteria |
@@ -145,7 +145,7 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 │                                              │                           │
 │                                              ▼                           │
 │                                    Define acceptance criteria (RED)      │
-│                                    feature_list.json                     │
+│                                    features/                             │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
@@ -198,9 +198,9 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 
 | File | Purpose |
 |------|---------|
-| `ai/feature_list.json` | Feature backlog with status |
-| `ai/progress.log` | Session handoff audit log |
-| `ai/init.sh` | Environment bootstrap script |
+| `features/` | Modular feature storage (one markdown file per feature) |
+| `progress.log` | Session handoff audit log |
+| `init.sh` | Environment bootstrap script |
 | `docs/ARCHITECTURE.md` | AI-generated project architecture |
 
 ## Feature Status Values

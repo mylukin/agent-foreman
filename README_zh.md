@@ -109,7 +109,7 @@ agent-foreman 把这套打法搬给了 AI：
 
 | 人类的做法 | AI 的等价物 |
 |-----------|------------|
-| Scrum 看板 | `feature_list.json` |
+| Scrum 看板 | `features/` |
 | 站会纪要 | `progress.log` |
 | CI/CD 流水线 | `init.sh check` |
 | Code Review | 验收标准 |
@@ -145,7 +145,7 @@ agent-foreman 采用 **TDD (测试驱动开发)** 理念：先定义验收标准
 │                                              │                           │
 │                                              ▼                           │
 │                                    定义验收标准 (RED)                     │
-│                                    feature_list.json                     │
+│                                    features/                             │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
@@ -198,9 +198,9 @@ agent-foreman 采用 **TDD (测试驱动开发)** 理念：先定义验收标准
 
 | 文件 | 用途 |
 |------|------|
-| `ai/feature_list.json` | 功能清单，带状态追踪 |
-| `ai/progress.log` | 进度日志，用于会话交接 |
-| `ai/init.sh` | 环境启动脚本 |
+| `features/` | 模块化功能存储（每个功能一个 Markdown 文件） |
+| `progress.log` | 进度日志，用于会话交接 |
+| `init.sh` | 环境启动脚本 |
 | `docs/ARCHITECTURE.md` | AI 生成的项目架构文档 |
 
 ## 功能状态
