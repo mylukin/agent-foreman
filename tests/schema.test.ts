@@ -4,10 +4,12 @@
 import { describe, it, expect } from "vitest";
 import {
   validateFeatureList,
+  validateFeatureIndex,
   parseFeatureList,
   isValidFeatureId,
   isValidStatus,
   featureListSchema,
+  featureIndexSchema,
 } from "../src/schema.js";
 import type { FeatureList } from "../src/types.js";
 
@@ -246,6 +248,152 @@ describe("Feature List Schema", () => {
       expect(featureListSchema.type).toBe("object");
       expect(featureListSchema.required).toContain("features");
       expect(featureListSchema.required).toContain("metadata");
+    });
+  });
+});
+
+describe("Feature Index Schema", () => {
+  const validFeatureIndex = {
+    version: "2.0.0",
+    updatedAt: "2024-01-15T10:00:00Z",
+    metadata: {
+      projectGoal: "Build auth system",
+      createdAt: "2024-01-15T10:00:00Z",
+      updatedAt: "2024-01-15T10:00:00Z",
+      version: "1.0.0",
+    },
+    features: {
+      "auth.login": {
+        status: "failing",
+        priority: 1,
+        module: "auth",
+        description: "User can log in",
+      },
+    },
+  };
+
+  describe("featureIndexSchema", () => {
+    it("should be defined in src/schema.ts", () => {
+      expect(featureIndexSchema).toBeDefined();
+      expect(featureIndexSchema.$schema).toBe("http://json-schema.org/draft-07/schema#");
+    });
+
+    it("should have required fields: version, updatedAt, metadata, features", () => {
+      expect(featureIndexSchema.required).toContain("version");
+      expect(featureIndexSchema.required).toContain("updatedAt");
+      expect(featureIndexSchema.required).toContain("metadata");
+      expect(featureIndexSchema.required).toContain("features");
+    });
+  });
+
+  describe("validateFeatureIndex", () => {
+    it("should validate correct index structure", () => {
+      const result = validateFeatureIndex(validFeatureIndex);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("should validate version, updatedAt, metadata, features fields", () => {
+      const result = validateFeatureIndex(validFeatureIndex);
+      expect(result.valid).toBe(true);
+    });
+
+    it("should validate FeatureIndexEntry structure within features", () => {
+      // Valid entry
+      const result = validateFeatureIndex(validFeatureIndex);
+      expect(result.valid).toBe(true);
+
+      // Invalid entry - missing required field
+      const invalidEntry = {
+        ...validFeatureIndex,
+        features: {
+          "test.feature": {
+            status: "failing",
+            priority: 1,
+            // missing module and description
+          },
+        },
+      };
+      const invalidResult = validateFeatureIndex(invalidEntry);
+      expect(invalidResult.valid).toBe(false);
+    });
+
+    it("should return ValidationResult type", () => {
+      const result = validateFeatureIndex(validFeatureIndex);
+      expect(result).toHaveProperty("valid");
+      expect(result).toHaveProperty("errors");
+      expect(typeof result.valid).toBe("boolean");
+      expect(Array.isArray(result.errors)).toBe(true);
+    });
+
+    it("should reject missing required fields", () => {
+      const invalid = {
+        version: "2.0.0",
+        // missing updatedAt, metadata, features
+      };
+      const result = validateFeatureIndex(invalid);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it("should reject invalid status in FeatureIndexEntry", () => {
+      const invalid = {
+        ...validFeatureIndex,
+        features: {
+          "test.feature": {
+            status: "invalid_status",
+            priority: 1,
+            module: "test",
+            description: "Test feature",
+          },
+        },
+      };
+      const result = validateFeatureIndex(invalid);
+      expect(result.valid).toBe(false);
+    });
+
+    it("should reject invalid priority in FeatureIndexEntry", () => {
+      const invalid = {
+        ...validFeatureIndex,
+        features: {
+          "test.feature": {
+            status: "failing",
+            priority: 0, // must be >= 1
+            module: "test",
+            description: "Test feature",
+          },
+        },
+      };
+      const result = validateFeatureIndex(invalid);
+      expect(result.valid).toBe(false);
+    });
+
+    it("should accept all valid status values in entries", () => {
+      const statuses = ["failing", "passing", "blocked", "needs_review", "deprecated"];
+      for (const status of statuses) {
+        const index = {
+          ...validFeatureIndex,
+          features: {
+            "test.feature": {
+              status,
+              priority: 1,
+              module: "test",
+              description: "Test feature",
+            },
+          },
+        };
+        const result = validateFeatureIndex(index);
+        expect(result.valid).toBe(true);
+      }
+    });
+
+    it("should validate empty features object", () => {
+      const emptyFeatures = {
+        ...validFeatureIndex,
+        features: {},
+      };
+      const result = validateFeatureIndex(emptyFeatures);
+      expect(result.valid).toBe(true);
     });
   });
 });
