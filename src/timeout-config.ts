@@ -8,65 +8,65 @@ import * as path from "node:path";
 /**
  * Default timeout values in milliseconds
  *
- * These defaults are designed to cover 95%+ of projects:
- * - Small projects (< 10k LOC): typically complete in seconds
- * - Medium projects (10k-100k LOC): typically complete in 1-3 minutes
- * - Large projects (100k+ LOC, monorepos): may need up to 10 minutes
+ * IMPORTANT: Most operations use `undefined` (no timeout) to ensure completion.
+ * AI agents can take unpredictable time depending on:
+ * - Project size and complexity
+ * - AI model response time
+ * - Network conditions
  *
- * Users can customize via environment variables if needed.
+ * Only bounded operations (document merging) have timeouts.
+ * Users can override via environment variables if needed.
  */
-export const DEFAULT_TIMEOUTS = {
+export const DEFAULT_TIMEOUTS: Record<string, number | undefined> = {
   /**
    * Project survey/scan operation - AI explores entire codebase
-   * This is the most intensive operation, exploring all source files.
-   * Large monorepos may need the full 15 minutes.
+   * No timeout: Must complete - critical initialization operation.
+   * Large monorepos may take 15+ minutes.
    */
-  AI_SCAN_PROJECT: 900000, // 15 minutes
+  AI_SCAN_PROJECT: undefined, // No timeout - wait for completion
 
   /**
    * Generate features from existing analyze document
-   * Text-to-JSON conversion, may take 2-3 minutes for large analysis
+   * No timeout: Same critical path as SCAN, must complete.
    */
-  AI_GENERATE_FROM_ANALYZE: 300000, // 5 minutes
+  AI_GENERATE_FROM_ANALYZE: undefined, // No timeout - wait for completion
 
   /**
    * Generate features from goal description for empty projects
-   * Text-to-JSON conversion, typically faster than analysis parsing
+   * No timeout: Same critical path as SCAN, must complete.
    */
-  AI_GENERATE_FROM_GOAL: 300000, // 5 minutes
+  AI_GENERATE_FROM_GOAL: undefined, // No timeout - wait for completion
 
   /**
    * Merge init.sh script with AI
-   * Script merging can take 2-3 minutes for complex customizations
+   * Bounded operation: Script merging has predictable scope.
    */
   AI_MERGE_INIT_SCRIPT: 300000, // 5 minutes
 
   /**
    * Merge CLAUDE.md with AI
-   * Document merging can take 3-4 minutes for large CLAUDE.md files
+   * Bounded operation: Document merging has predictable scope.
    */
   AI_MERGE_CLAUDE_MD: 300000, // 5 minutes
 
   /**
    * AI verification of feature completion
-   * Includes running tests/builds + AI analysis
-   * Large projects with slow test suites may need 10+ minutes
+   * No timeout: Includes running tests/builds which can take very long.
    */
-  AI_VERIFICATION: 600000, // 10 minutes
+  AI_VERIFICATION: undefined, // No timeout - wait for completion
 
   /**
    * AI capability discovery
-   * Analyzes project structure to detect test/build commands
-   * Complex projects may take 3-4 minutes
+   * No timeout: Must complete for correct project detection.
    */
-  AI_CAPABILITY_DISCOVERY: 300000, // 5 minutes
+  AI_CAPABILITY_DISCOVERY: undefined, // No timeout - wait for completion
 
   /**
    * Default timeout for any AI agent call
-   * Used as fallback when no specific timeout is configured
+   * No timeout: Safe fallback - let operations complete.
    */
-  AI_DEFAULT: 600000, // 10 minutes
-} as const;
+  AI_DEFAULT: undefined, // No timeout - wait for completion
+};
 
 /**
  * Environment variable names for timeout configuration
@@ -82,7 +82,7 @@ export const TIMEOUT_ENV_VARS = {
   AI_DEFAULT: "AGENT_FOREMAN_TIMEOUT_DEFAULT",
 } as const;
 
-export type TimeoutKey = keyof typeof DEFAULT_TIMEOUTS;
+export type TimeoutKey = keyof typeof TIMEOUT_ENV_VARS;
 
 /**
  * Environment variable name for agent configuration
@@ -150,9 +150,9 @@ let envLoaded = false;
  * Priority: environment variable > default value
  *
  * @param key - The timeout key (e.g., "AI_SCAN_PROJECT")
- * @returns Timeout in milliseconds
+ * @returns Timeout in milliseconds, or undefined for no timeout (wait indefinitely)
  */
-export function getTimeout(key: TimeoutKey): number {
+export function getTimeout(key: TimeoutKey): number | undefined {
   // Load .env file once
   if (!envLoaded) {
     loadEnvFile();
@@ -169,15 +169,7 @@ export function getTimeout(key: TimeoutKey): number {
     }
   }
 
-  // Check for global default override
-  const globalDefault = process.env[TIMEOUT_ENV_VARS.AI_DEFAULT];
-  if (globalDefault && key !== "AI_DEFAULT") {
-    const parsed = parseInt(globalDefault, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-
+  // Return the default (which may be undefined for no timeout)
   return DEFAULT_TIMEOUTS[key];
 }
 
@@ -185,15 +177,15 @@ export function getTimeout(key: TimeoutKey): number {
  * Get all current timeout configurations
  * Useful for debugging and status display
  */
-export function getAllTimeouts(): Record<TimeoutKey, { value: number; source: "env" | "default" }> {
+export function getAllTimeouts(): Record<TimeoutKey, { value: number | undefined; source: "env" | "default" }> {
   if (!envLoaded) {
     loadEnvFile();
     envLoaded = true;
   }
 
-  const result: Record<string, { value: number; source: "env" | "default" }> = {};
+  const result: Record<string, { value: number | undefined; source: "env" | "default" }> = {};
 
-  for (const key of Object.keys(DEFAULT_TIMEOUTS) as TimeoutKey[]) {
+  for (const key of Object.keys(TIMEOUT_ENV_VARS) as TimeoutKey[]) {
     const envVar = TIMEOUT_ENV_VARS[key];
     const envValue = process.env[envVar];
 
@@ -208,13 +200,17 @@ export function getAllTimeouts(): Record<TimeoutKey, { value: number; source: "e
     result[key] = { value: DEFAULT_TIMEOUTS[key], source: "default" };
   }
 
-  return result as Record<TimeoutKey, { value: number; source: "env" | "default" }>;
+  return result as Record<TimeoutKey, { value: number | undefined; source: "env" | "default" }>;
 }
 
 /**
- * Format timeout value for display (e.g., "5m", "2m 30s")
+ * Format timeout value for display (e.g., "5m", "2m 30s", "∞")
  */
-export function formatTimeout(ms: number): string {
+export function formatTimeout(ms: number | undefined): string {
+  if (ms === undefined) {
+    return "∞"; // No timeout - wait indefinitely
+  }
+
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;

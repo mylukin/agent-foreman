@@ -50,34 +50,29 @@ describe("Timeout Configuration", () => {
 
   describe("DEFAULT_TIMEOUTS", () => {
     it("should have all required timeout keys", () => {
-      expect(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_ANALYZE).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_GOAL).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_MERGE_INIT_SCRIPT).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_MERGE_CLAUDE_MD).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_VERIFICATION).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_CAPABILITY_DISCOVERY).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_DEFAULT).toBeDefined();
+      // Keys exist (may be undefined for no-timeout operations)
+      expect("AI_SCAN_PROJECT" in DEFAULT_TIMEOUTS).toBe(true);
+      expect("AI_GENERATE_FROM_ANALYZE" in DEFAULT_TIMEOUTS).toBe(true);
+      expect("AI_GENERATE_FROM_GOAL" in DEFAULT_TIMEOUTS).toBe(true);
+      expect("AI_MERGE_INIT_SCRIPT" in DEFAULT_TIMEOUTS).toBe(true);
+      expect("AI_MERGE_CLAUDE_MD" in DEFAULT_TIMEOUTS).toBe(true);
+      expect("AI_VERIFICATION" in DEFAULT_TIMEOUTS).toBe(true);
+      expect("AI_CAPABILITY_DISCOVERY" in DEFAULT_TIMEOUTS).toBe(true);
+      expect("AI_DEFAULT" in DEFAULT_TIMEOUTS).toBe(true);
     });
 
     it("should have reasonable default values", () => {
-      // AI scan is the longest operation (15 minutes) - for large monorepos
-      expect(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT).toBe(900000);
+      // Critical operations have NO timeout (undefined) - must complete
+      expect(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT).toBeUndefined();
+      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_ANALYZE).toBeUndefined();
+      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_GOAL).toBeUndefined();
+      expect(DEFAULT_TIMEOUTS.AI_VERIFICATION).toBeUndefined();
+      expect(DEFAULT_TIMEOUTS.AI_CAPABILITY_DISCOVERY).toBeUndefined();
+      expect(DEFAULT_TIMEOUTS.AI_DEFAULT).toBeUndefined();
 
-      // Feature generation (5 minutes) - text-to-JSON, may take longer for large surveys
-      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_ANALYZE).toBe(300000);
-      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_GOAL).toBe(300000);
-
-      // Verification (10 minutes) - includes tests/builds + AI analysis
-      expect(DEFAULT_TIMEOUTS.AI_VERIFICATION).toBe(600000);
-
-      // Merge and capability operations (5 minutes each)
+      // Bounded operations (document merging) have timeouts (5 minutes each)
       expect(DEFAULT_TIMEOUTS.AI_MERGE_INIT_SCRIPT).toBe(300000);
       expect(DEFAULT_TIMEOUTS.AI_MERGE_CLAUDE_MD).toBe(300000);
-      expect(DEFAULT_TIMEOUTS.AI_CAPABILITY_DISCOVERY).toBe(300000);
-
-      // Default (10 minutes)
-      expect(DEFAULT_TIMEOUTS.AI_DEFAULT).toBe(600000);
     });
   });
 
@@ -107,13 +102,16 @@ describe("Timeout Configuration", () => {
       expect(getTimeout("AI_SCAN_PROJECT")).toBe(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT);
     });
 
-    it("should use global default when specific timeout not set", () => {
+    it("should NOT use global default for other operations (removed behavior)", () => {
+      // Previously, setting TIMEOUT_DEFAULT would apply to all operations
+      // Now each operation has its own timeout (or undefined for no timeout)
       process.env.AGENT_FOREMAN_TIMEOUT_DEFAULT = "180000";
-      expect(getTimeout("AI_SCAN_PROJECT")).toBe(180000);
+      // AI_SCAN_PROJECT has undefined timeout by default (no timeout)
+      // Setting global default does NOT affect it
+      expect(getTimeout("AI_SCAN_PROJECT")).toBeUndefined();
     });
 
-    it("should prefer specific timeout over global default", () => {
-      process.env.AGENT_FOREMAN_TIMEOUT_DEFAULT = "180000";
+    it("should prefer specific timeout over default value", () => {
       process.env.AGENT_FOREMAN_TIMEOUT_SCAN = "600000";
       expect(getTimeout("AI_SCAN_PROJECT")).toBe(600000);
     });
@@ -164,6 +162,10 @@ describe("Timeout Configuration", () => {
     it("should handle sub-second values", () => {
       expect(formatTimeout(500)).toBe("0s");
     });
+
+    it("should return infinity symbol for undefined (no timeout)", () => {
+      expect(formatTimeout(undefined)).toBe("∞");
+    });
   });
 
   describe("getAllTimeouts - comprehensive", () => {
@@ -210,28 +212,28 @@ describe("Timeout Configuration", () => {
   });
 
   describe("getTimeout - additional edge cases", () => {
-    it("should not use global default for AI_DEFAULT itself", () => {
+    it("should read AI_DEFAULT from env var when set", () => {
       process.env.AGENT_FOREMAN_TIMEOUT_DEFAULT = "999999";
-      // When getting AI_DEFAULT, it should use its env value directly, not recurse
+      // AI_DEFAULT can be overridden via env var
       expect(getTimeout("AI_DEFAULT")).toBe(999999);
     });
 
-    it("should handle global default with invalid value", () => {
+    it("should ignore global default - operations are independent", () => {
       process.env.AGENT_FOREMAN_TIMEOUT_DEFAULT = "invalid";
-      // With invalid global default, should fall back to default value
+      // Global default doesn't affect other operations (they have their own defaults)
       expect(getTimeout("AI_SCAN_PROJECT")).toBe(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT);
     });
 
-    it("should handle global default with zero value", () => {
+    it("should return undefined for critical ops regardless of global default", () => {
       process.env.AGENT_FOREMAN_TIMEOUT_DEFAULT = "0";
-      // With zero global default, should fall back to default value
-      expect(getTimeout("AI_SCAN_PROJECT")).toBe(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT);
+      // AI_SCAN_PROJECT has undefined default (no timeout)
+      expect(getTimeout("AI_SCAN_PROJECT")).toBeUndefined();
     });
 
-    it("should handle global default with negative value", () => {
+    it("should return undefined for critical ops with any global default value", () => {
       process.env.AGENT_FOREMAN_TIMEOUT_DEFAULT = "-100";
-      // With negative global default, should fall back to default value
-      expect(getTimeout("AI_SCAN_PROJECT")).toBe(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT);
+      // Global default doesn't propagate to other operations
+      expect(getTimeout("AI_SCAN_PROJECT")).toBeUndefined();
     });
 
     it("should handle all timeout keys correctly", () => {
