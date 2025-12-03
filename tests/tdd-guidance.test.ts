@@ -410,6 +410,20 @@ describe("generateUnitTestSkeleton", () => {
     expect(skeleton).toContain("fn test_allow_user_to_enter_email_and_password()");
     expect(skeleton).toContain("assert!(true)");
   });
+
+  it("should default to vitest skeleton for unknown frameworks", () => {
+    // Use type assertion to pass an unknown framework value
+    const skeleton = generateUnitTestSkeleton(
+      mockFeature,
+      testCases,
+      "unknown-framework" as TestFramework
+    );
+
+    // Should fall back to vitest format
+    expect(skeleton).toContain('import { describe, it, expect, beforeEach, afterEach } from "vitest"');
+    expect(skeleton).toContain('describe("login"');
+    expect(skeleton).toContain("expect(true).toBe(true)");
+  });
 });
 
 describe("generateE2ETestSkeleton", () => {
