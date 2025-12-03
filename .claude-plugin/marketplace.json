@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Long Task Harness for AI agents - feature-driven development with external memory",
-    "version": "0.1.65"
+    "version": "0.1.66"
   },
   "plugins": [
     {
       "name": "agent-foreman",
       "source": "./plugins/agent-foreman",
       "description": "Long Task Harness providing external memory, feature-driven workflow, and clean agent handoffs",
-      "version": "0.1.65",
+      "version": "0.1.66",
       "author": {
         "name": "Lukin",
         "url": "https://github.com/mylukin"
