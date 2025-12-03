@@ -13,6 +13,8 @@ import {
   pathToFeatureId,
   loadFeatureIndex,
   saveFeatureIndex,
+  loadSingleFeature,
+  saveSingleFeature,
 } from "../src/feature-storage.js";
 import type { Feature, FeatureIndex } from "../src/types.js";
 
@@ -555,5 +557,167 @@ describe("saveFeatureIndex", () => {
       .then(() => true)
       .catch(() => false);
     expect(exists).toBe(true);
+  });
+});
+
+describe("loadSingleFeature", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "feature-storage-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("should read ai/features/{module}/{name}.md", async () => {
+    const featureContent = `---
+id: cli.survey
+module: cli
+priority: 10
+status: passing
+version: 1
+origin: manual
+dependsOn: []
+supersedes: []
+tags: []
+---
+
+# Generate project survey
+
+## Acceptance Criteria
+
+1. Survey generates successfully
+
+## Notes
+
+Test feature.
+`;
+    await fs.mkdir(path.join(tempDir, "ai/features/cli"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/features/cli/survey.md"),
+      featureContent
+    );
+
+    const feature = await loadSingleFeature(tempDir, "cli.survey");
+
+    expect(feature).not.toBeNull();
+    expect(feature?.id).toBe("cli.survey");
+    expect(feature?.module).toBe("cli");
+    expect(feature?.description).toBe("Generate project survey");
+    expect(feature?.status).toBe("passing");
+  });
+
+  it("should return null if file doesn't exist", async () => {
+    const feature = await loadSingleFeature(tempDir, "nonexistent.feature");
+    expect(feature).toBeNull();
+  });
+});
+
+describe("saveSingleFeature", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "feature-storage-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("should create module directory if needed", async () => {
+    const feature: Feature = {
+      id: "newmodule.newfeature",
+      description: "New feature",
+      module: "newmodule",
+      priority: 5,
+      status: "failing",
+      acceptance: ["Works"],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual",
+      notes: "",
+    };
+
+    await saveSingleFeature(tempDir, feature);
+
+    // Verify directory was created
+    const dirExists = await fs
+      .access(path.join(tempDir, "ai/features/newmodule"))
+      .then(() => true)
+      .catch(() => false);
+    expect(dirExists).toBe(true);
+  });
+
+  it("should write markdown with YAML frontmatter", async () => {
+    const feature: Feature = {
+      id: "test.feature",
+      description: "Test feature description",
+      module: "test",
+      priority: 10,
+      status: "passing",
+      acceptance: ["First criterion", "Second criterion"],
+      dependsOn: [],
+      supersedes: [],
+      tags: ["test"],
+      version: 2,
+      origin: "manual",
+      notes: "Test notes here.",
+    };
+
+    await saveSingleFeature(tempDir, feature);
+
+    const content = await fs.readFile(
+      path.join(tempDir, "ai/features/test/feature.md"),
+      "utf-8"
+    );
+
+    // Check frontmatter
+    expect(content).toContain("---");
+    expect(content).toContain("id: test.feature");
+    expect(content).toContain("status: passing");
+    expect(content).toContain("priority: 10");
+
+    // Check markdown body
+    expect(content).toContain("# Test feature description");
+    expect(content).toContain("## Acceptance Criteria");
+    expect(content).toContain("1. First criterion");
+    expect(content).toContain("2. Second criterion");
+    expect(content).toContain("## Notes");
+    expect(content).toContain("Test notes here.");
+  });
+
+  it("should round-trip correctly with loadSingleFeature", async () => {
+    const original: Feature = {
+      id: "roundtrip.test",
+      description: "Round trip test",
+      module: "roundtrip",
+      priority: 3,
+      status: "failing",
+      acceptance: ["Criterion one", "Criterion two"],
+      dependsOn: ["other.feature"],
+      supersedes: [],
+      tags: ["test", "roundtrip"],
+      version: 1,
+      origin: "manual",
+      notes: "Notes for round trip.",
+    };
+
+    await saveSingleFeature(tempDir, original);
+    const loaded = await loadSingleFeature(tempDir, "roundtrip.test");
+
+    expect(loaded).not.toBeNull();
+    expect(loaded?.id).toBe(original.id);
+    expect(loaded?.description).toBe(original.description);
+    expect(loaded?.module).toBe(original.module);
+    expect(loaded?.priority).toBe(original.priority);
+    expect(loaded?.status).toBe(original.status);
+    expect(loaded?.acceptance).toEqual(original.acceptance);
+    expect(loaded?.dependsOn).toEqual(original.dependsOn);
+    expect(loaded?.tags).toEqual(original.tags);
+    expect(loaded?.notes).toBe(original.notes);
   });
 });

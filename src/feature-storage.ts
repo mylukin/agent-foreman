@@ -291,3 +291,57 @@ export async function saveFeatureIndex(cwd: string, index: FeatureIndex): Promis
   // Rename temp file to actual file (atomic on most filesystems)
   await fs.rename(tempPath, indexPath);
 }
+
+// ============================================================================
+// Single Feature Operations
+// ============================================================================
+
+/** Path to the features directory relative to project root */
+const FEATURES_DIR = "ai/features";
+
+/**
+ * Load a single feature from its markdown file
+ *
+ * @param cwd - The project root directory
+ * @param featureId - The feature ID (e.g., "cli.survey")
+ * @returns Feature object or null if file doesn't exist
+ */
+export async function loadSingleFeature(
+  cwd: string,
+  featureId: string
+): Promise<Feature | null> {
+  const relativePath = featureIdToPath(featureId);
+  const fullPath = path.join(cwd, FEATURES_DIR, relativePath);
+
+  try {
+    const content = await fs.readFile(fullPath, "utf-8");
+    return parseFeatureMarkdown(content);
+  } catch (error) {
+    // Return null if file doesn't exist
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Save a single feature to its markdown file
+ *
+ * @param cwd - The project root directory
+ * @param feature - The Feature object to save
+ */
+export async function saveSingleFeature(
+  cwd: string,
+  feature: Feature
+): Promise<void> {
+  const relativePath = featureIdToPath(feature.id);
+  const fullPath = path.join(cwd, FEATURES_DIR, relativePath);
+
+  // Ensure module directory exists
+  await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+  // Serialize and write
+  const content = serializeFeatureMarkdown(feature);
+  await fs.writeFile(fullPath, content, "utf-8");
+}
