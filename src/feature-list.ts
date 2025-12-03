@@ -590,3 +590,68 @@ export async function getFeatureStatsQuick(cwd: string): Promise<Record<FeatureS
 
   return stats;
 }
+
+/**
+ * Quick next feature selection - reads index.json for selection, loads full feature only when found
+ * Much faster than loading all features when only selecting next
+ *
+ * @param cwd - Project root directory
+ * @returns Selected Feature or null if none available
+ * @throws Error if index not found
+ */
+export async function selectNextFeatureQuick(cwd: string): Promise<Feature | null> {
+  // Load feature index only
+  const index = await loadFeatureIndex(cwd);
+  if (!index) {
+    throw new Error("Feature index not found. Run migration first.");
+  }
+
+  // Convert index entries to array with IDs for sorting
+  const candidates = Object.entries(index.features)
+    .filter(([, entry]) => entry.status === "needs_review" || entry.status === "failing")
+    .map(([id, entry]) => ({ id, ...entry }));
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  // Sort: needs_review first, then by priority number (lower = higher)
+  const statusOrder: Record<FeatureStatus, number> = {
+    needs_review: 0,
+    failing: 1,
+    blocked: 2,
+    passing: 3,
+    deprecated: 4,
+  };
+
+  candidates.sort((a, b) => {
+    const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+    if (statusDiff !== 0) return statusDiff;
+    return a.priority - b.priority;
+  });
+
+  // Load full feature for the selected one
+  const selectedId = candidates[0].id;
+  const feature = await loadSingleFeature(cwd, selectedId);
+
+  if (!feature) {
+    // Fall back to minimal feature from index if file missing
+    const entry = index.features[selectedId];
+    return {
+      id: selectedId,
+      description: entry.description,
+      module: entry.module,
+      priority: entry.priority,
+      status: entry.status,
+      acceptance: [],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual",
+      notes: "",
+    };
+  }
+
+  return feature;
+}

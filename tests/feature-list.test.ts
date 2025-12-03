@@ -10,6 +10,7 @@ import {
   saveFeatureList,
   featureListExists,
   selectNextFeature,
+  selectNextFeatureQuick,
   findFeatureById,
   updateFeatureStatus,
   updateFeatureStatusQuick,
@@ -889,6 +890,76 @@ This is a modular feature.
       const regularStats = getFeatureStats(list.features);
 
       expect(quickStats).toEqual(regularStats);
+    });
+  });
+
+  describe("selectNextFeatureQuick", () => {
+    it("should read index.json for selection", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "next.a", module: "next", status: "passing", priority: 1 }),
+        createTestFeature({ id: "next.b", module: "next", status: "failing", priority: 2 }),
+        createTestFeature({ id: "next.c", module: "next", status: "failing", priority: 3 }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      const next = await selectNextFeatureQuick(tempDir);
+
+      expect(next).not.toBeNull();
+      expect(next?.id).toBe("next.b"); // Lowest priority among failing
+    });
+
+    it("should return Feature or null", async () => {
+      // All passing - should return null
+      const allPassing = createTestFeatureList([
+        createTestFeature({ id: "null.test", module: "null", status: "passing" }),
+      ]);
+      await saveFeatureList(tempDir, allPassing);
+
+      const result = await selectNextFeatureQuick(tempDir);
+      expect(result).toBeNull();
+    });
+
+    it("should load full feature when selected", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({
+          id: "full.load",
+          module: "full",
+          status: "failing",
+          description: "Full load test",
+          acceptance: ["First criterion", "Second criterion"],
+        }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      const next = await selectNextFeatureQuick(tempDir);
+
+      expect(next).not.toBeNull();
+      expect(next?.id).toBe("full.load");
+      expect(next?.acceptance).toContain("First criterion");
+      expect(next?.acceptance).toContain("Second criterion");
+    });
+
+    it("should follow same priority logic as selectNextFeature", async () => {
+      const features = [
+        createTestFeature({ id: "prio.a", module: "prio", status: "failing", priority: 5 }),
+        createTestFeature({ id: "prio.b", module: "prio", status: "needs_review", priority: 10 }),
+        createTestFeature({ id: "prio.c", module: "prio", status: "failing", priority: 1 }),
+      ];
+      const list = createTestFeatureList(features);
+      await saveFeatureList(tempDir, list);
+
+      const quickNext = await selectNextFeatureQuick(tempDir);
+      const regularNext = selectNextFeature(features);
+
+      // Both should select needs_review first (higher priority than failing)
+      expect(quickNext?.id).toBe(regularNext?.id);
+      expect(quickNext?.id).toBe("prio.b");
+    });
+
+    it("should throw error when index does not exist", async () => {
+      await expect(selectNextFeatureQuick(tempDir)).rejects.toThrow(
+        "Feature index not found"
+      );
     });
   });
 });
