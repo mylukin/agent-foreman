@@ -1,18 +1,79 @@
 /**
  * Feature list operations for ai/feature_list.json
+ * Supports both legacy JSON format and new modular markdown format
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { glob } from "glob";
 import type { Feature, FeatureList, FeatureStatus, FeatureVerificationSummary, DiscoveredFeature } from "./types.js";
 import { validateFeatureList } from "./schema.js";
+import {
+  loadFeatureIndex,
+  loadSingleFeature,
+  autoMigrateIfNeeded,
+  pathToFeatureId,
+} from "./feature-storage.js";
 
 /** Default path for feature list file */
 export const FEATURE_LIST_PATH = "ai/feature_list.json";
 
+/** Path to features directory for modular format */
+const FEATURES_DIR = "ai/features";
+
 /**
  * Load feature list from file
+ * Supports both new modular format (ai/features/) and legacy JSON format
+ *
+ * Strategy:
+ * 1. Try new format (index.json) first
+ * 2. Auto-migrate if old format detected
+ * 3. Load all features from markdown files
+ * 4. Fall back to legacy format if neither exists
  */
 export async function loadFeatureList(basePath: string): Promise<FeatureList | null> {
+  // 1. Check if new format exists (index.json)
+  const index = await loadFeatureIndex(basePath);
+
+  if (index) {
+    // Load all features from markdown files
+    const features = await loadAllFeaturesFromMarkdown(basePath, index);
+    return {
+      $schema: "./feature_list.schema.json",
+      features,
+      metadata: index.metadata,
+    };
+  }
+
+  // 2. Check if legacy format exists and auto-migrate
+  const legacyPath = path.join(basePath, FEATURE_LIST_PATH);
+  try {
+    await fs.access(legacyPath);
+    // Legacy file exists - attempt auto-migration
+    await autoMigrateIfNeeded(basePath);
+
+    // After migration, try loading from new format
+    const migratedIndex = await loadFeatureIndex(basePath);
+    if (migratedIndex) {
+      const features = await loadAllFeaturesFromMarkdown(basePath, migratedIndex);
+      return {
+        $schema: "./feature_list.schema.json",
+        features,
+        metadata: migratedIndex.metadata,
+      };
+    }
+
+    // If migration failed or index still doesn't exist, load legacy format
+    return loadLegacyFeatureList(basePath);
+  } catch {
+    // Neither format exists
+    return null;
+  }
+}
+
+/**
+ * Load legacy feature list from ai/feature_list.json
+ */
+async function loadLegacyFeatureList(basePath: string): Promise<FeatureList | null> {
   const filePath = path.join(basePath, FEATURE_LIST_PATH);
   try {
     const content = await fs.readFile(filePath, "utf-8");
@@ -29,6 +90,46 @@ export async function loadFeatureList(basePath: string): Promise<FeatureList | n
     }
     throw err;
   }
+}
+
+/**
+ * Load all features from markdown files based on index
+ */
+async function loadAllFeaturesFromMarkdown(
+  basePath: string,
+  index: import("./types.js").FeatureIndex
+): Promise<Feature[]> {
+  const features: Feature[] = [];
+  const featureIds = Object.keys(index.features);
+
+  // Load features in parallel for better performance
+  const loadPromises = featureIds.map(async (id) => {
+    const feature = await loadSingleFeature(basePath, id);
+    if (feature) {
+      return feature;
+    }
+    // If markdown file is missing, create minimal feature from index
+    const indexEntry = index.features[id];
+    return {
+      id,
+      description: indexEntry.description,
+      module: indexEntry.module,
+      priority: indexEntry.priority,
+      status: indexEntry.status,
+      acceptance: [],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual" as const,
+      notes: "",
+    };
+  });
+
+  const loadedFeatures = await Promise.all(loadPromises);
+  features.push(...loadedFeatures);
+
+  return features;
 }
 
 /**

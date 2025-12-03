@@ -101,6 +101,127 @@ describe("Feature List Operations", () => {
     });
   });
 
+  describe("loadFeatureList with modular format", () => {
+    it("should load from new modular format when index.json exists", async () => {
+      // Create modular format structure
+      const featuresDir = path.join(tempDir, "ai", "features");
+      await fs.mkdir(path.join(featuresDir, "test"), { recursive: true });
+
+      // Create index.json
+      const index = {
+        version: "2.0.0",
+        updatedAt: "2024-01-15T10:00:00Z",
+        metadata: {
+          projectGoal: "Test project",
+          createdAt: "2024-01-15T10:00:00Z",
+          updatedAt: "2024-01-15T10:00:00Z",
+          version: "1.0.0",
+        },
+        features: {
+          "test.modular": {
+            status: "passing",
+            priority: 5,
+            module: "test",
+            description: "Modular feature test",
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(featuresDir, "index.json"),
+        JSON.stringify(index, null, 2)
+      );
+
+      // Create feature markdown file
+      const featureMd = `---
+id: test.modular
+module: test
+priority: 5
+status: passing
+version: 1
+origin: manual
+dependsOn: []
+supersedes: []
+tags: []
+---
+
+# Modular feature test
+
+## Acceptance Criteria
+
+1. First criterion
+2. Second criterion
+
+## Notes
+
+This is a modular feature.
+`;
+      await fs.writeFile(path.join(featuresDir, "test", "modular.md"), featureMd);
+
+      // Load and verify
+      const loaded = await loadFeatureList(tempDir);
+
+      expect(loaded).not.toBeNull();
+      expect(loaded?.features).toHaveLength(1);
+      expect(loaded?.features[0].id).toBe("test.modular");
+      expect(loaded?.features[0].status).toBe("passing");
+      expect(loaded?.features[0].acceptance).toContain("First criterion");
+    });
+
+    it("should auto-migrate legacy format on load", async () => {
+      // Create legacy format
+      const legacyList = createTestFeatureList([
+        createTestFeature({ id: "legacy.feature", description: "Legacy feature" }),
+      ]);
+      await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
+      await fs.writeFile(
+        path.join(tempDir, "ai", "feature_list.json"),
+        JSON.stringify(legacyList, null, 2)
+      );
+
+      // Load - should trigger auto-migration
+      const loaded = await loadFeatureList(tempDir);
+
+      expect(loaded).not.toBeNull();
+      expect(loaded?.features).toHaveLength(1);
+      expect(loaded?.features[0].id).toBe("legacy.feature");
+
+      // Verify migration created new format
+      const indexPath = path.join(tempDir, "ai", "features", "index.json");
+      const indexExists = await fs
+        .access(indexPath)
+        .then(() => true)
+        .catch(() => false);
+      expect(indexExists).toBe(true);
+    });
+
+    it("should return null when neither format exists", async () => {
+      const loaded = await loadFeatureList(tempDir);
+      expect(loaded).toBeNull();
+    });
+
+    it("should return same FeatureList interface for both formats", async () => {
+      // Create legacy format first
+      const legacyList = createTestFeatureList([
+        createTestFeature({ id: "test.compat", description: "Compatibility test" }),
+      ]);
+      await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
+      await fs.writeFile(
+        path.join(tempDir, "ai", "feature_list.json"),
+        JSON.stringify(legacyList, null, 2)
+      );
+
+      const loaded = await loadFeatureList(tempDir);
+
+      // Verify same interface
+      expect(loaded).toHaveProperty("features");
+      expect(loaded).toHaveProperty("metadata");
+      expect(loaded?.metadata).toHaveProperty("projectGoal");
+      expect(loaded?.metadata).toHaveProperty("createdAt");
+      expect(loaded?.metadata).toHaveProperty("updatedAt");
+      expect(Array.isArray(loaded?.features)).toBe(true);
+    });
+  });
+
   describe("featureListExists", () => {
     it("should return false for non-existent file", async () => {
       const exists = await featureListExists(tempDir);
