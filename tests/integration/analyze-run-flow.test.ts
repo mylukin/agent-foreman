@@ -178,4 +178,57 @@ describe("CLI analyze + run flow (integration)", () => {
       expect(row as string).toContain("成功");
     }
   });
+
+  testOrSkip("[integration] run supports --no-test mode", async () => {
+    const rootDir = await createTempProjectDir("foreman-analyze-run-notest-");
+    tempRoots.push(rootDir);
+
+    // Minimal requirement spec for analyze to consume
+    const specPath = path.join(rootDir, "spec.md");
+    await fs.writeFile(
+      specPath,
+      "# Analyze + Run no-test 测试需求\n\n用于验证 run --no-test 能正常执行步骤。",
+      "utf-8",
+    );
+
+    // Prepare fake agent script
+    const binDir = path.join(rootDir, "bin");
+    await fs.mkdir(binDir, { recursive: true });
+    await createFakeAnalyzeAndRunAgent(binDir);
+
+    const env = {
+      ...process.env,
+      AGENT_FOREMAN_AGENTS: "codex",
+      PATH: `${binDir}${path.delimiter}/usr/bin`,
+    };
+
+    const analyzeResult = spawnSync(process.execPath, [CLI_PATH, "analyze", specPath], {
+      cwd: rootDir,
+      encoding: "utf-8",
+      env,
+    });
+
+    expect(analyzeResult.status, analyzeResult.stderr || analyzeResult.stdout).toBe(0);
+
+    const rootEntries = await fs.readdir(rootDir, { withFileTypes: true });
+    const stepsDirEntry = rootEntries.find(
+      (entry) => entry.isDirectory() && entry.name.endsWith("需求实现步骤"),
+    );
+
+    expect(stepsDirEntry).toBeDefined();
+    const stepsDir = path.join(rootDir, stepsDirEntry!.name);
+
+    const runResult = spawnSync(
+      process.execPath,
+      [CLI_PATH, "run", stepsDir, "--no-test"],
+      {
+        cwd: rootDir,
+        encoding: "utf-8",
+        env,
+      },
+    );
+
+    expect(runResult.status, runResult.stderr || runResult.stdout).toBe(0);
+    expect(runResult.stdout).toContain("📋 本次 run 执行结果：");
+  });
 });

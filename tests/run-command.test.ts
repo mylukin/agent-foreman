@@ -286,6 +286,50 @@ describe("run.ts", () => {
     expect(callAnyAvailableAgent).toHaveBeenCalledTimes(2);
   });
 
+  it("in noTest mode, completes steps without running unit tests or verification", async () => {
+    const dir = await createTempDir();
+    const fileName = await writeStep(dir, 1, "no-test-mode", {
+      unit_test: {
+        // This command would fail if executed; noTest should prevent it from running
+        command: `${process.execPath} -e "process.exit(1)"`,
+      },
+    });
+
+    vi.mocked(callAnyAvailableAgent).mockResolvedValue({
+      success: true,
+      output: "implementation ok",
+      agentUsed: "test-agent",
+    });
+
+    const cwd = process.cwd();
+    try {
+      process.chdir(dir);
+      await runStepsDirectory(".", { noTest: true });
+    } finally {
+      process.chdir(cwd);
+    }
+
+    const stepContent = JSON.parse(
+      await fs.readFile(path.join(dir, fileName), "utf-8"),
+    );
+
+    // Step should be marked as completed even though unit_test.command would fail
+    expect(stepContent.status).toBe("🟢 已完成");
+    expect(process.exitCode).toBeUndefined();
+
+    const progressContent = await readRunProgressContent(dir);
+    expect(progressContent).toBeTruthy();
+    if (progressContent) {
+      const row = getStatusAndErrorFromProgress(progressContent, fileName);
+      expect(row.afterStatus).toBe("🟢 已完成");
+      expect(row.result).toBe("成功");
+      expect(row.error).toBe("");
+    }
+
+    // Only one AI call for implementation, no additional call for verification
+    expect(callAnyAvailableAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("retries implementation up to MAX_ATTEMPTS and stops run after final failure", async () => {
     const dir = await createTempDir();
     const firstFile = await writeStep(dir, 1, "first");

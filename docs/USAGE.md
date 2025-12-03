@@ -290,6 +290,7 @@ agent-foreman run "用户登录需求实现步骤"
 - With `--verify-only`, run only unit tests (when `unit_test` is defined) and AI-based verification for each step, without performing any new implementation work
 - With `--verify-unittest-only`, run only the `unit_test.command` for each step (if present) without AI verification or implementation; steps without `unit_test` are treated as verification failures
 - With `--verify-generate-unittest`, only check whether each step has `unit_test` configured and, if missing, call AI to generate `unit_test` information and write it back to the step JSON without changing business logic
+ - With `--no-test`, implement each step without generating or running tests and without AI-based verification (implementation-only mode)
 
 > `run` 会：
 > - 自动发现目录中的 `NNN-*.json` 步骤文件并按顺序执行（其他 JSON 文件会被忽略并在终端给出告警）；
@@ -302,6 +303,7 @@ agent-foreman run "用户登录需求实现步骤"
 > - 当使用 `--verify-only` 时，只运行单元测试（若步骤定义了 `unit_test`）和基于 `verification` 的 AI 验证，不做任何实现改动；
 > - 当使用 `--verify-unittest-only` 时，只运行每个步骤的 `unit_test.command`，不调用 AI，也不做实现改动；对于缺少 `unit_test` 的步骤会直接视为验证失败；
 > - 当使用 `--verify-generate-unittest` 时，只检查每个步骤是否配置了 `unit_test`，对缺少配置的步骤调用 AI 生成 `unit_test` 信息写回 JSON，不更改业务实现代码。
+> - 当使用 `--no-test` 时，只根据步骤描述完成实现，不生成或运行任何测试，也不做 AI 验证。
 
 ### `init [goal]`
 

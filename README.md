@@ -312,6 +312,7 @@ one by one until all are passing.
 **Run modes:**
 
 - `run <steps_dir>` – Default mode: implement each step, run unit tests (when `unit_test` is defined), then perform AI-based verification. Retries up to 5 times on failure.
+- `run <steps_dir> --no-test` – Implement each step without generating or running tests and without AI-based verification, useful for fast implementation-only runs.
 - `run <steps_dir> --full-verify` – Re-run tests and verification even for steps already marked as completed (`🟢`), reopening them when regressions are detected.
 - `run <steps_dir> --verify-only` – Only run unit tests and AI verification for each step, without making any implementation changes.
 - `run <steps_dir> --verify-unittest-only` – Only run `unit_test.command` for each step (if present), no AI verification or implementation. Steps without `unit_test` are treated as verification failures.

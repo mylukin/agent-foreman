@@ -142,6 +142,11 @@ async function main() {
             type: "string",
             demandOption: true,
           })
+          .option("no-test", {
+            type: "boolean",
+            default: false,
+            describe: "Skip unit tests and AI verification when executing steps",
+          })
           .option("full-verify", {
             type: "boolean",
             default: false,
@@ -163,6 +168,7 @@ async function main() {
             describe: "Only check and generate unit tests for steps without unit_test configuration",
           }),
       async (argv) => {
+        const noTest = argv["no-test"] as boolean;
         const fullVerify = argv["full-verify"] as boolean;
         const verifyOnly = argv["verify-only"] as boolean;
         const verifyUnitTestOnly = argv["verify-unittest-only"] as boolean;
@@ -185,7 +191,17 @@ async function main() {
           process.exit(1);
         }
 
+        if (noTest && enabledModes.length > 0) {
+          console.log(
+            chalk.red(
+              "✗ 选项 --no-test 不能与 --full-verify、--verify-only、--verify-unittest-only、--verify-generate-unittest 同时使用。",
+            ),
+          );
+          process.exit(1);
+        }
+
         await runStepsDirectory(argv.steps_dir as string, {
+          noTest,
           fullVerify,
           verifyOnly,
           verifyUnitTestOnly,

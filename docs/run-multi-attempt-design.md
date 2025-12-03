@@ -8,6 +8,7 @@
   - 不改变 `analyze` 命令输出的 JSON 结构（只是允许新增 `unit_test` 字段）；
   - CLI 入口与参数形式基于 `run <steps_dir>` 扩展了多种验证模式：
     - 默认模式：`run <steps_dir>`，执行「实现 + 单元测试 + verification」并支持最多 5 轮自动修复；
+    - 实现专用模式：`run <steps_dir> --no-test`，只做实现，不生成/运行单元测试，也不做 verification 验证；
     - 回归验证模式：`run <steps_dir> --full-verify`，对已完成步骤额外运行单测和 verification，发现问题时重新打开并进入多轮实现；
     - 仅验证模式：`run <steps_dir> --verify-only`，只运行单元测试和 verification，不做任何实现改动；
     - 仅单元测试模式：`run <steps_dir> --verify-unittest-only`，只运行 `unit_test` 中定义的单元测试，不调用 AI，也不做实现改动；

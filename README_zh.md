@@ -308,6 +308,7 @@ agent-foreman init "你的项目目标"
 **`run` 模式：**
 
 - `run <steps_dir>`：默认模式，对每个步骤执行「实现 → 单元测试（若定义了 `unit_test`）→ AI 验证」，在失败时最多自动重试 5 轮。
+- `run <steps_dir> --no-test`：仅根据步骤描述完成实现，不生成或运行任何测试，也不做 AI 验证，适合只想快速完成实现的场景。
 - `run <steps_dir> --full-verify`：对已标记为 `🟢 已完成` 的步骤重新运行单测和验证，发现回归时重新打开并进入多轮自动修复流程。
 - `run <steps_dir> --verify-only`：仅执行单元测试和基于 `verification` 的 AI 验证，不对代码做新的实现改动。
 - `run <steps_dir> --verify-unittest-only`：仅执行每个步骤中的 `unit_test.command`，不调用 AI，也不做实现改动；对于缺少 `unit_test` 的步骤会直接视为验证失败。

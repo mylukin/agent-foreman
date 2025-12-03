@@ -39,6 +39,7 @@ export interface PreviousAttemptFailureContext {
 }
 
 export interface RunStepsOptions {
+  noTest?: boolean;
   fullVerify?: boolean;
   verifyOnly?: boolean;
   verifyUnitTestOnly?: boolean;
@@ -658,6 +659,7 @@ export async function runStepsDirectory(
   const verifyUnitTestOnly = options.verifyUnitTestOnly === true;
   const verifyGenerateUnitTest = options.verifyGenerateUnitTest === true;
   const fullVerify = options.fullVerify === true;
+  const noTest = options.noTest === true;
 
   const enabledModesCount = [
     verifyOnly,
@@ -670,6 +672,16 @@ export async function runStepsDirectory(
     console.log(
       chalk.red(
         "✗ runStepsDirectory 选项冲突：fullVerify、verifyOnly、verifyUnitTestOnly、verifyGenerateUnitTest 不能同时启用多个。",
+      ),
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  if (noTest && (verifyOnly || verifyUnitTestOnly || verifyGenerateUnitTest || fullVerify)) {
+    console.log(
+      chalk.red(
+        "✗ runStepsDirectory 选项冲突：noTest 不能与 fullVerify、verifyOnly、verifyUnitTestOnly、verifyGenerateUnitTest 同时启用。",
       ),
     );
     process.exitCode = 1;
@@ -1181,13 +1193,29 @@ export async function runStepsDirectory(
         total,
       });
 
-      const prompt =
+      let prompt =
         attempt > 1 && lastFailureContext
           ? appendPreviousFailureContextToPrompt({
               basePrompt,
               context: lastFailureContext,
             })
           : basePrompt;
+
+      if (noTest) {
+        prompt = `${prompt}
+
+====== 重要模式说明：跳过测试与验证 ======
+
+当前运行在 \`--no-test\` 模式下，本轮任务只允许：
+- 根据步骤描述完成实现工作（代码修改、配置调整、文档更新等）；
+- 不必编写或更新任何单元测试或其他自动化测试；
+- 不必运行任何测试命令；
+- 不要在输出末尾附加包含 \`unit_test\` 字段的 JSON。
+
+禁止事项：
+- 不要尝试运行或引导执行测试命令；
+- 不要为本步骤生成或更新单元测试。`;
+      }
 
       console.log(chalk.gray("  正在调用命令行 AI 处理该步骤..."));
 
@@ -1241,7 +1269,7 @@ export async function runStepsDirectory(
         );
 
         // 普通 run 模式下，执行「单元测试 + verification 验证」
-        if (mode !== "full-verify") {
+        if (mode !== "full-verify" && !noTest) {
           // 先执行单元测试（如果存在）
           if (entry.unitTest && entry.unitTest.command) {
             console.log(
