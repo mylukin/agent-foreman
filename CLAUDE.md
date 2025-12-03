@@ -71,7 +71,7 @@ agent-foreman next
 agent-foreman next <feature_id>
 
 # Mark feature as done (auto-runs verification + auto-commit)
-# Quick mode is default - runs only related tests based on testPattern
+# Quick mode is default - runs only related tests based on testRequirements.unit.pattern
 agent-foreman done <feature_id>
 
 # Full mode - run all tests (slower, for final verification)
@@ -138,7 +138,9 @@ Write criteria as testable statements:
       "version": 1,
       "origin": "manual",
       "notes": "",
-      "testPattern": "tests/module/**/*.test.ts"
+      "testRequirements": {
+        "unit": { "required": false, "pattern": "tests/module/**/*.test.ts" }
+      }
     }
   ],
   "metadata": {
@@ -152,9 +154,27 @@ Write criteria as testable statements:
 
 **Required fields**: `id`, `description`, `module`, `priority`, `status`, `acceptance`, `version`, `origin`
 
-**Auto-generated fields**: `testPattern` (auto-generated during init as `tests/{module}/**/*.test.*`)
+**Auto-generated fields**: `testRequirements` (auto-generated during init with pattern `tests/{module}/**/*.test.*`)
 
-**Optional fields**: `testPattern` (can be overridden), `e2eTags` (Playwright tags for E2E filtering)
+**Optional fields**: `testRequirements` (can be overridden), `e2eTags` (Playwright tags for E2E filtering)
+
+### testRequirements Structure
+
+```json
+"testRequirements": {
+  "unit": {
+    "required": false,
+    "pattern": "tests/auth/**/*.test.ts",
+    "cases": ["should login", "should logout"]
+  },
+  "e2e": {
+    "required": false,
+    "pattern": "e2e/auth/**/*.spec.ts",
+    "tags": ["@auth"],
+    "scenarios": ["user can login"]
+  }
+}
+```
 
 **Status values**: `failing` | `passing` | `blocked` | `needs_review` | `deprecated`
 

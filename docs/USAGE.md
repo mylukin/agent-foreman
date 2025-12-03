@@ -369,13 +369,33 @@ your-project/
   "version": 1,
   "origin": "manual",
   "notes": "",
-  "testPattern": "tests/module/**/*.test.ts"
+  "testRequirements": {
+    "unit": { "required": false, "pattern": "tests/module/**/*.test.ts" }
+  }
 }
 ```
 
 **Status values:** `failing` | `passing` | `blocked` | `needs_review` | `deprecated`
 
 **Origin values:** `init-auto` | `init-from-routes` | `init-from-tests` | `manual` | `replan`
+
+### testRequirements Structure
+
+```json
+"testRequirements": {
+  "unit": {
+    "required": false,
+    "pattern": "tests/auth/**/*.test.ts",
+    "cases": ["should login", "should logout"]
+  },
+  "e2e": {
+    "required": false,
+    "pattern": "e2e/auth/**/*.spec.ts",
+    "tags": ["@auth"],
+    "scenarios": ["user can login"]
+  }
+}
+```
 
 ---
 
