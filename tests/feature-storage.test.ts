@@ -15,6 +15,7 @@ import {
   saveFeatureIndex,
   loadSingleFeature,
   saveSingleFeature,
+  needsMigration,
 } from "../src/feature-storage.js";
 import type { Feature, FeatureIndex } from "../src/types.js";
 
@@ -719,5 +720,62 @@ describe("saveSingleFeature", () => {
     expect(loaded?.dependsOn).toEqual(original.dependsOn);
     expect(loaded?.tags).toEqual(original.tags);
     expect(loaded?.notes).toBe(original.notes);
+  });
+});
+
+describe("needsMigration", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "feature-storage-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("should return true if feature_list.json exists but index.json doesn't", async () => {
+    // Create legacy feature_list.json
+    await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/feature_list.json"),
+      JSON.stringify({ features: [], metadata: {} })
+    );
+
+    const result = await needsMigration(tempDir);
+    expect(result).toBe(true);
+  });
+
+  it("should return false if index.json already exists", async () => {
+    // Create both files
+    await fs.mkdir(path.join(tempDir, "ai/features"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/feature_list.json"),
+      JSON.stringify({ features: [], metadata: {} })
+    );
+    await fs.writeFile(
+      path.join(tempDir, "ai/features/index.json"),
+      JSON.stringify({ version: "2.0.0", features: {}, metadata: {} })
+    );
+
+    const result = await needsMigration(tempDir);
+    expect(result).toBe(false);
+  });
+
+  it("should return false if neither file exists", async () => {
+    const result = await needsMigration(tempDir);
+    expect(result).toBe(false);
+  });
+
+  it("should return false if only index.json exists", async () => {
+    // Create only index.json (new format already in use)
+    await fs.mkdir(path.join(tempDir, "ai/features"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/features/index.json"),
+      JSON.stringify({ version: "2.0.0", features: {}, metadata: {} })
+    );
+
+    const result = await needsMigration(tempDir);
+    expect(result).toBe(false);
   });
 });

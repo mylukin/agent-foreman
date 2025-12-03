@@ -345,3 +345,44 @@ export async function saveSingleFeature(
   const content = serializeFeatureMarkdown(feature);
   await fs.writeFile(fullPath, content, "utf-8");
 }
+
+// ============================================================================
+// Migration Detection
+// ============================================================================
+
+/** Path to the legacy feature list file */
+const LEGACY_FEATURE_LIST_PATH = "ai/feature_list.json";
+
+/**
+ * Check if migration from old format to new format is needed
+ *
+ * Returns true if:
+ * - ai/feature_list.json exists
+ * - ai/features/index.json does NOT exist
+ *
+ * @param cwd - The project root directory
+ * @returns true if migration is needed
+ */
+export async function needsMigration(cwd: string): Promise<boolean> {
+  const legacyPath = path.join(cwd, LEGACY_FEATURE_LIST_PATH);
+  const indexPath = path.join(cwd, INDEX_PATH);
+
+  // Check if index.json already exists
+  try {
+    await fs.access(indexPath);
+    // index.json exists - no migration needed
+    return false;
+  } catch {
+    // index.json doesn't exist - check for legacy file
+  }
+
+  // Check if legacy feature_list.json exists
+  try {
+    await fs.access(legacyPath);
+    // Legacy file exists and index.json doesn't - migration needed
+    return true;
+  } catch {
+    // Neither file exists - no migration needed
+    return false;
+  }
+}
