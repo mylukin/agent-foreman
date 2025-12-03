@@ -26,7 +26,19 @@ AI coding agents face three common failure modes:
 
 ---
 
-## Quick Start with Claude Code
+## Installation
+
+```bash
+# Global installation
+npm install -g agent-foreman
+
+# Or use with npx
+npx agent-foreman --help
+```
+
+---
+
+## Claude Code Plugin (Recommended)
 
 agent-foreman is designed as a **Claude Code plugin**. This is the recommended way to use it.
 
@@ -172,10 +184,10 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 │                          └───────────────┘                              │
 │                                   │ NO                                  │
 │                                   ▼                                     │
-│                  ┌───────────────────────────────┐                     │
-│                  │  All features passing! (100%) │                     │
-│                  │  ARCHITECTURE.md updated      │                     │
-│                  └───────────────────────────────┘                     │
+│                  ┌───────────────────────────────────────┐             │
+│                  │  All features passing! (100%)         │             │
+│                  │  ARCHITECTURE.md updated              │             │
+│                  └───────────────────────────────────────┘             │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -184,22 +196,6 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 - **RED** — Define acceptance criteria first (equivalent to failing tests)
 - **GREEN** — Write minimum code to make criteria pass
 - **REFACTOR** — Optimize under test protection
-
----
-
-## CLI Installation
-
-For users not using Claude Code, agent-foreman is also available as a standalone CLI:
-
-```bash
-# Global installation
-npm install -g agent-foreman
-
-# Or use with npx
-npx agent-foreman --help
-```
-
-See [Detailed Usage Guide](./docs/USAGE.md) for CLI command reference.
 
 ---
 
