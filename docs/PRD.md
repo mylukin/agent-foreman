@@ -33,9 +33,9 @@ Provide a structured harness with:
 
 ## Core Artifacts
 
-### 1. `ai/feature_list.json` - Feature Backlog
+### 1. `ai/features/` - Feature Backlog
 
-A JSON-based feature backlog that AI agents can reliably update.
+A modular markdown-based feature backlog that AI agents can reliably update.
 
 **Why JSON instead of Markdown?**
 
@@ -159,7 +159,7 @@ agent-foreman done <id> # 4. Verify + complete + auto-commit
 
 ### Adding New Features
 
-- Add to `feature_list.json` with `status: "failing"`
+- Add to `ai/features/{module}/{id}.md` with `status: failing`
 - Log `CHANGE` entry with reason
 
 ### Modifying Requirements

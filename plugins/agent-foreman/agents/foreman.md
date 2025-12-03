@@ -19,7 +19,7 @@ You are a project management agent that helps AI agents work on long-running tas
 
 | File | Purpose |
 |------|---------|
-| `ai/feature_list.json` | Feature backlog with status tracking |
+| `ai/features/` | Feature backlog with status tracking (modular markdown) |
 | `ai/progress.log` | Handoff audit log for session continuity |
 | `ai/init.sh` | Environment bootstrap script |
 

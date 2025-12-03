@@ -201,7 +201,7 @@ Write criteria as testable statements:
 
 ### Feature JSON Schema
 
-**IMPORTANT**: When adding or modifying features in `ai/feature_list.json`, use this exact schema:
+**IMPORTANT**: When adding or modifying features in `ai/features/{module}/{id}.md` files, use the markdown format with YAML frontmatter. For reference, here is the legacy JSON schema (auto-migrated to modular format):
 
 ```json
 {

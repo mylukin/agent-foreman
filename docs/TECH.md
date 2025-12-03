@@ -53,7 +53,7 @@ Main entry point implementing all CLI commands via yargs.
 | Module | Purpose |
 |--------|---------|
 | `feature-list.ts` | CRUD operations for features, priority selection |
-| `schema.ts` | JSON Schema validation for feature_list.json |
+| `schema.ts` | JSON Schema validation for modular feature storage |
 | `impact-analyzer.ts` | Dependency graph analysis |
 
 ### AI Integration
@@ -172,9 +172,9 @@ agent-foreman done <feature_id>
 
 ## Data Persistence
 
-### Feature List (`ai/feature_list.json`)
+### Feature Storage (`ai/features/`)
 
-JSON file validated against JSON Schema. Supports:
+Modular markdown-based storage with `index.json` and `{module}/{id}.md` files. Supports:
 
 - Full CRUD operations
 - Status transitions

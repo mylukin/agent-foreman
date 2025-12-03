@@ -1,12 +1,12 @@
 /**
- * JSON Schema validation for feature_list.json
+ * JSON Schema validation for feature storage (legacy JSON format)
  */
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import type { FeatureList } from "./types.js";
 
 /**
- * JSON Schema for feature_list.json
+ * JSON Schema for legacy feature_list.json format (auto-migrated to modular markdown)
  */
 export const featureListSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",

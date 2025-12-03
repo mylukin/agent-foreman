@@ -273,7 +273,7 @@ agent-foreman next           # Continue
 │  mkdir project && cd project                                │
 │  git init                                                    │
 │           ↓                                                  │
-│  /agent-foreman:init "goal" →  ai/feature_list.json         │
+│  /agent-foreman:init "goal" →  ai/features/                  │
 │                                ai/progress.log               │
 │                                ai/init.sh                    │
 │                                CLAUDE.md                     │
@@ -296,7 +296,7 @@ agent-foreman next           # Continue
 │                               docs/ARCHITECTURE.md           │
 │           ↓                                                  │
 │  /agent-foreman:init       →  Reads ARCHITECTURE.md +        │
-│                               ai/feature_list.json           │
+│                               ai/features/                   │
 │                               + git commit (suggested)       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -340,7 +340,10 @@ After initialization, your project will have:
 ```
 your-project/
 ├── ai/
-│   ├── feature_list.json   # Feature backlog (JSON for AI)
+│   ├── features/           # Feature backlog (modular markdown)
+│   │   ├── index.json      # Feature index
+│   │   └── {module}/       # Module directories
+│   │       └── {id}.md     # Individual features
 │   ├── progress.log        # Immutable audit log
 │   └── init.sh             # Bootstrap script
 ├── docs/

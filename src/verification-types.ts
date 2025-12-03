@@ -238,7 +238,7 @@ export interface VerificationMetadata {
 
 /**
  * Summary of verification result to embed in Feature
- * Stored in feature_list.json alongside each feature
+ * Stored in feature markdown files (ai/features/{module}/{id}.md)
  */
 export interface FeatureVerificationSummary {
   /** Last verification timestamp (ISO 8601) */
