@@ -51,7 +51,7 @@ describe("Timeout Configuration", () => {
   describe("DEFAULT_TIMEOUTS", () => {
     it("should have all required timeout keys", () => {
       expect(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT).toBeDefined();
-      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_SURVEY).toBeDefined();
+      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_ANALYZE).toBeDefined();
       expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_GOAL).toBeDefined();
       expect(DEFAULT_TIMEOUTS.AI_MERGE_INIT_SCRIPT).toBeDefined();
       expect(DEFAULT_TIMEOUTS.AI_MERGE_CLAUDE_MD).toBeDefined();
@@ -65,7 +65,7 @@ describe("Timeout Configuration", () => {
       expect(DEFAULT_TIMEOUTS.AI_SCAN_PROJECT).toBe(900000);
 
       // Feature generation (5 minutes) - text-to-JSON, may take longer for large surveys
-      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_SURVEY).toBe(300000);
+      expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_ANALYZE).toBe(300000);
       expect(DEFAULT_TIMEOUTS.AI_GENERATE_FROM_GOAL).toBe(300000);
 
       // Verification (10 minutes) - includes tests/builds + AI analysis
@@ -170,7 +170,7 @@ describe("Timeout Configuration", () => {
     it("should return all timeout keys", () => {
       const timeouts = getAllTimeouts();
       expect(Object.keys(timeouts)).toContain("AI_SCAN_PROJECT");
-      expect(Object.keys(timeouts)).toContain("AI_GENERATE_FROM_SURVEY");
+      expect(Object.keys(timeouts)).toContain("AI_GENERATE_FROM_ANALYZE");
       expect(Object.keys(timeouts)).toContain("AI_GENERATE_FROM_GOAL");
       expect(Object.keys(timeouts)).toContain("AI_MERGE_INIT_SCRIPT");
       expect(Object.keys(timeouts)).toContain("AI_MERGE_CLAUDE_MD");
@@ -238,7 +238,7 @@ describe("Timeout Configuration", () => {
       // Test each key uses correct env var
       const keys: Array<keyof typeof DEFAULT_TIMEOUTS> = [
         "AI_SCAN_PROJECT",
-        "AI_GENERATE_FROM_SURVEY",
+        "AI_GENERATE_FROM_ANALYZE",
         "AI_GENERATE_FROM_GOAL",
         "AI_MERGE_INIT_SCRIPT",
         "AI_MERGE_CLAUDE_MD",
@@ -639,7 +639,7 @@ describe("getAllTimeouts - branch coverage", () => {
 
     const timeouts = getAllTimeouts();
 
-    expect(timeouts.AI_GENERATE_FROM_SURVEY.source).toBe("default");
+    expect(timeouts.AI_GENERATE_FROM_ANALYZE.source).toBe("default");
     expect(timeouts.AI_GENERATE_FROM_GOAL.source).toBe("default");
     expect(timeouts.AI_MERGE_INIT_SCRIPT.source).toBe("default");
   });
@@ -659,7 +659,7 @@ describe("getAllTimeouts - branch coverage", () => {
     // Should have all keys from DEFAULT_TIMEOUTS
     expect(keys.length).toBe(Object.keys(DEFAULT_TIMEOUTS).length);
     expect(keys).toContain("AI_SCAN_PROJECT");
-    expect(keys).toContain("AI_GENERATE_FROM_SURVEY");
+    expect(keys).toContain("AI_GENERATE_FROM_ANALYZE");
     expect(keys).toContain("AI_GENERATE_FROM_GOAL");
     expect(keys).toContain("AI_MERGE_INIT_SCRIPT");
     expect(keys).toContain("AI_MERGE_CLAUDE_MD");

@@ -238,6 +238,68 @@ describe("TDD AI Generator", () => {
       expect(result).not.toBeNull();
       expect(result?.e2eScenarios).toEqual([]);
     });
+
+    it("should handle missing unit and e2e arrays in suggestedTestFiles", () => {
+      const noArrays = JSON.stringify({
+        suggestedTestFiles: {},
+        unitTestCases: [{ name: "test", assertions: [] }],
+        e2eScenarios: [],
+      });
+      const result = parseTDDResponse(noArrays, "codex", mockFeature);
+
+      expect(result).not.toBeNull();
+      expect(result?.suggestedTestFiles.unit).toEqual([]);
+      expect(result?.suggestedTestFiles.e2e).toEqual([]);
+    });
+
+    it("should handle missing name and assertions in unitTestCases", () => {
+      const missingFields = JSON.stringify({
+        suggestedTestFiles: { unit: ["test.ts"], e2e: [] },
+        unitTestCases: [{}],
+        e2eScenarios: [],
+      });
+      const result = parseTDDResponse(missingFields, "codex", mockFeature);
+
+      expect(result).not.toBeNull();
+      expect(result?.unitTestCases[0].name).toBe("");
+      expect(result?.unitTestCases[0].assertions).toEqual([]);
+    });
+
+    it("should handle missing name and steps in e2eScenarios", () => {
+      const missingFields = JSON.stringify({
+        suggestedTestFiles: { unit: ["test.ts"], e2e: [] },
+        unitTestCases: [],
+        e2eScenarios: [{}],
+      });
+      const result = parseTDDResponse(missingFields, "codex", mockFeature);
+
+      expect(result).not.toBeNull();
+      expect(result?.e2eScenarios[0].name).toBe("");
+      expect(result?.e2eScenarios[0].steps).toEqual([]);
+    });
+
+    it("should return null when JSON.parse throws an error", () => {
+      // Valid JSON structure extracted but with invalid content that causes parsing error
+      const malformedJSON = "{ suggestedTestFiles: }"; // Invalid JSON syntax
+      const result = parseTDDResponse(malformedJSON, "codex", mockFeature);
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null when no JSON is found in output", () => {
+      const noJSON = "This is plain text without any JSON object";
+      const result = parseTDDResponse(noJSON, "codex", mockFeature);
+
+      expect(result).toBeNull();
+    });
+
+    it("should handle code block without json language specifier", () => {
+      const codeBlockNoLang = "```\n" + validAIResponse + "\n```";
+      const result = parseTDDResponse(codeBlockNoLang, "codex", mockFeature);
+
+      expect(result).not.toBeNull();
+      expect(result?.generatedBy).toBe("codex");
+    });
   });
 
   describe("generateTDDGuidanceWithAI", () => {

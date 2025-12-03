@@ -252,13 +252,14 @@ describe("CLI Integration", () => {
       const result = spawnSync("node", [CLI_PATH, "next", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
+        timeout: 180000, // 3 minutes for AI TDD guidance generation
       });
 
       const output = extractJSON(result.stdout) as { feature: { id: string; description: string; status: string } };
       expect(output.feature.id).toBe("test.feature1");
       expect(output.feature.description).toBe("First feature");
       expect(output.feature.status).toBe("failing");
-    });
+    }, 200000); // 3.5 minute test timeout
 
     it("should show all features complete when all passing", async () => {
       const featureList = {
@@ -382,13 +383,11 @@ describe("CLI Integration", () => {
       expect(result.stdout).toContain("Skipping verification");
       expect(result.stdout).toContain("Marked 'test.feature1' as passing");
 
-      // Verify the file was updated
-      const updatedContent = await fs.readFile(
-        path.join(tempDir, "ai/feature_list.json"),
-        "utf-8"
-      );
-      const updated = JSON.parse(updatedContent);
-      expect(updated.features[0].status).toBe("passing");
+      // Verify the feature was updated in the new modular storage format
+      // After auto-migration, features are stored in ai/features/{module}/{id}.md
+      const featureFile = path.join(tempDir, "ai/features/test/feature1.md");
+      const featureContent = await fs.readFile(featureFile, "utf-8");
+      expect(featureContent).toContain("status: passing");
     });
 
     it("should show error for non-existent feature", async () => {
