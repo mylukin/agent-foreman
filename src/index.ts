@@ -16,13 +16,16 @@ import {
   loadFeatureList,
   saveFeatureList,
   selectNextFeature,
+  selectNextFeatureQuick,
   findFeatureById,
   updateFeatureStatus,
+  updateFeatureStatusQuick,
   updateFeatureVerification,
   mergeFeatures,
   createEmptyFeatureList,
   discoveredToFeature,
   getFeatureStats,
+  getFeatureStatsQuick,
   getCompletionPercentage,
 } from "./feature-list.js";
 import {
@@ -577,8 +580,10 @@ async function runNext(
     process.exit(1);
   }
 
-  // Select feature
+  // Select feature - use quick operation when possible
   let feature: Feature | undefined;
+  const index = await loadFeatureIndex(cwd);
+
   if (featureId) {
     feature = findFeatureById(featureList.features, featureId);
     if (!feature) {
@@ -590,7 +595,12 @@ async function runNext(
       process.exit(1);
     }
   } else {
-    feature = selectNextFeature(featureList.features) ?? undefined;
+    // Use quick selection if index available
+    if (index) {
+      feature = (await selectNextFeatureQuick(cwd)) ?? undefined;
+    } else {
+      feature = selectNextFeature(featureList.features) ?? undefined;
+    }
     if (!feature) {
       if (outputJson) {
         console.log(JSON.stringify({ complete: true, message: "All features passing" }));
@@ -861,6 +871,9 @@ async function runNext(
 async function runStatus(outputJson: boolean = false, quiet: boolean = false) {
   const cwd = process.cwd();
 
+  // Try to use quick operations if index exists
+  const index = await loadFeatureIndex(cwd);
+
   const featureList = await loadFeatureList(cwd);
   if (!featureList) {
     if (outputJson) {
@@ -871,10 +884,18 @@ async function runStatus(outputJson: boolean = false, quiet: boolean = false) {
     return;
   }
 
-  const stats = getFeatureStats(featureList.features);
+  // Use quick operations when index is available
+  let stats;
+  let next;
+  if (index) {
+    stats = await getFeatureStatsQuick(cwd);
+    next = await selectNextFeatureQuick(cwd);
+  } else {
+    stats = getFeatureStats(featureList.features);
+    next = selectNextFeature(featureList.features);
+  }
   const completion = getCompletionPercentage(featureList.features);
   const recentEntries = await getRecentEntries(cwd, 5);
-  const next = selectNextFeature(featureList.features);
 
   // JSON output mode
   if (outputJson) {
@@ -1315,15 +1336,20 @@ async function runDone(
   }
 
   // Step 2: Update status to passing
-  featureList.features = updateFeatureStatus(
-    featureList.features,
-    featureId,
-    "passing",
-    notes || feature.notes
-  );
-
-  // Save
-  await saveFeatureList(cwd, featureList);
+  // Use quick update if index exists, otherwise full save
+  const index = await loadFeatureIndex(cwd);
+  if (index) {
+    await updateFeatureStatusQuick(cwd, featureId, "passing", notes || feature.notes);
+  } else {
+    featureList.features = updateFeatureStatus(
+      featureList.features,
+      featureId,
+      "passing",
+      notes || feature.notes
+    );
+    // Save
+    await saveFeatureList(cwd, featureList);
+  }
 
   // Log progress
   await appendProgressLog(
