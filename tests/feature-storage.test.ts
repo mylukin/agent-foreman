@@ -17,6 +17,7 @@ import {
   saveSingleFeature,
   needsMigration,
   migrateToMarkdown,
+  autoMigrateIfNeeded,
 } from "../src/feature-storage.js";
 import type { Feature, FeatureIndex } from "../src/types.js";
 
@@ -981,5 +982,116 @@ describe("migrateToMarkdown", () => {
     expect(result.migrated).toBe(0);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.success).toBe(false);
+  });
+});
+
+describe("autoMigrateIfNeeded", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "feature-storage-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  const createLegacyFeatureList = async (features: Feature[]) => {
+    const data = {
+      features,
+      metadata: {
+        projectGoal: "Test project",
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+        version: "1.0.0",
+      },
+    };
+    await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/feature_list.json"),
+      JSON.stringify(data, null, 2)
+    );
+  };
+
+  it("should call needsMigration to check", async () => {
+    // When no files exist, should return null (needsMigration returns false)
+    const result = await autoMigrateIfNeeded(tempDir, true);
+    expect(result).toBeNull();
+  });
+
+  it("should call migrateToMarkdown if needed", async () => {
+    const features: Feature[] = [
+      {
+        id: "test.feature",
+        description: "Test",
+        module: "test",
+        priority: 1,
+        status: "failing",
+        acceptance: [],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+    ];
+    await createLegacyFeatureList(features);
+
+    const result = await autoMigrateIfNeeded(tempDir, true);
+
+    expect(result).not.toBeNull();
+    expect(result?.migrated).toBe(1);
+    expect(result?.success).toBe(true);
+
+    // Verify migration actually happened
+    const index = await loadFeatureIndex(tempDir);
+    expect(index).not.toBeNull();
+  });
+
+  it("should be idempotent - safe to call multiple times", async () => {
+    const features: Feature[] = [
+      {
+        id: "test.feature",
+        description: "Test",
+        module: "test",
+        priority: 1,
+        status: "failing",
+        acceptance: [],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+    ];
+    await createLegacyFeatureList(features);
+
+    // First call - should migrate
+    const result1 = await autoMigrateIfNeeded(tempDir, true);
+    expect(result1).not.toBeNull();
+    expect(result1?.migrated).toBe(1);
+
+    // Second call - should return null (already migrated)
+    const result2 = await autoMigrateIfNeeded(tempDir, true);
+    expect(result2).toBeNull();
+
+    // Third call - still null
+    const result3 = await autoMigrateIfNeeded(tempDir, true);
+    expect(result3).toBeNull();
+  });
+
+  it("should return null if index.json already exists", async () => {
+    // Create both legacy and new format
+    await createLegacyFeatureList([]);
+    await fs.mkdir(path.join(tempDir, "ai/features"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/features/index.json"),
+      JSON.stringify({ version: "2.0.0", features: {}, metadata: {} })
+    );
+
+    const result = await autoMigrateIfNeeded(tempDir, true);
+    expect(result).toBeNull();
   });
 });

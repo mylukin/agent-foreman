@@ -489,3 +489,50 @@ export async function migrateToMarkdown(cwd: string): Promise<MigrationResult> {
   result.success = result.errors.length === 0;
   return result;
 }
+
+/**
+ * Automatically migrate from legacy format if needed
+ *
+ * This function is safe to call multiple times (idempotent).
+ * It will only perform migration if:
+ * - ai/feature_list.json exists
+ * - ai/features/index.json does NOT exist
+ *
+ * @param cwd - The project root directory
+ * @param silent - If true, suppress console output (default: false)
+ * @returns MigrationResult if migration was performed, null otherwise
+ */
+export async function autoMigrateIfNeeded(
+  cwd: string,
+  silent = false
+): Promise<MigrationResult | null> {
+  // Check if migration is needed
+  const migrationNeeded = await needsMigration(cwd);
+
+  if (!migrationNeeded) {
+    return null;
+  }
+
+  // Log migration start
+  if (!silent) {
+    console.log("📦 Migrating feature list to modular format...");
+  }
+
+  // Perform migration
+  const result = await migrateToMarkdown(cwd);
+
+  // Log results
+  if (!silent) {
+    if (result.success) {
+      console.log(`✓ Migrated ${result.migrated} features to ai/features/`);
+      console.log("  Backup saved: ai/feature_list.json.bak");
+    } else {
+      console.log(`⚠ Migration completed with errors:`);
+      for (const error of result.errors) {
+        console.log(`  - ${error}`);
+      }
+    }
+  }
+
+  return result;
+}
