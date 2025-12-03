@@ -1,15 +1,20 @@
 /**
  * Tests for feature-storage.ts
- * Tests parseFeatureMarkdown and serializeFeatureMarkdown functions
+ * Tests parseFeatureMarkdown, serializeFeatureMarkdown, and index operations
  */
-import { describe, it, expect } from "vitest";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as os from "node:os";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   parseFeatureMarkdown,
   serializeFeatureMarkdown,
   featureIdToPath,
   pathToFeatureId,
+  loadFeatureIndex,
+  saveFeatureIndex,
 } from "../src/feature-storage.js";
-import type { Feature } from "../src/types.js";
+import type { Feature, FeatureIndex } from "../src/types.js";
 
 describe("parseFeatureMarkdown", () => {
   it("should extract YAML frontmatter into Feature object", () => {
@@ -385,5 +390,170 @@ describe("pathToFeatureId", () => {
 
   it("should handle root-level files", () => {
     expect(pathToFeatureId("standalone.md")).toBe("standalone");
+  });
+});
+
+describe("loadFeatureIndex", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "feature-storage-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("should read ai/features/index.json and return FeatureIndex", async () => {
+    const indexData: FeatureIndex = {
+      version: "2.0.0",
+      updatedAt: "2025-01-01T00:00:00Z",
+      metadata: {
+        projectGoal: "Test project",
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+        version: "1.0.0",
+      },
+      features: {
+        "cli.survey": {
+          status: "passing",
+          priority: 10,
+          module: "cli",
+          description: "Generate project survey",
+        },
+      },
+    };
+
+    await fs.mkdir(path.join(tempDir, "ai/features"), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, "ai/features/index.json"),
+      JSON.stringify(indexData, null, 2)
+    );
+
+    const result = await loadFeatureIndex(tempDir);
+
+    expect(result).not.toBeNull();
+    expect(result?.version).toBe("2.0.0");
+    expect(result?.features["cli.survey"]).toBeDefined();
+    expect(result?.features["cli.survey"].status).toBe("passing");
+  });
+
+  it("should return null if file doesn't exist", async () => {
+    const result = await loadFeatureIndex(tempDir);
+    expect(result).toBeNull();
+  });
+});
+
+describe("saveFeatureIndex", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "feature-storage-test-"));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("should write JSON with proper formatting", async () => {
+    const indexData: FeatureIndex = {
+      version: "2.0.0",
+      updatedAt: "2025-01-01T00:00:00Z",
+      metadata: {
+        projectGoal: "Test project",
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+        version: "1.0.0",
+      },
+      features: {
+        "test.feature": {
+          status: "failing",
+          priority: 5,
+          module: "test",
+          description: "Test feature",
+        },
+      },
+    };
+
+    await saveFeatureIndex(tempDir, indexData);
+
+    const content = await fs.readFile(
+      path.join(tempDir, "ai/features/index.json"),
+      "utf-8"
+    );
+
+    // Check proper JSON formatting (should have indentation)
+    expect(content).toContain("  ");
+    expect(content).toContain('"version": "2.0.0"');
+    expect(content).toContain('"test.feature"');
+  });
+
+  it("should update the updatedAt timestamp", async () => {
+    const oldTimestamp = "2020-01-01T00:00:00Z";
+    const indexData: FeatureIndex = {
+      version: "2.0.0",
+      updatedAt: oldTimestamp,
+      metadata: {
+        projectGoal: "Test",
+        createdAt: "2020-01-01T00:00:00Z",
+        updatedAt: "2020-01-01T00:00:00Z",
+        version: "1.0.0",
+      },
+      features: {},
+    };
+
+    await saveFeatureIndex(tempDir, indexData);
+
+    const savedIndex = await loadFeatureIndex(tempDir);
+    expect(savedIndex?.updatedAt).not.toBe(oldTimestamp);
+    // Check it's a recent timestamp (within last minute)
+    const savedDate = new Date(savedIndex!.updatedAt);
+    const now = new Date();
+    expect(now.getTime() - savedDate.getTime()).toBeLessThan(60000);
+  });
+
+  it("should use atomic write to prevent corruption", async () => {
+    const indexData: FeatureIndex = {
+      version: "2.0.0",
+      updatedAt: "2025-01-01T00:00:00Z",
+      metadata: {
+        projectGoal: "Test",
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+        version: "1.0.0",
+      },
+      features: {},
+    };
+
+    await saveFeatureIndex(tempDir, indexData);
+
+    // Verify no temp file remains after save
+    const files = await fs.readdir(path.join(tempDir, "ai/features"));
+    expect(files).not.toContain("index.json.tmp");
+    expect(files).toContain("index.json");
+  });
+
+  it("should create directory structure if it doesn't exist", async () => {
+    const indexData: FeatureIndex = {
+      version: "2.0.0",
+      updatedAt: "2025-01-01T00:00:00Z",
+      metadata: {
+        projectGoal: "Test",
+        createdAt: "2025-01-01T00:00:00Z",
+        updatedAt: "2025-01-01T00:00:00Z",
+        version: "1.0.0",
+      },
+      features: {},
+    };
+
+    // Directory doesn't exist yet
+    await saveFeatureIndex(tempDir, indexData);
+
+    // Verify file was created
+    const exists = await fs
+      .access(path.join(tempDir, "ai/features/index.json"))
+      .then(() => true)
+      .catch(() => false);
+    expect(exists).toBe(true);
   });
 });

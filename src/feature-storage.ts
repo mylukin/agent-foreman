@@ -2,14 +2,20 @@
  * Feature storage module for modular Markdown-based feature storage
  * Handles parsing and serialization of feature markdown files
  */
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import matter from "gray-matter";
 import type {
   Feature,
+  FeatureIndex,
   FeatureStatus,
   FeatureOrigin,
   FeatureVerificationSummary,
   TestRequirements,
 } from "./types.js";
+
+/** Path to the feature index file relative to project root */
+const INDEX_PATH = "ai/features/index.json";
 
 /**
  * Parse a feature markdown file content into a Feature object
@@ -227,9 +233,61 @@ export function featureIdToPath(id: string): string {
  * @param path - The relative path to the markdown file
  * @returns Feature ID
  */
-export function pathToFeatureId(path: string): string {
+export function pathToFeatureId(filePath: string): string {
   // Remove .md extension
-  const withoutExt = path.replace(/\.md$/, "");
+  const withoutExt = filePath.replace(/\.md$/, "");
   // Replace path separator with dot
   return withoutExt.replace(/\//g, ".");
+}
+
+// ============================================================================
+// Feature Index Operations
+// ============================================================================
+
+/**
+ * Load the feature index from ai/features/index.json
+ *
+ * @param cwd - The project root directory
+ * @returns FeatureIndex object or null if file doesn't exist
+ */
+export async function loadFeatureIndex(cwd: string): Promise<FeatureIndex | null> {
+  const indexPath = path.join(cwd, INDEX_PATH);
+
+  try {
+    const content = await fs.readFile(indexPath, "utf-8");
+    return JSON.parse(content) as FeatureIndex;
+  } catch (error) {
+    // Return null if file doesn't exist
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Save the feature index to ai/features/index.json
+ * Uses atomic write pattern to prevent corruption
+ *
+ * @param cwd - The project root directory
+ * @param index - The FeatureIndex object to save
+ */
+export async function saveFeatureIndex(cwd: string, index: FeatureIndex): Promise<void> {
+  const indexPath = path.join(cwd, INDEX_PATH);
+  const tempPath = `${indexPath}.tmp`;
+
+  // Update timestamp
+  const updatedIndex: FeatureIndex = {
+    ...index,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Ensure directory exists
+  await fs.mkdir(path.dirname(indexPath), { recursive: true });
+
+  // Write to temp file first (atomic write pattern)
+  await fs.writeFile(tempPath, JSON.stringify(updatedIndex, null, 2), "utf-8");
+
+  // Rename temp file to actual file (atomic on most filesystems)
+  await fs.rename(tempPath, indexPath);
 }
