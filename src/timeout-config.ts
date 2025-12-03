@@ -24,14 +24,14 @@ export const DEFAULT_TIMEOUTS = {
   AI_SCAN_PROJECT: 900000, // 15 minutes
 
   /**
-   * Generate features from existing survey document
-   * Text-to-JSON conversion, may take 2-3 minutes for large surveys
+   * Generate features from existing analyze document
+   * Text-to-JSON conversion, may take 2-3 minutes for large analysis
    */
-  AI_GENERATE_FROM_SURVEY: 300000, // 5 minutes
+  AI_GENERATE_FROM_ANALYZE: 300000, // 5 minutes
 
   /**
    * Generate features from goal description for empty projects
-   * Text-to-JSON conversion, typically faster than survey parsing
+   * Text-to-JSON conversion, typically faster than analysis parsing
    */
   AI_GENERATE_FROM_GOAL: 300000, // 5 minutes
 
@@ -73,7 +73,7 @@ export const DEFAULT_TIMEOUTS = {
  */
 export const TIMEOUT_ENV_VARS = {
   AI_SCAN_PROJECT: "AGENT_FOREMAN_TIMEOUT_SCAN",
-  AI_GENERATE_FROM_SURVEY: "AGENT_FOREMAN_TIMEOUT_SURVEY",
+  AI_GENERATE_FROM_ANALYZE: "AGENT_FOREMAN_TIMEOUT_ANALYZE",
   AI_GENERATE_FROM_GOAL: "AGENT_FOREMAN_TIMEOUT_GOAL",
   AI_MERGE_INIT_SCRIPT: "AGENT_FOREMAN_TIMEOUT_MERGE_INIT",
   AI_MERGE_CLAUDE_MD: "AGENT_FOREMAN_TIMEOUT_MERGE_CLAUDE",
