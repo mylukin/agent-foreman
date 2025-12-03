@@ -186,7 +186,7 @@ JSON file validated against JSON Schema. Supports:
 Append-only text file with single-line entries:
 
 ```text
-TYPE TIMESTAMP key=value key=value summary="..."
+TIMESTAMP TYPE key=value key=value summary="..."
 ```
 
 ### Capability Cache (`ai/capabilities.json`)
