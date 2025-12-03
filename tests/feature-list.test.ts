@@ -12,6 +12,7 @@ import {
   selectNextFeature,
   findFeatureById,
   updateFeatureStatus,
+  updateFeatureStatusQuick,
   findDependentFeatures,
   findSameModuleFeatures,
   mergeFeatures,
@@ -751,6 +752,81 @@ This is a modular feature.
 
       expect(authFeature.testRequirements?.unit?.pattern).toBe("tests/auth/**/*.test.*");
       expect(userFeature.testRequirements?.unit?.pattern).toBe("tests/user/**/*.test.*");
+    });
+  });
+
+  describe("updateFeatureStatusQuick", () => {
+    it("should update only index and single feature file", async () => {
+      // Set up modular format
+      const list = createTestFeatureList([
+        createTestFeature({ id: "quick.test", module: "quick", status: "failing" }),
+        createTestFeature({ id: "quick.other", module: "quick", status: "failing" }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      // Update status
+      const updated = await updateFeatureStatusQuick(tempDir, "quick.test", "passing");
+
+      expect(updated.status).toBe("passing");
+
+      // Verify index was updated
+      const indexPath = path.join(tempDir, "ai", "features", "index.json");
+      const indexContent = await fs.readFile(indexPath, "utf-8");
+      const index = JSON.parse(indexContent);
+      expect(index.features["quick.test"].status).toBe("passing");
+      expect(index.features["quick.other"].status).toBe("failing"); // Unchanged
+
+      // Verify feature file was updated
+      const featurePath = path.join(tempDir, "ai", "features", "quick", "test.md");
+      const featureContent = await fs.readFile(featurePath, "utf-8");
+      expect(featureContent).toContain("status: passing");
+    });
+
+    it("should validate status value", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "validate.test", module: "validate", status: "failing" }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      await expect(
+        updateFeatureStatusQuick(tempDir, "validate.test", "invalid_status" as any)
+      ).rejects.toThrow("Invalid status");
+    });
+
+    it("should return updated feature", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({
+          id: "return.test",
+          module: "return",
+          status: "failing",
+          description: "Return test",
+        }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      const updated = await updateFeatureStatusQuick(tempDir, "return.test", "passing", "Updated notes");
+
+      expect(updated.id).toBe("return.test");
+      expect(updated.status).toBe("passing");
+      expect(updated.notes).toBe("Updated notes");
+      expect(updated.description).toBe("Return test");
+    });
+
+    it("should throw error for non-existent feature", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "exists.test", module: "exists", status: "failing" }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      await expect(
+        updateFeatureStatusQuick(tempDir, "nonexistent.feature", "passing")
+      ).rejects.toThrow("Feature not found");
+    });
+
+    it("should throw error when index does not exist", async () => {
+      await expect(
+        updateFeatureStatusQuick(tempDir, "any.feature", "passing")
+      ).rejects.toThrow("Feature index not found");
     });
   });
 });

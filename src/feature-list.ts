@@ -488,3 +488,71 @@ export function createFeature(
     testRequirements: options.testRequirements ?? generateTestRequirements(module),
   };
 }
+
+// ============================================================================
+// Quick Operations (Index + Single File Only)
+// ============================================================================
+
+/** Valid status values for validation */
+const VALID_STATUSES: FeatureStatus[] = ["failing", "passing", "blocked", "needs_review", "deprecated"];
+
+/**
+ * Quick status update - updates only index.json and single feature file
+ * Much faster than full load/save cycle for status-only updates
+ *
+ * @param cwd - Project root directory
+ * @param id - Feature ID to update
+ * @param status - New status value
+ * @param notes - Optional notes to update
+ * @returns Updated Feature object
+ * @throws Error if status is invalid or feature not found
+ */
+export async function updateFeatureStatusQuick(
+  cwd: string,
+  id: string,
+  status: FeatureStatus,
+  notes?: string
+): Promise<Feature> {
+  // Validate status
+  if (!VALID_STATUSES.includes(status)) {
+    throw new Error(`Invalid status: ${status}. Valid values: ${VALID_STATUSES.join(", ")}`);
+  }
+
+  // Load feature index
+  const index = await loadFeatureIndex(cwd);
+  if (!index) {
+    throw new Error("Feature index not found. Run migration first.");
+  }
+
+  // Check feature exists in index
+  if (!index.features[id]) {
+    throw new Error(`Feature not found: ${id}`);
+  }
+
+  // Load single feature
+  const feature = await loadSingleFeature(cwd, id);
+  if (!feature) {
+    throw new Error(`Feature file not found: ${id}`);
+  }
+
+  // Update feature
+  const updatedFeature: Feature = {
+    ...feature,
+    status,
+    notes: notes ?? feature.notes,
+  };
+
+  // Save updated feature (single file)
+  await saveSingleFeature(cwd, updatedFeature);
+
+  // Update index entry
+  index.features[id] = {
+    ...index.features[id],
+    status,
+  };
+
+  // Save updated index
+  await saveFeatureIndex(cwd, index);
+
+  return updatedFeature;
+}
