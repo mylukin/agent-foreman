@@ -284,7 +284,7 @@ Extract all information directly from the survey document. Generate feature IDs 
 
   const result = await callAnyAvailableAgent(prompt, {
     verbose: true,
-    timeoutMs: getTimeout("AI_GENERATE_FROM_SURVEY"),
+    timeoutMs: getTimeout("AI_GENERATE_FROM_ANALYZE"),
   });
 
   if (!result.success) {
