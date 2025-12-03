@@ -198,9 +198,9 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 
 | File | Purpose |
 |------|---------|
-| `features/` | Modular feature storage (one markdown file per feature) |
-| `progress.log` | Session handoff audit log |
-| `init.sh` | Environment bootstrap script |
+| `ai/features/` | Modular feature storage (one markdown file per feature) |
+| `ai/progress.log` | Session handoff audit log |
+| `ai/init.sh` | Environment bootstrap script |
 | `docs/ARCHITECTURE.md` | AI-generated project architecture |
 
 ## Feature Status Values

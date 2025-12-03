@@ -198,9 +198,9 @@ agent-foreman 采用 **TDD (测试驱动开发)** 理念：先定义验收标准
 
 | 文件 | 用途 |
 |------|------|
-| `features/` | 模块化功能存储（每个功能一个 Markdown 文件） |
-| `progress.log` | 进度日志，用于会话交接 |
-| `init.sh` | 环境启动脚本 |
+| `ai/features/` | 模块化功能存储（每个功能一个 Markdown 文件） |
+| `ai/progress.log` | 进度日志，用于会话交接 |
+| `ai/init.sh` | 环境启动脚本 |
 | `docs/ARCHITECTURE.md` | AI 生成的项目架构文档 |
 
 ## 功能状态
