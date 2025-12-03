@@ -54,8 +54,8 @@ export async function loadFeatureList(basePath: string): Promise<FeatureList | n
   const legacyPath = path.join(basePath, FEATURE_LIST_PATH);
   try {
     await fs.access(legacyPath);
-    // Legacy file exists - attempt auto-migration
-    await autoMigrateIfNeeded(basePath);
+    // Legacy file exists - attempt auto-migration (silent to not corrupt JSON output)
+    await autoMigrateIfNeeded(basePath, true);
 
     // After migration, try loading from new format
     const migratedIndex = await loadFeatureIndex(basePath);

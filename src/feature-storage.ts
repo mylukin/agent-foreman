@@ -104,6 +104,7 @@ export function parseFeatureMarkdown(content: string): Feature {
  */
 export function serializeFeatureMarkdown(feature: Feature): string {
   // Build frontmatter object (exclude fields that go in the body)
+  // Use empty arrays as defaults to prevent YAML serialization errors with undefined
   const frontmatter: Record<string, unknown> = {
     id: feature.id,
     module: feature.module,
@@ -111,9 +112,9 @@ export function serializeFeatureMarkdown(feature: Feature): string {
     status: feature.status,
     version: feature.version,
     origin: feature.origin,
-    dependsOn: feature.dependsOn,
-    supersedes: feature.supersedes,
-    tags: feature.tags,
+    dependsOn: feature.dependsOn || [],
+    supersedes: feature.supersedes || [],
+    tags: feature.tags || [],
   };
 
   // Add optional fields if present

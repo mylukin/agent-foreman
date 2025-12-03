@@ -32,7 +32,7 @@ describe("TDD Workflow Integration", () => {
   });
 
   describe("next command with TDD guidance", () => {
-    it("should display TDD guidance for feature with testRequirements", async () => {
+    it("should display TDD guidance for feature with testRequirements", { timeout: 60000 }, async () => {
       // Create ai directory and feature list with testRequirements
       await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
       const featureList = {

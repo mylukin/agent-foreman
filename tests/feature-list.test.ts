@@ -14,6 +14,7 @@ import {
   findFeatureById,
   updateFeatureStatus,
   updateFeatureStatusQuick,
+  updateFeatureVerification,
   getFeatureStatsQuick,
   findDependentFeatures,
   findSameModuleFeatures,
@@ -223,6 +224,46 @@ This is a modular feature.
       expect(loaded?.metadata).toHaveProperty("updatedAt");
       expect(Array.isArray(loaded?.features)).toBe(true);
     });
+
+    it("should create minimal feature when markdown file is missing in loadAllFeaturesFromMarkdown", async () => {
+      // Create index with feature but no markdown file
+      const featuresDir = path.join(tempDir, "ai", "features");
+      await fs.mkdir(featuresDir, { recursive: true });
+
+      const index = {
+        version: "2.0.0",
+        updatedAt: "2024-01-15T10:00:00Z",
+        metadata: {
+          projectGoal: "Test missing file",
+          createdAt: "2024-01-15T10:00:00Z",
+          updatedAt: "2024-01-15T10:00:00Z",
+          version: "1.0.0",
+        },
+        features: {
+          "missing.markdown": {
+            status: "failing",
+            priority: 5,
+            module: "missing",
+            description: "Feature without markdown file",
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(featuresDir, "index.json"),
+        JSON.stringify(index, null, 2)
+      );
+
+      // Load - should create minimal feature from index
+      const loaded = await loadFeatureList(tempDir);
+
+      expect(loaded).not.toBeNull();
+      expect(loaded?.features).toHaveLength(1);
+      expect(loaded?.features[0].id).toBe("missing.markdown");
+      expect(loaded?.features[0].description).toBe("Feature without markdown file");
+      expect(loaded?.features[0].status).toBe("failing");
+      expect(loaded?.features[0].acceptance).toEqual([]);
+      expect(loaded?.features[0].origin).toBe("manual");
+    });
   });
 
   describe("saveFeatureList with modular format", () => {
@@ -408,6 +449,13 @@ This is a modular feature.
       expect(updated[1].status).toBe("failing");
     });
 
+    it("should return features unchanged if ID not found", () => {
+      const features = [createTestFeature({ id: "f1", status: "failing" })];
+      const updated = updateFeatureStatus(features, "nonexistent", "passing");
+
+      expect(updated[0].status).toBe("failing");
+    });
+
     it("should update notes if provided", () => {
       const features = [createTestFeature({ id: "f1", notes: "old" })];
       const updated = updateFeatureStatus(features, "f1", "passing", "new notes");
@@ -420,6 +468,40 @@ This is a modular feature.
       const updated = updateFeatureStatus(features, "f1", "passing");
 
       expect(updated[0].notes).toBe("keep this");
+    });
+  });
+
+  describe("updateFeatureVerification", () => {
+    it("should update verification of specified feature", () => {
+      const features = [
+        createTestFeature({ id: "f1" }),
+        createTestFeature({ id: "f2" }),
+      ];
+      const verification = {
+        verifiedAt: "2024-01-15T10:00:00Z",
+        verdict: "pass" as const,
+        verifiedBy: "test",
+        commitHash: "abc123",
+        summary: "All tests passed",
+      };
+      const updated = updateFeatureVerification(features, "f1", verification);
+
+      expect(updated[0].verification).toEqual(verification);
+      expect(updated[1].verification).toBeUndefined();
+    });
+
+    it("should return features unchanged if ID not found", () => {
+      const features = [createTestFeature({ id: "f1" })];
+      const verification = {
+        verifiedAt: "2024-01-15T10:00:00Z",
+        verdict: "pass" as const,
+        verifiedBy: "test",
+        commitHash: "abc123",
+        summary: "Test",
+      };
+      const updated = updateFeatureVerification(features, "nonexistent", verification);
+
+      expect(updated[0].verification).toBeUndefined();
     });
   });
 
@@ -640,6 +722,13 @@ This is a modular feature.
 
       expect(updated[0].notes).toContain("Replaced by f2");
     });
+
+    it("should return features unchanged if ID not found", () => {
+      const features = [createTestFeature({ id: "f1", status: "passing" })];
+      const updated = deprecateFeature(features, "nonexistent", "f2");
+
+      expect(updated[0].status).toBe("passing");
+    });
   });
 
   describe("addFeature", () => {
@@ -830,6 +919,40 @@ This is a modular feature.
         updateFeatureStatusQuick(tempDir, "any.feature", "passing")
       ).rejects.toThrow("Feature index not found");
     });
+
+    it("should throw error when feature file is missing but exists in index", async () => {
+      // Create index with feature but no markdown file
+      const featuresDir = path.join(tempDir, "ai", "features");
+      await fs.mkdir(featuresDir, { recursive: true });
+
+      const index = {
+        version: "2.0.0",
+        updatedAt: "2024-01-15T10:00:00Z",
+        metadata: {
+          projectGoal: "Test",
+          createdAt: "2024-01-15T10:00:00Z",
+          updatedAt: "2024-01-15T10:00:00Z",
+          version: "1.0.0",
+        },
+        features: {
+          "missing.file": {
+            status: "failing",
+            priority: 1,
+            module: "missing",
+            description: "Missing file test",
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(featuresDir, "index.json"),
+        JSON.stringify(index, null, 2)
+      );
+
+      // No markdown file exists - should throw error
+      await expect(
+        updateFeatureStatusQuick(tempDir, "missing.file", "passing")
+      ).rejects.toThrow("Feature file not found");
+    });
   });
 
   describe("getFeatureStatsQuick", () => {
@@ -960,6 +1083,50 @@ This is a modular feature.
       await expect(selectNextFeatureQuick(tempDir)).rejects.toThrow(
         "Feature index not found"
       );
+    });
+
+    it("should fallback to minimal feature when markdown file is missing", async () => {
+      // Create index with feature but no markdown file
+      const featuresDir = path.join(tempDir, "ai", "features");
+      await fs.mkdir(featuresDir, { recursive: true });
+
+      const index = {
+        version: "2.0.0",
+        updatedAt: "2024-01-15T10:00:00Z",
+        metadata: {
+          projectGoal: "Test",
+          createdAt: "2024-01-15T10:00:00Z",
+          updatedAt: "2024-01-15T10:00:00Z",
+          version: "1.0.0",
+        },
+        features: {
+          "orphan.feature": {
+            status: "failing",
+            priority: 1,
+            module: "orphan",
+            description: "Orphan feature without markdown file",
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(featuresDir, "index.json"),
+        JSON.stringify(index, null, 2)
+      );
+
+      // Should return minimal feature from index when file is missing
+      const next = await selectNextFeatureQuick(tempDir);
+
+      expect(next).not.toBeNull();
+      expect(next?.id).toBe("orphan.feature");
+      expect(next?.description).toBe("Orphan feature without markdown file");
+      expect(next?.module).toBe("orphan");
+      expect(next?.status).toBe("failing");
+      expect(next?.priority).toBe(1);
+      // Minimal feature defaults
+      expect(next?.acceptance).toEqual([]);
+      expect(next?.dependsOn).toEqual([]);
+      expect(next?.version).toBe(1);
+      expect(next?.origin).toBe("manual");
     });
   });
 });

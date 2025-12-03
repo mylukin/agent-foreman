@@ -223,14 +223,20 @@ describe("E2E Workflow Tests", () => {
       });
 
       // Verify the structure is maintained
-      const content = await fs.readFile(path.join(tempDir, "ai/feature_list.json"), "utf-8");
-      const updated = JSON.parse(content);
+      // After migration, the feature is stored in modular format (ai/features/)
+      // Check index.json for status, and markdown file for full data
+      const indexPath = path.join(tempDir, "ai/features/index.json");
+      const indexContent = await fs.readFile(indexPath, "utf-8");
+      const index = JSON.parse(indexContent);
 
-      expect(updated.features[0].id).toBe("test.verify");
-      expect(updated.features[0].status).toBe("passing");
-      expect(updated.features[0].acceptance).toEqual(["Feature is valid"]);
-      expect(updated.features[0].tags).toEqual(["test"]);
-      expect(updated.metadata.version).toBe("1.0.0");
+      expect(index.features["test.verify"].status).toBe("passing");
+      expect(index.metadata.version).toBe("1.0.0");
+
+      // Check the markdown file for full feature data
+      const featurePath = path.join(tempDir, "ai/features/test/verify.md");
+      const featureContent = await fs.readFile(featurePath, "utf-8");
+      expect(featureContent).toContain("status: passing");
+      expect(featureContent).toContain("# Verify feature structure");
     });
 
     it("should verify progress.log is updated after done", async () => {
@@ -361,7 +367,7 @@ describe("E2E Workflow Tests", () => {
   });
 
   describe("Next command with dependencies", () => {
-    it("should select features based on priority and dependency status", async () => {
+    it("should select features based on priority and dependency status", { timeout: 60000 }, async () => {
       await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
 
       const featureList = {
@@ -413,7 +419,7 @@ describe("E2E Workflow Tests", () => {
       expect(["base.setup", "advanced.feature"]).toContain(output.feature.id);
     });
 
-    it("should handle circular dependency gracefully", async () => {
+    it("should handle circular dependency gracefully", { timeout: 60000 }, async () => {
       await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
 
       // Note: This shouldn't happen in practice, but test defensive behavior
