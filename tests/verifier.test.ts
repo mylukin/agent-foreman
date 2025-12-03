@@ -79,13 +79,16 @@ import {
   analyzeWithAI,
   verifyFeature,
   verifyFeatureAutonomous,
+  verifyFeatureTDD,
   buildAutonomousVerificationPrompt,
   createVerificationSummary,
   formatVerificationResult,
   isTransientError,
   calculateBackoff,
+  determineVerificationMode,
   RETRY_CONFIG,
   type AutomatedCheckOptions,
+  type TDDVerifyOptions,
 } from "../src/verifier.js";
 import type { Feature } from "../src/types.js";
 import type {
@@ -2268,6 +2271,516 @@ describe("Verifier", () => {
 
       const e2eCheck = results.find(r => r.type === "e2e");
       expect(e2eCheck).toBeDefined();
+    });
+  });
+
+  describe("determineVerificationMode", () => {
+    const createFeature = (overrides: Partial<Feature> = {}): Feature => ({
+      id: "test.feature",
+      description: "Test feature",
+      module: "test",
+      priority: 1,
+      status: "failing",
+      acceptance: ["Test criterion"],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual",
+      notes: "",
+      ...overrides,
+    });
+
+    it("should return 'ai' for features without testRequirements", () => {
+      const feature = createFeature();
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'ai' when testRequirements exists but unit.required is false", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: false,
+            pattern: "tests/**/*.test.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'ai' when testRequirements exists but e2e.required is false", () => {
+      const feature = createFeature({
+        testRequirements: {
+          e2e: {
+            required: false,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'tdd' when unit.required is true", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: true,
+            pattern: "tests/**/*.test.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'tdd' when e2e.required is true", () => {
+      const feature = createFeature({
+        testRequirements: {
+          e2e: {
+            required: true,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'tdd' when both unit.required and e2e.required are true", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: true,
+            pattern: "tests/**/*.test.ts",
+          },
+          e2e: {
+            required: true,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'tdd' when unit.required is true and e2e.required is false", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: true,
+            pattern: "tests/**/*.test.ts",
+          },
+          e2e: {
+            required: false,
+            pattern: "e2e/**/*.spec.ts",
+          },
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("tdd");
+    });
+
+    it("should return 'ai' when testRequirements is empty object", () => {
+      const feature = createFeature({
+        testRequirements: {},
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+
+    it("should return 'ai' when testRequirements has undefined required fields", () => {
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            pattern: "tests/**/*.test.ts",
+          } as any, // required field is undefined
+        },
+      });
+      const mode = determineVerificationMode(feature);
+      expect(mode).toBe("ai");
+    });
+  });
+
+  describe("verifyFeatureTDD", () => {
+    const createFeature = (overrides: Partial<Feature> = {}): Feature => ({
+      id: "test.feature",
+      description: "Test feature",
+      module: "test",
+      priority: 1,
+      status: "failing",
+      acceptance: ["Test criterion 1", "Test criterion 2"],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual",
+      notes: "",
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      // Reset mocks
+      mockDetectCapabilities.mockResolvedValue({
+        hasTests: true,
+        testCommand: "npm test",
+        testFramework: "vitest",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+        source: "preset",
+        confidence: 1,
+        languages: ["typescript"],
+        detectedAt: new Date().toISOString(),
+      });
+
+      mockSaveResult.mockResolvedValue(undefined);
+    });
+
+    it("should return result with verifiedBy='tdd'", async () => {
+      setExecMock((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        if (cmd.includes("vitest") || cmd.includes("npm test")) {
+          return { stdout: "Tests passed\n" };
+        }
+        return { stdout: "" };
+      });
+
+      const feature = createFeature({
+        testRequirements: {
+          unit: {
+            required: true,
+            pattern: "tests/**/*.test.ts",
+          },
+        },
+      });
+
+      const result = await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"]);
+
+      expect(result.verifiedBy).toBe("tdd");
+      expect(result.featureId).toBe("test.feature");
+    });
+
+    it("should pass when all tests pass", async () => {
+      setExecMock((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        // All test commands succeed
+        return { stdout: "Tests passed\n" };
+      });
+
+      const feature = createFeature();
+      const result = await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"]);
+
+      expect(result.verdict).toBe("pass");
+      expect(result.criteriaResults.every(c => c.satisfied)).toBe(true);
+    });
+
+    it("should fail when tests fail", async () => {
+      setExecMockWithErrors((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        if (cmd.includes("vitest") || cmd.includes("npm test")) {
+          const error = new Error("Tests failed") as any;
+          error.stdout = "FAIL some.test.ts";
+          error.stderr = "";
+          throw error;
+        }
+        return { stdout: "" };
+      });
+
+      const feature = createFeature();
+      const result = await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"]);
+
+      expect(result.verdict).toBe("fail");
+      expect(result.criteriaResults.every(c => !c.satisfied)).toBe(true);
+    });
+
+    it("should run E2E tests when e2e.required is true and not skipped", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        return { stdout: "Tests passed\n" };
+      });
+
+      // Mock capabilities with E2E support
+      mockDetectCapabilities.mockResolvedValue({
+        hasTests: true,
+        testCommand: "npm test",
+        testFramework: "vitest",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+        source: "preset",
+        confidence: 1,
+        languages: ["typescript"],
+        detectedAt: new Date().toISOString(),
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+      });
+
+      const feature = createFeature({
+        testRequirements: {
+          unit: { required: true },
+          e2e: { required: true },
+        },
+      });
+
+      await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"], { skipE2E: false });
+
+      // Should have run E2E command
+      expect(commands.some(c => c.includes("playwright"))).toBe(true);
+    });
+
+    it("should skip E2E tests when skipE2E is true", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        return { stdout: "Tests passed\n" };
+      });
+
+      // Mock capabilities with E2E support
+      mockDetectCapabilities.mockResolvedValue({
+        hasTests: true,
+        testCommand: "npm test",
+        testFramework: "vitest",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+        source: "preset",
+        confidence: 1,
+        languages: ["typescript"],
+        detectedAt: new Date().toISOString(),
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+        },
+      });
+
+      const feature = createFeature({
+        testRequirements: {
+          e2e: { required: true },
+        },
+      });
+
+      await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"], { skipE2E: true });
+
+      // Should NOT have run E2E command
+      expect(commands.some(c => c.includes("playwright"))).toBe(false);
+    });
+
+    it("should include test files in result", async () => {
+      setExecMock((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        return { stdout: "Tests passed\n" };
+      });
+
+      const feature = createFeature();
+      const testFiles = ["tests/foo.test.ts", "tests/bar.test.ts"];
+      const result = await verifyFeatureTDD(testDir, feature, testFiles);
+
+      expect(result.relatedFilesAnalyzed).toEqual(testFiles);
+      expect(result.diffSummary).toContain("2 test file(s)");
+    });
+
+    it("should have confidence 1.0 when tests pass", async () => {
+      setExecMock((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        return { stdout: "Tests passed\n" };
+      });
+
+      const feature = createFeature();
+      const result = await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"]);
+
+      expect(result.criteriaResults.every(c => c.confidence === 1.0)).toBe(true);
+    });
+
+    it("should have confidence 0.0 when tests fail", async () => {
+      setExecMockWithErrors((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        if (cmd.includes("vitest") || cmd.includes("npm test")) {
+          const error = new Error("Tests failed") as any;
+          error.stdout = "FAIL";
+          error.stderr = "";
+          throw error;
+        }
+        return { stdout: "" };
+      });
+
+      const feature = createFeature();
+      const result = await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"]);
+
+      expect(result.criteriaResults.every(c => c.confidence === 0.0)).toBe(true);
+    });
+
+    it("should run E2E tests in verbose mode and handle success", async () => {
+      setExecMock((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        return { stdout: "Tests passed\n" };
+      });
+
+      // Mock capabilities with E2E support
+      mockDetectCapabilities.mockResolvedValue({
+        hasTests: true,
+        testCommand: "npm test",
+        testFramework: "vitest",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+        source: "preset",
+        confidence: 1,
+        languages: ["typescript"],
+        detectedAt: new Date().toISOString(),
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+      });
+
+      const feature = createFeature({
+        testRequirements: {
+          unit: { required: true },
+          e2e: { required: true },
+        },
+      });
+
+      const result = await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"], {
+        skipE2E: false,
+        verbose: true,  // Enable verbose mode to cover console.log and spinner branches
+      });
+
+      expect(result.verdict).toBe("pass");
+      // Should have both unit and E2E results
+      expect(result.automatedChecks.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should run E2E tests in verbose mode and handle failure", async () => {
+      setExecMockWithErrors((cmd: string) => {
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        if (cmd.includes("playwright")) {
+          const error = new Error("E2E tests failed") as any;
+          error.stdout = "FAIL e2e/login.spec.ts";
+          error.stderr = "";
+          throw error;
+        }
+        return { stdout: "Unit tests passed\n" };
+      });
+
+      // Mock capabilities with E2E support
+      mockDetectCapabilities.mockResolvedValue({
+        hasTests: true,
+        testCommand: "npm test",
+        testFramework: "vitest",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+        source: "preset",
+        confidence: 1,
+        languages: ["typescript"],
+        detectedAt: new Date().toISOString(),
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+      });
+
+      const feature = createFeature({
+        testRequirements: {
+          unit: { required: true },
+          e2e: { required: true },
+        },
+      });
+
+      const result = await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"], {
+        skipE2E: false,
+        verbose: true,  // Enable verbose mode to cover E2E failure spinner branch
+      });
+
+      expect(result.verdict).toBe("fail");
+    });
+
+    it("should run E2E tests with e2eTags when provided", async () => {
+      const commands: string[] = [];
+      setExecMock((cmd: string) => {
+        commands.push(cmd);
+        if (cmd.includes("rev-parse HEAD")) {
+          return { stdout: "abc123\n" };
+        }
+        return { stdout: "Tests passed\n" };
+      });
+
+      // Mock capabilities with E2E support including grepTemplate
+      mockDetectCapabilities.mockResolvedValue({
+        hasTests: true,
+        testCommand: "npm test",
+        testFramework: "vitest",
+        hasTypeCheck: false,
+        hasLint: false,
+        hasBuild: false,
+        hasGit: true,
+        source: "preset",
+        confidence: 1,
+        languages: ["typescript"],
+        detectedAt: new Date().toISOString(),
+        e2eInfo: {
+          available: true,
+          framework: "playwright",
+          command: "npx playwright test",
+          grepTemplate: "npx playwright test --grep {tags}",
+        },
+      });
+
+      const feature = createFeature({
+        testRequirements: {
+          unit: { required: true },
+          e2e: { required: true },
+        },
+      });
+
+      await verifyFeatureTDD(testDir, feature, ["tests/foo.test.ts"], {
+        skipE2E: false,
+        e2eTags: ["@smoke", "@auth"],
+      });
+
+      // Should have run E2E command with grep for tags
+      const e2eCommand = commands.find(c => c.includes("playwright") && c.includes("grep"));
+      expect(e2eCommand).toBeDefined();
     });
   });
 });

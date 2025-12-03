@@ -48,6 +48,8 @@ import {
 import type { FeatureVerificationSummary } from "./verification-types.js";
 import type { InitMode, Feature } from "./types.js";
 import { isGitRepo, hasUncommittedChanges, gitAdd, gitCommit, gitInit } from "./git-utils.js";
+import { generateTDDGuidance, generateUnitTestSkeleton, type TDDGuidance } from "./tdd-guidance.js";
+import { verifyTestFilesExist, discoverFeatureTestFiles } from "./test-gate.js";
 import {
   detectAndAnalyzeProject,
   mergeOrCreateFeatures,
@@ -597,6 +599,24 @@ async function runStep(
   if (outputJson) {
     const stats = getFeatureStats(featureList.features);
     const completion = getCompletionPercentage(featureList.features);
+
+    // Generate TDD guidance for JSON output (suppress all console output during detection)
+    let tddGuidance: TDDGuidance | null = null;
+    try {
+      // Temporarily suppress console output during capability detection
+      const originalLog = console.log;
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      console.log = () => {};
+      try {
+        const capabilities = await detectCapabilities(cwd, { verbose: false });
+        tddGuidance = generateTDDGuidance(feature, capabilities, cwd);
+      } finally {
+        console.log = originalLog;
+      }
+    } catch {
+      // Ignore errors in guidance generation for JSON mode
+    }
+
     const output = {
       feature: {
         id: feature.id,
@@ -616,6 +636,7 @@ async function runStep(
       },
       completion,
       cwd,
+      tddGuidance,
     };
     console.log(JSON.stringify(output, null, 2));
     return;
@@ -775,6 +796,60 @@ async function runStep(
 
   // Output feature guidance (for AI consumption)
   console.log(generateFeatureGuidance(feature));
+
+  // ─────────────────────────────────────────────────────────────────
+  // TDD Guidance Section (display only, not in quiet mode)
+  // ─────────────────────────────────────────────────────────────────
+  try {
+    const capabilities = await detectCapabilities(cwd, { verbose: false });
+    const tddGuidance = generateTDDGuidance(feature, capabilities, cwd);
+
+    console.log(chalk.bold.magenta("\n═══════════════════════════════════════════════════════════════"));
+    console.log(chalk.bold.magenta("                    TDD GUIDANCE"));
+    console.log(chalk.bold.magenta("═══════════════════════════════════════════════════════════════\n"));
+
+    // Suggested test file paths
+    console.log(chalk.bold("📝 Suggested Test Files:"));
+    if (tddGuidance.suggestedTestFiles.unit.length > 0) {
+      console.log(chalk.cyan(`   Unit: ${tddGuidance.suggestedTestFiles.unit[0]}`));
+    }
+    if (tddGuidance.suggestedTestFiles.e2e.length > 0) {
+      console.log(chalk.blue(`   E2E:  ${tddGuidance.suggestedTestFiles.e2e[0]}`));
+    }
+
+    // Acceptance to test case mapping
+    console.log(chalk.bold("\n📋 Acceptance → Test Mapping:"));
+    tddGuidance.acceptanceMapping.forEach((m, i) => {
+      console.log(chalk.gray(`   ${i + 1}. "${m.criterion}"`));
+      console.log(chalk.green(`      → Unit: ${m.unitTestCase}`));
+      if (m.e2eScenario) {
+        console.log(chalk.blue(`      → E2E:  ${m.e2eScenario}`));
+      }
+    });
+
+    // Test skeleton preview (first 3 test cases)
+    const testCasesPreview = tddGuidance.testCaseStubs.unit.slice(0, 3);
+    if (testCasesPreview.length > 0 && capabilities?.testFramework) {
+      const framework = capabilities.testFramework.toLowerCase();
+      const supportedFrameworks = ["vitest", "jest", "mocha"];
+      if (supportedFrameworks.includes(framework)) {
+        console.log(chalk.bold("\n📄 Test Skeleton Preview:"));
+        console.log(chalk.gray(`   Framework: ${capabilities.testFramework}`));
+        console.log(chalk.gray("   ```"));
+        testCasesPreview.forEach((testCase) => {
+          console.log(chalk.white(`   it("${testCase}", () => { ... });`));
+        });
+        if (tddGuidance.testCaseStubs.unit.length > 3) {
+          console.log(chalk.gray(`   // ... ${tddGuidance.testCaseStubs.unit.length - 3} more test cases`));
+        }
+        console.log(chalk.gray("   ```"));
+      }
+    }
+
+    console.log(chalk.bold.magenta("\n═══════════════════════════════════════════════════════════════\n"));
+  } catch {
+    // Silently skip TDD guidance if capabilities detection fails
+  }
 }
 
 async function runStatus(outputJson: boolean = false, quiet: boolean = false) {
@@ -1088,6 +1163,52 @@ async function runComplete(
     process.exit(1);
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // Test File Gate: Verify required test files exist before verification
+  // ─────────────────────────────────────────────────────────────────
+  if (feature.testRequirements) {
+    console.log(chalk.bold.blue("\n═══════════════════════════════════════════════════════════════"));
+    console.log(chalk.bold.blue("                    TEST FILE VERIFICATION"));
+    console.log(chalk.bold.blue("═══════════════════════════════════════════════════════════════\n"));
+
+    const gateResult = await verifyTestFilesExist(cwd, feature);
+
+    if (!gateResult.passed) {
+      console.log(chalk.red("   ✗ Required test files are missing:"));
+
+      if (gateResult.missingUnitTests.length > 0) {
+        console.log(chalk.yellow("\n   Missing Unit Tests:"));
+        gateResult.missingUnitTests.forEach((pattern) => {
+          console.log(chalk.white(`     • ${pattern}`));
+        });
+      }
+
+      if (gateResult.missingE2ETests.length > 0) {
+        console.log(chalk.yellow("\n   Missing E2E Tests:"));
+        gateResult.missingE2ETests.forEach((pattern) => {
+          console.log(chalk.white(`     • ${pattern}`));
+        });
+      }
+
+      if (gateResult.errors.length > 0) {
+        console.log(chalk.red("\n   Errors:"));
+        gateResult.errors.forEach((error) => {
+          console.log(chalk.red(`     • ${error}`));
+        });
+      }
+
+      console.log(chalk.cyan("\n   Create the required tests before completing this feature."));
+      console.log(chalk.gray("   See TDD guidance from 'agent-foreman step' for test file suggestions."));
+      process.exit(1);
+    }
+
+    console.log(chalk.green("   ✓ All required test files exist"));
+    if (gateResult.foundTestFiles.length > 0) {
+      console.log(chalk.gray(`   Found: ${gateResult.foundTestFiles.slice(0, 3).join(", ")}${gateResult.foundTestFiles.length > 3 ? ` and ${gateResult.foundTestFiles.length - 3} more` : ""}`));
+    }
+    console.log("");
+  }
+
   // Step 1: Run verification (unless skipped)
   if (skipVerify) {
     console.log(chalk.yellow("⚠ Skipping verification (--skip-verify flag)"));
@@ -1174,6 +1295,17 @@ async function runComplete(
 
     // Verdict is "pass" or user confirmed "needs_review"
     console.log(chalk.green("\n   ✓ Verification passed!"));
+  }
+
+  // Discover and populate testFiles if testRequirements defined
+  if (feature.testRequirements) {
+    const discoveredFiles = await discoverFeatureTestFiles(cwd, feature);
+    if (discoveredFiles.length > 0) {
+      // Update feature with discovered test files
+      featureList.features = featureList.features.map((f) =>
+        f.id === featureId ? { ...f, testFiles: discoveredFiles } : f
+      );
+    }
   }
 
   // Step 2: Update status to passing

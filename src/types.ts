@@ -49,6 +49,43 @@ export interface FeatureVerificationSummary {
 }
 
 /**
+ * Unit test requirements for TDD workflow
+ */
+export interface UnitTestRequirements {
+  /** Whether unit tests are required for this feature */
+  required: boolean;
+  /** Glob pattern for test files */
+  pattern?: string;
+  /** Expected test case names derived from acceptance criteria */
+  cases?: string[];
+}
+
+/**
+ * E2E test requirements for TDD workflow
+ */
+export interface E2ETestRequirements {
+  /** Whether E2E tests are required for this feature */
+  required: boolean;
+  /** Glob pattern for E2E test files */
+  pattern?: string;
+  /** Playwright tags for filtering */
+  tags?: string[];
+  /** Expected scenario names derived from acceptance criteria */
+  scenarios?: string[];
+}
+
+/**
+ * Test requirements for TDD workflow
+ * When defined, verification uses test execution instead of AI analysis
+ */
+export interface TestRequirements {
+  /** Unit test requirements */
+  unit?: UnitTestRequirements;
+  /** E2E test requirements */
+  e2e?: E2ETestRequirements;
+}
+
+/**
  * Single feature entry in the feature list
  */
 export interface Feature {
@@ -97,6 +134,16 @@ export interface Feature {
    * - ["*"]: Run all E2E tests
    */
   e2eTags?: string[];
+  /**
+   * Test requirements for TDD workflow (optional)
+   * When defined, verification uses test execution instead of AI analysis
+   */
+  testRequirements?: TestRequirements;
+  /**
+   * Actual test files created for this feature (written back after complete)
+   * Populated by the complete command after verification passes
+   */
+  testFiles?: string[];
 }
 
 /**

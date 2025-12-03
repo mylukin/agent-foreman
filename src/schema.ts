@@ -132,6 +132,65 @@ export const featureListSchema = {
             items: { type: "string" },
             description: "E2E test tags for selective Playwright test execution (e.g., ['@feature-auth', '@smoke'])",
           },
+          testRequirements: {
+            type: "object",
+            properties: {
+              unit: {
+                type: "object",
+                properties: {
+                  required: {
+                    type: "boolean",
+                    description: "Whether unit tests are required for this feature",
+                  },
+                  pattern: {
+                    type: "string",
+                    description: "Glob pattern for test files",
+                  },
+                  cases: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Expected test case names derived from acceptance criteria",
+                  },
+                },
+                required: ["required"],
+                additionalProperties: false,
+                description: "Unit test requirements",
+              },
+              e2e: {
+                type: "object",
+                properties: {
+                  required: {
+                    type: "boolean",
+                    description: "Whether E2E tests are required for this feature",
+                  },
+                  pattern: {
+                    type: "string",
+                    description: "Glob pattern for E2E test files",
+                  },
+                  tags: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Playwright tags for filtering",
+                  },
+                  scenarios: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Expected scenario names derived from acceptance criteria",
+                  },
+                },
+                required: ["required"],
+                additionalProperties: false,
+                description: "E2E test requirements",
+              },
+            },
+            additionalProperties: false,
+            description: "Test requirements for TDD workflow",
+          },
+          testFiles: {
+            type: "array",
+            items: { type: "string" },
+            description: "Actual test files created for this feature",
+          },
         },
         additionalProperties: false,
       },
