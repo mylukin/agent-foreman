@@ -18,9 +18,93 @@ ${goal}
 
 | File | Purpose |
 |------|---------|
-| \`ai/feature_list.json\` | Feature backlog with status tracking |
+| \`ai/features/index.json\` | Feature index with status summary (new format) |
+| \`ai/features/{module}/{id}.md\` | Individual feature definitions (new format) |
+| \`ai/feature_list.json\` | Legacy feature backlog (auto-migrated) |
 | \`ai/progress.log\` | Session handoff audit log |
 | \`ai/init.sh\` | Bootstrap script (install/dev/check) |
+
+### Modular Feature Storage
+
+Agent-foreman uses a modular markdown-based storage system where each feature is stored in its own file. This enables efficient operations on individual features without loading the entire list.
+
+#### Directory Structure
+
+\`\`\`
+ai/features/
+├── index.json           # Lightweight index for quick lookups
+├── auth/                # Module directory
+│   ├── login.md        # Feature: auth.login
+│   └── logout.md       # Feature: auth.logout
+├── chat/
+│   └── message.edit.md # Feature: chat.message.edit
+└── ...
+\`\`\`
+
+#### Index Format (\`ai/features/index.json\`)
+
+\`\`\`json
+{
+  "version": "2.0.0",
+  "updatedAt": "2024-01-15T10:00:00Z",
+  "metadata": {
+    "projectGoal": "Project goal description",
+    "createdAt": "2024-01-15T10:00:00Z",
+    "updatedAt": "2024-01-15T10:00:00Z",
+    "version": "1.0.0"
+  },
+  "features": {
+    "auth.login": {
+      "status": "passing",
+      "priority": 1,
+      "module": "auth",
+      "description": "User can log in"
+    }
+  }
+}
+\`\`\`
+
+#### Feature Markdown Format
+
+Each feature is stored as a markdown file with YAML frontmatter:
+
+\`\`\`markdown
+---
+id: auth.login
+module: auth
+priority: 1
+status: failing
+version: 1
+origin: manual
+dependsOn: []
+supersedes: []
+tags:
+  - auth
+---
+# User can log in
+
+## Acceptance Criteria
+
+1. User enters valid credentials and is logged in
+2. Invalid credentials show error message
+3. Session persists across page reloads
+\`\`\`
+
+#### Auto-Migration
+
+When loading features, agent-foreman automatically detects and migrates from the legacy \`ai/feature_list.json\` format to the new modular format:
+
+1. **Detection**: Checks if \`ai/features/index.json\` exists
+2. **Migration**: If only legacy format exists, automatically migrates
+3. **Backup**: Creates backup at \`ai/feature_list.json.bak\`
+4. **Transparent**: No manual intervention required
+
+To manually trigger migration:
+\`\`\`bash
+agent-foreman migrate           # Migrate to new format
+agent-foreman migrate --dry-run # Preview without changes
+agent-foreman migrate --force   # Force re-migration
+\`\`\`
 
 ### Feature Status Values
 
@@ -32,7 +116,7 @@ ${goal}
 
 ### Workflow for Each Session
 
-1. **Start** - Read \`ai/feature_list.json\` and recent \`ai/progress.log\`
+1. **Start** - Read \`ai/features/index.json\` (or legacy \`ai/feature_list.json\`) and recent \`ai/progress.log\`
 2. **Select** - Pick the highest priority feature (\`needs_review\` > \`failing\`)
 3. **Plan** - Review acceptance criteria before coding
 4. **Implement** - Work on ONE feature at a time
@@ -123,7 +207,7 @@ Write criteria as testable statements:
 
 ### Feature JSON Schema
 
-**IMPORTANT**: When adding or modifying features in \`ai/feature_list.json\`, use this exact schema:
+**IMPORTANT**: When adding or modifying features in individual \`ai/features/{module}/{id}.md\` files, use the markdown format shown above. For legacy \`ai/feature_list.json\`, use this schema:
 
 \`\`\`json
 {

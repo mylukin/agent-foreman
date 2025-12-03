@@ -305,9 +305,19 @@ status() {
   log_info "Project Status"
   echo "---"
 
-  # Show feature list status if exists
-  if [ -f "ai/feature_list.json" ]; then
-    echo "Feature List: ai/feature_list.json"
+  # Show feature list status if exists (check new format first, then legacy)
+  if [ -f "ai/features/index.json" ]; then
+    echo "Feature Index: ai/features/index.json"
+    local total=$(jq '.features | keys | length' ai/features/index.json)
+    local passing=$(jq '[.features | to_entries[] | select(.value.status == "passing")] | length' ai/features/index.json)
+    local failing=$(jq '[.features | to_entries[] | select(.value.status == "failing")] | length' ai/features/index.json)
+    local review=$(jq '[.features | to_entries[] | select(.value.status == "needs_review")] | length' ai/features/index.json)
+    echo "  Total: \$total"
+    echo "  Passing: \$passing"
+    echo "  Failing: \$failing"
+    echo "  Needs Review: \$review"
+  elif [ -f "ai/feature_list.json" ]; then
+    echo "Feature List (legacy): ai/feature_list.json"
     local total=$(jq '.features | length' ai/feature_list.json)
     local passing=$(jq '[.features[] | select(.status == "passing")] | length' ai/feature_list.json)
     local failing=$(jq '[.features[] | select(.status == "failing")] | length' ai/feature_list.json)
@@ -492,8 +502,17 @@ status() {
   log_info "Project Status"
   echo "---"
 
-  if [ -f "ai/feature_list.json" ]; then
-    echo "Feature List: ai/feature_list.json"
+  # Check new format first, then legacy
+  if [ -f "ai/features/index.json" ]; then
+    echo "Feature Index: ai/features/index.json"
+    if command -v jq &> /dev/null; then
+      local total=$(jq '.features | keys | length' ai/features/index.json)
+      local passing=$(jq '[.features | to_entries[] | select(.value.status == "passing")] | length' ai/features/index.json)
+      echo "  Total: \$total"
+      echo "  Passing: \$passing"
+    fi
+  elif [ -f "ai/feature_list.json" ]; then
+    echo "Feature List (legacy): ai/feature_list.json"
     if command -v jq &> /dev/null; then
       local total=$(jq '.features | length' ai/feature_list.json)
       local passing=$(jq '[.features[] | select(.status == "passing")] | length' ai/feature_list.json)

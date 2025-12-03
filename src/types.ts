@@ -152,7 +152,8 @@ export function getTestPattern(feature: Feature): string | undefined {
 }
 
 /**
- * Feature list file structure (ai/feature_list.json)
+ * Feature list structure (in-memory representation)
+ * Loaded from ai/features/ (modular) or legacy ai/feature_list.json
  */
 export interface FeatureList {
   /** JSON Schema reference */
@@ -312,7 +313,7 @@ export interface DiscoveredFeature {
   source: "route" | "test" | "controller" | "model" | "inferred" | "feature_list";
   /** Confidence score (0-1) */
   confidence: number;
-  /** Actual status from feature_list.json (optional) */
+  /** Actual status from feature index (optional) */
   status?: FeatureStatus;
 }
 

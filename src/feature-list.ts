@@ -1,6 +1,9 @@
 /**
- * Feature list operations for ai/feature_list.json
- * Supports both legacy JSON format and new modular markdown format
+ * Feature list operations for ai/features/ (modular markdown format)
+ * Also supports legacy ai/feature_list.json with auto-migration
+ *
+ * Primary format: ai/features/index.json + ai/features/{module}/{id}.md
+ * Legacy format: ai/feature_list.json (auto-migrated on first load)
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -17,7 +20,7 @@ import {
 } from "./feature-storage.js";
 import type { FeatureIndex, FeatureIndexEntry } from "./types.js";
 
-/** Default path for feature list file */
+/** Default path for legacy feature list file (for migration) */
 export const FEATURE_LIST_PATH = "ai/feature_list.json";
 
 /** Path to features directory for modular format */

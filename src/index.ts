@@ -1410,7 +1410,7 @@ Feature: ${featureId}
         const structure = await scanDirectoryStructure(cwd);
         const survey = aiResultToSurvey(aiResult, structure);
 
-        // Replace survey.features with actual features from feature_list.json
+        // Replace survey.features with actual features from feature index
         // Show actual status (passing/failing) instead of AI confidence
         survey.features = featureList.features.map((f) => ({
           id: f.id,

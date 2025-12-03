@@ -498,7 +498,7 @@ export function generateAISurveyMarkdown(
 
   // Discovered Features
   if (survey.features.length > 0) {
-    // Check if features have actual status (from feature_list.json)
+    // Check if features have actual status (from feature index)
     const hasStatus = survey.features.some((f) => f.status);
 
     if (hasStatus) {
