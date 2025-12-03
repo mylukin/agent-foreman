@@ -13,6 +13,7 @@ import {
   findFeatureById,
   updateFeatureStatus,
   updateFeatureStatusQuick,
+  getFeatureStatsQuick,
   findDependentFeatures,
   findSameModuleFeatures,
   mergeFeatures,
@@ -827,6 +828,67 @@ This is a modular feature.
       await expect(
         updateFeatureStatusQuick(tempDir, "any.feature", "passing")
       ).rejects.toThrow("Feature index not found");
+    });
+  });
+
+  describe("getFeatureStatsQuick", () => {
+    it("should read only index.json for stats", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "stats.a", module: "stats", status: "passing" }),
+        createTestFeature({ id: "stats.b", module: "stats", status: "passing" }),
+        createTestFeature({ id: "stats.c", module: "stats", status: "failing" }),
+        createTestFeature({ id: "stats.d", module: "stats", status: "blocked" }),
+        createTestFeature({ id: "stats.e", module: "stats", status: "needs_review" }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      const stats = await getFeatureStatsQuick(tempDir);
+
+      expect(stats.passing).toBe(2);
+      expect(stats.failing).toBe(1);
+      expect(stats.blocked).toBe(1);
+      expect(stats.needs_review).toBe(1);
+      expect(stats.deprecated).toBe(0);
+    });
+
+    it("should return Record<FeatureStatus, number> type", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "type.test", module: "type", status: "passing" }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      const stats = await getFeatureStatsQuick(tempDir);
+
+      // Verify all status keys exist
+      expect(stats).toHaveProperty("passing");
+      expect(stats).toHaveProperty("failing");
+      expect(stats).toHaveProperty("blocked");
+      expect(stats).toHaveProperty("needs_review");
+      expect(stats).toHaveProperty("deprecated");
+
+      // Verify all values are numbers
+      expect(typeof stats.passing).toBe("number");
+      expect(typeof stats.failing).toBe("number");
+    });
+
+    it("should throw error when index does not exist", async () => {
+      await expect(getFeatureStatsQuick(tempDir)).rejects.toThrow(
+        "Feature index not found"
+      );
+    });
+
+    it("should return same results as getFeatureStats", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "compare.a", module: "compare", status: "passing" }),
+        createTestFeature({ id: "compare.b", module: "compare", status: "failing" }),
+        createTestFeature({ id: "compare.c", module: "compare", status: "deprecated" }),
+      ]);
+      await saveFeatureList(tempDir, list);
+
+      const quickStats = await getFeatureStatsQuick(tempDir);
+      const regularStats = getFeatureStats(list.features);
+
+      expect(quickStats).toEqual(regularStats);
     });
   });
 });

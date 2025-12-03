@@ -556,3 +556,37 @@ export async function updateFeatureStatusQuick(
 
   return updatedFeature;
 }
+
+/**
+ * Quick stats lookup - reads only index.json
+ * Much faster than loading all features for status statistics
+ *
+ * @param cwd - Project root directory
+ * @returns Status counts keyed by status value
+ * @throws Error if index not found
+ */
+export async function getFeatureStatsQuick(cwd: string): Promise<Record<FeatureStatus, number>> {
+  // Load feature index only
+  const index = await loadFeatureIndex(cwd);
+  if (!index) {
+    throw new Error("Feature index not found. Run migration first.");
+  }
+
+  // Initialize stats
+  const stats: Record<FeatureStatus, number> = {
+    failing: 0,
+    passing: 0,
+    blocked: 0,
+    needs_review: 0,
+    deprecated: 0,
+  };
+
+  // Count from index entries
+  for (const entry of Object.values(index.features)) {
+    if (entry.status in stats) {
+      stats[entry.status]++;
+    }
+  }
+
+  return stats;
+}
