@@ -1094,4 +1094,91 @@ describe("autoMigrateIfNeeded", () => {
     const result = await autoMigrateIfNeeded(tempDir, true);
     expect(result).toBeNull();
   });
+
+  it("should log migration messages when not silent", async () => {
+    const features: Feature[] = [
+      {
+        id: "test.feature",
+        description: "Test",
+        module: "test",
+        priority: 1,
+        status: "failing",
+        acceptance: [],
+        dependsOn: [],
+        supersedes: [],
+        tags: [],
+        version: 1,
+        origin: "manual",
+        notes: "",
+      },
+    ];
+    await createLegacyFeatureList(features);
+
+    // Capture console.log calls
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args) => logs.push(args.join(" "));
+
+    try {
+      const result = await autoMigrateIfNeeded(tempDir, false);
+      expect(result).not.toBeNull();
+      expect(result?.success).toBe(true);
+      expect(logs.some((log) => log.includes("Migrating"))).toBe(true);
+      expect(logs.some((log) => log.includes("Migrated"))).toBe(true);
+    } finally {
+      console.log = originalLog;
+    }
+  });
+});
+
+describe("parseFeatureMarkdown edge cases", () => {
+  it("should handle testFiles field", () => {
+    const content = `---
+id: test.feature
+version: 1
+origin: manual
+dependsOn: []
+supersedes: []
+tags: []
+testFiles:
+  - tests/test.spec.ts
+  - tests/test2.spec.ts
+---
+
+# Test Feature
+
+## Acceptance Criteria
+
+1. Works
+`;
+    const feature = parseFeatureMarkdown(content);
+
+    expect(feature.testFiles).toBeDefined();
+    expect(feature.testFiles).toHaveLength(2);
+    expect(feature.testFiles).toContain("tests/test.spec.ts");
+  });
+
+  it("should handle missing optional fields with defaults", () => {
+    const content = `---
+id: minimal.feature
+version: 1
+origin: manual
+---
+
+# Minimal Feature
+
+## Acceptance Criteria
+
+1. Works
+`;
+    const feature = parseFeatureMarkdown(content);
+
+    expect(feature.id).toBe("minimal.feature");
+    expect(feature.dependsOn).toEqual([]);
+    expect(feature.supersedes).toEqual([]);
+    expect(feature.tags).toEqual([]);
+    expect(feature.module).toBe("minimal");
+    expect(feature.priority).toBe(0);
+    expect(feature.status).toBe("failing");
+  });
 });
