@@ -983,6 +983,67 @@ describe("migrateToMarkdown", () => {
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.success).toBe(false);
   });
+
+  it("should preserve data integrity - migrated files match original data", async () => {
+    // Create a feature with all fields populated
+    const originalFeatures: Feature[] = [
+      {
+        id: "integrity.test",
+        description: "Test data integrity during migration",
+        module: "integrity",
+        priority: 5,
+        status: "passing",
+        acceptance: [
+          "First acceptance criterion",
+          "Second acceptance criterion",
+          "Third acceptance criterion",
+        ],
+        dependsOn: ["other.feature"],
+        supersedes: ["old.feature"],
+        tags: ["test", "integrity"],
+        version: 2,
+        origin: "manual",
+        notes: "Important notes about this feature.\nSpans multiple lines.",
+        verification: {
+          verifiedAt: "2025-01-01T00:00:00Z",
+          verdict: "pass",
+          verifiedBy: "codex",
+          summary: "All tests pass",
+        },
+        testRequirements: {
+          unit: { required: true, pattern: "tests/**/*.test.ts" },
+        },
+        e2eTags: ["@smoke", "@integrity"],
+      },
+    ];
+    await createLegacyFeatureList(originalFeatures);
+
+    // Perform migration
+    const result = await migrateToMarkdown(tempDir);
+    expect(result.success).toBe(true);
+    expect(result.migrated).toBe(1);
+
+    // Load migrated feature back
+    const migratedFeature = await loadSingleFeature(tempDir, "integrity.test");
+
+    // Verify all fields match original
+    expect(migratedFeature).not.toBeNull();
+    expect(migratedFeature?.id).toBe(originalFeatures[0].id);
+    expect(migratedFeature?.description).toBe(originalFeatures[0].description);
+    expect(migratedFeature?.module).toBe(originalFeatures[0].module);
+    expect(migratedFeature?.priority).toBe(originalFeatures[0].priority);
+    expect(migratedFeature?.status).toBe(originalFeatures[0].status);
+    expect(migratedFeature?.acceptance).toEqual(originalFeatures[0].acceptance);
+    expect(migratedFeature?.dependsOn).toEqual(originalFeatures[0].dependsOn);
+    expect(migratedFeature?.supersedes).toEqual(originalFeatures[0].supersedes);
+    expect(migratedFeature?.tags).toEqual(originalFeatures[0].tags);
+    expect(migratedFeature?.version).toBe(originalFeatures[0].version);
+    expect(migratedFeature?.origin).toBe(originalFeatures[0].origin);
+    expect(migratedFeature?.notes).toBe(originalFeatures[0].notes);
+    expect(migratedFeature?.verification).toEqual(originalFeatures[0].verification);
+    expect(migratedFeature?.testRequirements).toEqual(originalFeatures[0].testRequirements);
+    expect(migratedFeature?.e2eTags).toEqual(originalFeatures[0].e2eTags);
+  });
 });
 
 describe("autoMigrateIfNeeded", () => {
