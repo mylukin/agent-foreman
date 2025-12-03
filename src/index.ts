@@ -205,9 +205,14 @@ async function main() {
             type: "boolean",
             default: false,
             describe: "Suppress decorative output",
+          })
+          .option("refresh-guidance", {
+            type: "boolean",
+            default: false,
+            describe: "Force regenerate TDD guidance (ignore cache)",
           }),
       async (argv) => {
-        await runNext(argv.feature_id, argv.dryRun, argv.check, argv.allowDirty, argv.json, argv.quiet);
+        await runNext(argv.feature_id, argv.dryRun, argv.check, argv.allowDirty, argv.json, argv.quiet, argv.refreshGuidance);
       }
     )
     .command(
@@ -551,7 +556,8 @@ async function runNext(
   runCheck: boolean = false,
   allowDirty: boolean = false,
   outputJson: boolean = false,
-  quiet: boolean = false
+  quiet: boolean = false,
+  refreshGuidance: boolean = false
 ) {
   const cwd = process.cwd();
   const { spawnSync } = await import("node:child_process");
@@ -822,8 +828,9 @@ async function runNext(
   try {
     const capabilities = await detectCapabilities(cwd, { verbose: false });
 
-    // Check cache validity
+    // Check cache validity (unless --refresh-guidance is set)
     const isCacheValid =
+      !refreshGuidance &&
       feature.tddGuidance &&
       feature.tddGuidance.forVersion === feature.version;
 
