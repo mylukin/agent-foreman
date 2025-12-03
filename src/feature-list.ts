@@ -10,9 +10,12 @@ import { validateFeatureList } from "./schema.js";
 import {
   loadFeatureIndex,
   loadSingleFeature,
+  saveSingleFeature,
+  saveFeatureIndex,
   autoMigrateIfNeeded,
   pathToFeatureId,
 } from "./feature-storage.js";
+import type { FeatureIndex, FeatureIndexEntry } from "./types.js";
 
 /** Default path for feature list file */
 export const FEATURE_LIST_PATH = "ai/feature_list.json";
@@ -134,21 +137,70 @@ async function loadAllFeaturesFromMarkdown(
 
 /**
  * Save feature list to file
+ * Writes to new modular format (ai/features/)
+ *
+ * Strategy:
+ * 1. Ensure directory structure exists
+ * 2. Write each feature to its markdown file
+ * 3. Update index.json with brief properties
  */
 export async function saveFeatureList(basePath: string, list: FeatureList): Promise<void> {
-  const filePath = path.join(basePath, FEATURE_LIST_PATH);
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  list.metadata.updatedAt = new Date().toISOString();
-  await fs.writeFile(filePath, JSON.stringify(list, null, 2) + "\n");
+  const featuresDir = path.join(basePath, FEATURES_DIR);
+  await fs.mkdir(featuresDir, { recursive: true });
+
+  // Update metadata timestamp
+  const updatedMetadata = {
+    ...list.metadata,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Build index entries while saving features
+  const indexFeatures: Record<string, FeatureIndexEntry> = {};
+
+  // Save each feature to its markdown file in parallel
+  const savePromises = list.features.map(async (feature) => {
+    await saveSingleFeature(basePath, feature);
+
+    // Add to index
+    indexFeatures[feature.id] = {
+      status: feature.status,
+      priority: feature.priority,
+      module: feature.module,
+      description: feature.description,
+    };
+  });
+
+  await Promise.all(savePromises);
+
+  // Build and save index.json
+  const index: FeatureIndex = {
+    version: "2.0.0",
+    updatedAt: updatedMetadata.updatedAt,
+    metadata: updatedMetadata,
+    features: indexFeatures,
+  };
+
+  await saveFeatureIndex(basePath, index);
 }
 
 /**
  * Check if feature list exists
+ * Checks for both new format (index.json) and legacy format
  */
 export async function featureListExists(basePath: string): Promise<boolean> {
-  const filePath = path.join(basePath, FEATURE_LIST_PATH);
+  // Check new format first
+  const indexPath = path.join(basePath, FEATURES_DIR, "index.json");
   try {
-    await fs.access(filePath);
+    await fs.access(indexPath);
+    return true;
+  } catch {
+    // Fall through to check legacy format
+  }
+
+  // Check legacy format
+  const legacyPath = path.join(basePath, FEATURE_LIST_PATH);
+  try {
+    await fs.access(legacyPath);
     return true;
   } catch {
     return false;

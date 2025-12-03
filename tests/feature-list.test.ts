@@ -222,6 +222,87 @@ This is a modular feature.
     });
   });
 
+  describe("saveFeatureList with modular format", () => {
+    it("should create directory structure", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "test.save", description: "Save test" }),
+      ]);
+
+      await saveFeatureList(tempDir, list);
+
+      // Verify directory structure
+      const featuresDir = path.join(tempDir, "ai", "features");
+      const stat = await fs.stat(featuresDir);
+      expect(stat.isDirectory()).toBe(true);
+
+      const testDir = path.join(featuresDir, "test");
+      const testStat = await fs.stat(testDir);
+      expect(testStat.isDirectory()).toBe(true);
+    });
+
+    it("should write each feature to markdown file", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({ id: "auth.login", module: "auth", description: "User login" }),
+        createTestFeature({ id: "auth.logout", module: "auth", description: "User logout" }),
+      ]);
+
+      await saveFeatureList(tempDir, list);
+
+      // Verify markdown files exist
+      const loginFile = path.join(tempDir, "ai", "features", "auth", "login.md");
+      const logoutFile = path.join(tempDir, "ai", "features", "auth", "logout.md");
+
+      await expect(fs.access(loginFile)).resolves.toBeUndefined();
+      await expect(fs.access(logoutFile)).resolves.toBeUndefined();
+
+      // Verify content
+      const content = await fs.readFile(loginFile, "utf-8");
+      expect(content).toContain("id: auth.login");
+      expect(content).toContain("# User login");
+    });
+
+    it("should create index.json with feature entries", async () => {
+      const list = createTestFeatureList([
+        createTestFeature({
+          id: "core.feature",
+          module: "core",
+          description: "Core feature",
+          status: "passing",
+          priority: 5,
+        }),
+      ]);
+
+      await saveFeatureList(tempDir, list);
+
+      const indexPath = path.join(tempDir, "ai", "features", "index.json");
+      const indexContent = await fs.readFile(indexPath, "utf-8");
+      const index = JSON.parse(indexContent);
+
+      expect(index.version).toBe("2.0.0");
+      expect(index.features["core.feature"]).toEqual({
+        status: "passing",
+        priority: 5,
+        module: "core",
+        description: "Core feature",
+      });
+    });
+
+    it("should preserve FeatureList interface compatibility", async () => {
+      const originalList = createTestFeatureList([
+        createTestFeature({ id: "compat.test", description: "Compatibility" }),
+      ]);
+
+      await saveFeatureList(tempDir, originalList);
+      const loaded = await loadFeatureList(tempDir);
+
+      // Same interface
+      expect(loaded).toHaveProperty("features");
+      expect(loaded).toHaveProperty("metadata");
+      expect(loaded?.features[0].id).toBe("compat.test");
+      expect(loaded?.metadata.projectGoal).toBe("Test project");
+    });
+  });
+
   describe("featureListExists", () => {
     it("should return false for non-existent file", async () => {
       const exists = await featureListExists(tempDir);
@@ -231,6 +312,19 @@ This is a modular feature.
     it("should return true for existing file", async () => {
       const list = createTestFeatureList([]);
       await saveFeatureList(tempDir, list);
+
+      const exists = await featureListExists(tempDir);
+      expect(exists).toBe(true);
+    });
+
+    it("should return true for new modular format", async () => {
+      // Manually create the new format
+      const featuresDir = path.join(tempDir, "ai", "features");
+      await fs.mkdir(featuresDir, { recursive: true });
+      await fs.writeFile(
+        path.join(featuresDir, "index.json"),
+        JSON.stringify({ version: "2.0.0", features: {} })
+      );
 
       const exists = await featureListExists(tempDir);
       expect(exists).toBe(true);
