@@ -50,6 +50,12 @@ export const DEFAULT_TIMEOUTS: Record<string, number | undefined> = {
   AI_MERGE_CLAUDE_MD: 300000, // 5 minutes
 
   /**
+   * Combined merge of init.sh + CLAUDE.md with AI
+   * Bounded operation: Merged document merging, slightly longer than individual.
+   */
+  AI_MERGE_COMBINED: 360000, // 6 minutes
+
+  /**
    * AI verification of feature completion
    * No timeout: Includes running tests/builds which can take very long.
    */
@@ -77,6 +83,7 @@ export const TIMEOUT_ENV_VARS = {
   AI_GENERATE_FROM_GOAL: "AGENT_FOREMAN_TIMEOUT_GOAL",
   AI_MERGE_INIT_SCRIPT: "AGENT_FOREMAN_TIMEOUT_MERGE_INIT",
   AI_MERGE_CLAUDE_MD: "AGENT_FOREMAN_TIMEOUT_MERGE_CLAUDE",
+  AI_MERGE_COMBINED: "AGENT_FOREMAN_TIMEOUT_MERGE_COMBINED",
   AI_VERIFICATION: "AGENT_FOREMAN_TIMEOUT_VERIFY",
   AI_CAPABILITY_DISCOVERY: "AGENT_FOREMAN_TIMEOUT_CAPABILITY",
   AI_DEFAULT: "AGENT_FOREMAN_TIMEOUT_DEFAULT",
