@@ -208,6 +208,48 @@ tags: []
 
     expect(feature.module).toBe("storage");
   });
+
+  it("should parse tddGuidance from frontmatter", () => {
+    const content = `---
+id: test.tddguidance
+version: 1
+origin: manual
+dependsOn: []
+supersedes: []
+tags: []
+tddGuidance:
+  generatedAt: "2025-01-15T10:00:00Z"
+  generatedBy: claude
+  forVersion: 1
+  suggestedTestFiles:
+    unit:
+      - tests/test.test.ts
+    e2e: []
+  unitTestCases:
+    - name: should work
+      assertions:
+        - expect result to be true
+  e2eScenarios: []
+  frameworkHint: vitest
+---
+
+# TDD guidance test
+
+## Acceptance Criteria
+
+1. Parses correctly
+`;
+    const feature = parseFeatureMarkdown(content);
+
+    expect(feature.tddGuidance).toBeDefined();
+    expect(feature.tddGuidance?.generatedAt).toBe("2025-01-15T10:00:00Z");
+    expect(feature.tddGuidance?.generatedBy).toBe("claude");
+    expect(feature.tddGuidance?.forVersion).toBe(1);
+    expect(feature.tddGuidance?.suggestedTestFiles.unit).toEqual(["tests/test.test.ts"]);
+    expect(feature.tddGuidance?.unitTestCases).toHaveLength(1);
+    expect(feature.tddGuidance?.unitTestCases[0].name).toBe("should work");
+    expect(feature.tddGuidance?.frameworkHint).toBe("vitest");
+  });
 });
 
 describe("serializeFeatureMarkdown", () => {
@@ -367,6 +409,90 @@ describe("round-trip: parse(serialize(feature))", () => {
     expect(parsed.e2eTags).toEqual(original.e2eTags);
     expect(parsed.testRequirements).toEqual(original.testRequirements);
     expect(parsed.verification).toEqual(original.verification);
+  });
+
+  it("should preserve tddGuidance after round-trip", () => {
+    const original: Feature = {
+      id: "test.tddguidance",
+      description: "TDD guidance persistence test",
+      module: "test",
+      priority: 1,
+      status: "failing",
+      acceptance: ["TDD guidance should be persisted"],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual",
+      notes: "",
+      tddGuidance: {
+        generatedAt: "2025-01-15T10:00:00Z",
+        generatedBy: "claude",
+        forVersion: 1,
+        suggestedTestFiles: {
+          unit: ["tests/test.test.ts", "tests/other.test.ts"],
+          e2e: ["e2e/test.spec.ts"],
+        },
+        unitTestCases: [
+          {
+            name: "should handle basic case",
+            assertions: ["expect result to be defined", "expect result.id to match"],
+          },
+          {
+            name: "should handle edge case",
+            assertions: ["expect error to be thrown"],
+          },
+        ],
+        e2eScenarios: [
+          {
+            name: "user can complete flow",
+            steps: ["navigate to page", "fill form", "submit"],
+          },
+        ],
+        frameworkHint: "vitest",
+      },
+    };
+
+    const markdown = serializeFeatureMarkdown(original);
+    const parsed = parseFeatureMarkdown(markdown);
+
+    expect(parsed.tddGuidance).toBeDefined();
+    expect(parsed.tddGuidance).toEqual(original.tddGuidance);
+  });
+
+  it("should handle tddGuidance without optional frameworkHint", () => {
+    const original: Feature = {
+      id: "test.tddguidance.minimal",
+      description: "Minimal TDD guidance test",
+      module: "test",
+      priority: 1,
+      status: "failing",
+      acceptance: ["Works"],
+      dependsOn: [],
+      supersedes: [],
+      tags: [],
+      version: 1,
+      origin: "manual",
+      notes: "",
+      tddGuidance: {
+        generatedAt: "2025-01-15T10:00:00Z",
+        generatedBy: "gemini",
+        forVersion: 1,
+        suggestedTestFiles: {
+          unit: [],
+          e2e: [],
+        },
+        unitTestCases: [],
+        e2eScenarios: [],
+      },
+    };
+
+    const markdown = serializeFeatureMarkdown(original);
+    const parsed = parseFeatureMarkdown(markdown);
+
+    expect(parsed.tddGuidance).toBeDefined();
+    expect(parsed.tddGuidance?.generatedBy).toBe("gemini");
+    expect(parsed.tddGuidance?.frameworkHint).toBeUndefined();
   });
 });
 
