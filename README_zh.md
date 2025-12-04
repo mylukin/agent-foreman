@@ -89,7 +89,6 @@ agent-foreman 设计为 **Claude Code 插件**，这是推荐的使用方式。
 ```
 /agent-foreman:init --mode new        # 全新开始，替换现有
 /agent-foreman:init --mode scan       # 仅预览，不保存
-/agent-foreman:next --check           # 显示任务前先运行测试
 /agent-foreman:analyze --verbose      # 详细输出
 ```
 
