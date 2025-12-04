@@ -244,6 +244,130 @@ export interface AutomatedCheckOptions {
   useInitScript?: boolean;
   /** Path to the init script (default: ai/init.sh) */
   initScriptPath?: string;
+  /**
+   * Run checks in parallel for faster execution
+   * When true, independent checks (test, typecheck, lint, build) run concurrently
+   * E2E tests always run sequentially after unit tests pass
+   * Default: false for backward compatibility
+   */
+  parallel?: boolean;
+}
+
+/**
+ * Internal type for check definition
+ */
+interface CheckDefinition {
+  type: AutomatedCheckResult["type"];
+  command: string;
+  name: string;
+  isE2E?: boolean;
+}
+
+/**
+ * Run checks in parallel using Promise.allSettled for fault tolerance
+ * E2E tests are handled separately and run sequentially after unit tests pass
+ */
+export async function runChecksInParallel(
+  cwd: string,
+  checks: CheckDefinition[],
+  verbose: boolean
+): Promise<AutomatedCheckResult[]> {
+  // Separate E2E checks from other checks
+  const nonE2EChecks = checks.filter((c) => !c.isE2E);
+  const e2eChecks = checks.filter((c) => c.isE2E);
+
+  // Create progress bar for all checks
+  const progressBar = createProgressBar("Running automated checks (parallel)", checks.length);
+  progressBar.start();
+
+  // CI environment variable for test frameworks
+  const ciEnv: Record<string, string> = { CI: "true" };
+
+  // Run non-E2E checks in parallel
+  if (verbose) {
+    console.log(chalk.blue(`   Running ${nonE2EChecks.length} checks in parallel...`));
+  }
+
+  progressBar.update(0, `Running ${nonE2EChecks.length} checks in parallel`);
+
+  const parallelPromises = nonE2EChecks.map(async (check) => {
+    const env = (check.type === "test" || check.type === "e2e") ? ciEnv : {};
+    return {
+      check,
+      result: await runCheckWithEnv(cwd, check.type, check.command, env),
+    };
+  });
+
+  const settledResults = await Promise.allSettled(parallelPromises);
+  const results: AutomatedCheckResult[] = [];
+
+  // Process results
+  let completedCount = 0;
+  for (const settled of settledResults) {
+    completedCount++;
+    if (settled.status === "fulfilled") {
+      const { check, result } = settled.value;
+      results.push(result);
+      if (verbose) {
+        const status = result.success ? chalk.green("passed") : chalk.red("failed");
+        console.log(chalk.gray(`   ${check.name}: ${status}`));
+      }
+    } else {
+      // Promise.allSettled captures rejections - create failed result
+      const errorMessage = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
+      results.push({
+        type: "test",
+        success: false,
+        output: `Check failed with error: ${errorMessage}`,
+        duration: 0,
+      });
+    }
+  }
+
+  progressBar.update(completedCount, `Completed ${completedCount} checks`);
+
+  // Check if unit tests passed before running E2E
+  const unitTestsPassed = results
+    .filter((r) => r.type === "test")
+    .every((r) => r.success);
+
+  // Run E2E checks sequentially after unit tests (if unit tests passed)
+  if (e2eChecks.length > 0) {
+    if (unitTestsPassed) {
+      if (verbose) {
+        console.log(chalk.blue(`   Running ${e2eChecks.length} E2E checks sequentially...`));
+      }
+
+      for (const check of e2eChecks) {
+        progressBar.update(completedCount, `Running ${check.name}`);
+        const result = await runCheckWithEnv(cwd, check.type, check.command, ciEnv);
+        results.push(result);
+        completedCount++;
+
+        if (verbose) {
+          const status = result.success ? chalk.green("passed") : chalk.red("failed");
+          console.log(chalk.gray(`   ${check.name}: ${status}`));
+        }
+      }
+    } else {
+      // Skip E2E tests if unit tests failed
+      if (verbose) {
+        console.log(chalk.yellow(`   Skipping E2E tests (unit tests failed)`));
+      }
+      for (const check of e2eChecks) {
+        results.push({
+          type: "e2e",
+          success: false,
+          output: "Skipped: unit tests failed",
+          duration: 0,
+        });
+        completedCount++;
+      }
+    }
+  }
+
+  progressBar.complete("Automated checks complete (parallel)");
+  return results;
 }
 
 /**
@@ -271,6 +395,7 @@ export async function runAutomatedChecks(
     e2eMode: explicitE2EMode,
     useInitScript = false,
     initScriptPath,
+    parallel = false,
   } = options;
   const results: AutomatedCheckResult[] = [];
 
@@ -339,7 +464,7 @@ export async function runAutomatedChecks(
   // ========================================================================
 
   // Collect checks to run
-  const checks: Array<{ type: AutomatedCheckResult["type"]; command: string; name: string }> = [];
+  const checks: CheckDefinition[] = [];
 
   // Handle test execution based on mode
   if (testMode !== "skip" && capabilities.hasTests && capabilities.testCommand) {
@@ -384,7 +509,7 @@ export async function runAutomatedChecks(
         : e2eMode === "smoke"
           ? "E2E tests (@smoke)"
           : `E2E tests (${e2eTags.join(", ")})`;
-      checks.push({ type: "e2e", command: e2eCommand, name: e2eName });
+      checks.push({ type: "e2e", command: e2eCommand, name: e2eName, isE2E: true });
 
       if (verbose) {
         console.log(chalk.gray(`   E2E mode: ${e2eMode}`));
@@ -400,6 +525,20 @@ export async function runAutomatedChecks(
   if (checks.length === 0) {
     return results;
   }
+
+  // ========================================================================
+  // Parallel Mode: Run checks concurrently (except E2E which is sequential)
+  // ========================================================================
+  if (parallel) {
+    if (verbose) {
+      console.log(chalk.blue(`   Parallel mode enabled`));
+    }
+    return runChecksInParallel(cwd, checks, verbose);
+  }
+
+  // ========================================================================
+  // Sequential Mode: Run checks one by one (default for backward compatibility)
+  // ========================================================================
 
   // Create progress bar for checks
   const progressBar = createProgressBar("Running automated checks", checks.length);
@@ -432,39 +571,38 @@ export async function runAutomatedChecks(
 // Related Files
 // ============================================================================
 
+/** Source file extensions for filtering */
+const SOURCE_FILE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs"];
+
 /**
  * Read related files for context
- * Includes files that import or are imported by changed files
+ * Uses parallel file reading for better performance
  * Validates paths to prevent path traversal attacks
+ * Handles partial failures gracefully - continues if some files fail to read
  */
 export async function readRelatedFiles(
   cwd: string,
   changedFiles: string[]
 ): Promise<Map<string, string>> {
-  const relatedFiles = new Map<string, string>();
-
-  // Read the changed files themselves (most relevant)
-  const sourceFiles = changedFiles.filter(
-    (f) =>
-      f.endsWith(".ts") ||
-      f.endsWith(".tsx") ||
-      f.endsWith(".js") ||
-      f.endsWith(".jsx") ||
-      f.endsWith(".py") ||
-      f.endsWith(".go") ||
-      f.endsWith(".rs")
+  // Filter to source files only
+  const sourceFiles = changedFiles.filter((f) =>
+    SOURCE_FILE_EXTENSIONS.some((ext) => f.endsWith(ext))
   );
 
-  // Read all source files without limit
-  for (const file of sourceFiles) {
-    // Validate path stays within project root to prevent path traversal
-    if (!isPathWithinRoot(cwd, file)) {
-      // Skip files that would escape project directory
-      continue;
-    }
+  // Validate paths before reading
+  const validFiles = sourceFiles.filter((file) => isPathWithinRoot(cwd, file));
 
-    // Use safeReadFile for secure file reading
+  // Read all files in parallel for better performance
+  const readPromises = validFiles.map(async (file) => {
     const content = await safeReadFile(cwd, file);
+    return { file, content };
+  });
+
+  const results = await Promise.all(readPromises);
+
+  // Build Map from successful reads (gracefully handle failures)
+  const relatedFiles = new Map<string, string>();
+  for (const { file, content } of results) {
     if (content !== null) {
       relatedFiles.set(file, content);
     }

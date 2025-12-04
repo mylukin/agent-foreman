@@ -36,6 +36,63 @@ const CACHE_FILE = "ai/capabilities.json";
 /** Cache schema version for migration support */
 export const CACHE_VERSION = "1.0.0";
 
+/** Memory cache TTL in milliseconds (1 minute) */
+export const MEMORY_CACHE_TTL = 60000;
+
+// ============================================================================
+// Memory Cache
+// ============================================================================
+
+/** Memory cache structure */
+interface MemoryCache {
+  cwd: string;
+  capabilities: ExtendedCapabilities;
+  timestamp: number;
+}
+
+/** Module-level memory cache */
+let memoryCache: MemoryCache | null = null;
+
+/**
+ * Clear the memory cache (for testing purposes)
+ */
+export function clearCapabilitiesCache(): void {
+  memoryCache = null;
+}
+
+/**
+ * Get cached capabilities from memory if valid
+ */
+function getMemoryCache(cwd: string): ExtendedCapabilities | null {
+  if (!memoryCache) {
+    return null;
+  }
+
+  // Check if cache is for the same project
+  if (memoryCache.cwd !== cwd) {
+    return null;
+  }
+
+  // Check if cache has expired
+  const age = Date.now() - memoryCache.timestamp;
+  if (age > MEMORY_CACHE_TTL) {
+    return null;
+  }
+
+  return memoryCache.capabilities;
+}
+
+/**
+ * Update the memory cache
+ */
+function setMemoryCache(cwd: string, capabilities: ExtendedCapabilities): void {
+  memoryCache = {
+    cwd,
+    capabilities,
+    timestamp: Date.now(),
+  };
+}
+
 // ============================================================================
 // Types
 // ============================================================================
