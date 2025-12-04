@@ -89,7 +89,6 @@ Commands accept natural language and flags:
 ```
 /agent-foreman:init --mode new        # Fresh start, replace existing
 /agent-foreman:init --mode scan       # Preview only, don't save
-/agent-foreman:next --check           # Run tests before showing task
 /agent-foreman:analyze --verbose      # Detailed output
 ```
 

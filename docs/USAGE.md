@@ -76,12 +76,10 @@ Get the next priority feature to work on.
 ```
 /agent-foreman:next
 /agent-foreman:next <feature_id>
-/agent-foreman:next --check
 ```
 
 **Parameters:**
 - `<feature_id>` - (optional) Work on specific feature
-- `--check` - Run tests before showing task
 - `--dry-run` - Preview only
 
 **Priority Order:**
@@ -93,7 +91,6 @@ Get the next priority feature to work on.
 ```
 /agent-foreman:next
 /agent-foreman:next auth.login
-/agent-foreman:next --check
 ```
 
 ---
