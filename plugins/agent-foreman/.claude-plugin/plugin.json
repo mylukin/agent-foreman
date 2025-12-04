@@ -1,6 +1,6 @@
 {
   "name": "agent-foreman",
-  "version": "0.1.66",
+  "version": "0.1.67",
   "description": "Long Task Harness for AI agents - feature-driven development with external memory",
   "author": {
     "name": "Lukin",
