@@ -12,6 +12,7 @@ import type {
   FeatureOrigin,
   FeatureVerificationSummary,
   TestRequirements,
+  CachedTDDGuidance,
 } from "./types.js";
 
 /** Path to the feature index file relative to project root */
@@ -92,6 +93,9 @@ export function parseFeatureMarkdown(content: string): Feature {
   if (frontmatter.testFiles) {
     feature.testFiles = frontmatter.testFiles;
   }
+  if (frontmatter.tddGuidance) {
+    feature.tddGuidance = frontmatter.tddGuidance as CachedTDDGuidance;
+  }
 
   return feature;
 }
@@ -129,6 +133,9 @@ export function serializeFeatureMarkdown(feature: Feature): string {
   }
   if (feature.verification) {
     frontmatter.verification = feature.verification;
+  }
+  if (feature.tddGuidance) {
+    frontmatter.tddGuidance = feature.tddGuidance;
   }
 
   // Build markdown body
