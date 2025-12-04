@@ -23,6 +23,7 @@ import type {
   E2ECapabilityInfo,
   E2ETestMode,
   VerificationMode,
+  ExtendedCapabilities,
 } from "./verification-types.js";
 import {
   getSelectiveTestCommand,
@@ -831,9 +832,32 @@ export async function verifyFeature(
   const stepProgress = createStepProgress(steps);
   stepProgress.start();
 
-  // Step 1: Get git diff
-  const { diff, files: changedFiles, commitHash } = await getGitDiffForFeature(cwd);
-  stepProgress.completeStep(true);
+  // Step 1: Get git diff (and optionally detect capabilities in parallel)
+  let diff: string;
+  let changedFiles: string[];
+  let commitHash: string;
+  let capabilities: ExtendedCapabilities | null = null;
+
+  if (!skipChecks) {
+    // Parallelize git diff and capability detection when checks are enabled
+    const [diffResult, capabilitiesResult] = await Promise.all([
+      getGitDiffForFeature(cwd),
+      detectCapabilities(cwd, { verbose }),
+    ]);
+    diff = diffResult.diff;
+    changedFiles = diffResult.files;
+    commitHash = diffResult.commitHash;
+    capabilities = capabilitiesResult;
+    stepProgress.completeStep(true); // Git diff done
+    stepProgress.completeStep(true); // Capabilities done
+  } else {
+    // Skip checks mode - only get git diff
+    const diffResult = await getGitDiffForFeature(cwd);
+    diff = diffResult.diff;
+    changedFiles = diffResult.files;
+    commitHash = diffResult.commitHash;
+    stepProgress.completeStep(true);
+  }
 
   if (verbose) {
     console.log(chalk.gray(`   Changed files: ${changedFiles.length}`));
@@ -843,13 +867,11 @@ export async function verifyFeature(
     }
   }
 
-  // Step 2: Detect capabilities and run automated checks
+  // Step 2: Run automated checks (capabilities already detected in parallel above)
   let automatedResults: AutomatedCheckResult[] = [];
 
-  if (!skipChecks) {
-    // Use new three-tier detection system (cache -> preset -> AI)
-    const capabilities = await detectCapabilities(cwd, { verbose });
-    stepProgress.completeStep(true);
+  if (!skipChecks && capabilities) {
+    // Capabilities already detected above via Promise.all
 
     // Check if ai/init.sh exists for init script mode
     const initScriptPath = path.join(cwd, "ai/init.sh");

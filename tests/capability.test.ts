@@ -20,6 +20,7 @@ import {
   buildAutonomousDiscoveryPrompt,
   parseCapabilityResponse,
   discoverCapabilitiesWithAI,
+  clearCapabilitiesCache,
 } from "../src/project-capabilities.js";
 
 import * as agents from "../src/agents.js";
@@ -529,12 +530,14 @@ describe("Two-Tier Detection System", () => {
   let aiSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
+    clearCapabilitiesCache();
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "detection-test-"));
     await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
     aiSpy = vi.spyOn(agents, "callAnyAvailableAgent");
   });
 
   afterEach(async () => {
+    clearCapabilitiesCache();
     await fs.rm(tempDir, { recursive: true, force: true });
     vi.restoreAllMocks();
   });
@@ -566,7 +569,10 @@ describe("Two-Tier Detection System", () => {
       const result1 = await detectCapabilities(tempDir, { force: true });
       expect(result1.source).toBe("ai-discovered");
 
-      // Second call - should use cache (since no config files changed)
+      // Clear memory cache to test disk cache specifically
+      clearCapabilitiesCache();
+
+      // Second call - should use disk cache (since no config files changed)
       const result2 = await detectCapabilities(tempDir);
       expect(result2.source).toBe("cached");
     });

@@ -684,7 +684,18 @@ export async function detectCapabilities(
 ): Promise<ExtendedCapabilities> {
   const { force = false, verbose = false } = options;
 
-  // 1. Try cache first
+  // 0. Try memory cache first (fastest)
+  if (!force) {
+    const memoryCached = getMemoryCache(cwd);
+    if (memoryCached) {
+      if (verbose) {
+        console.log("  Using memory-cached capabilities");
+      }
+      return memoryCached;
+    }
+  }
+
+  // 1. Try disk cache
   if (!force) {
     const cached = await loadCachedCapabilities(cwd);
     if (cached) {
@@ -693,6 +704,8 @@ export async function detectCapabilities(
         if (verbose) {
           console.log("  Using cached capabilities");
         }
+        // Update memory cache
+        setMemoryCache(cwd, cached);
         return cached;
       }
       if (verbose) {
@@ -708,6 +721,9 @@ export async function detectCapabilities(
 
   const { capabilities, configFiles } = await discoverCapabilitiesWithAI(cwd);
   await saveCapabilities(cwd, capabilities, configFiles);
+
+  // Update memory cache
+  setMemoryCache(cwd, capabilities);
 
   return capabilities;
 }
