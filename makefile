@@ -27,3 +27,6 @@ install_nodes:
 
 install: install_nodes
 	npm link
+
+uninstall:
+	npm unlink agent-foreman
