@@ -89,6 +89,7 @@ agent-foreman 设计为 **Claude Code 插件**，这是推荐的使用方式。
 ```
 /agent-foreman:init --mode new        # 全新开始，替换现有
 /agent-foreman:init --mode scan       # 仅预览，不保存
+/agent-foreman:next --check           # 显示任务前先运行测试
 /agent-foreman:analyze --verbose      # 详细输出
 ```
 
@@ -108,7 +109,7 @@ agent-foreman 把这套打法搬给了 AI：
 
 | 人类的做法 | AI 的等价物 |
 |-----------|------------|
-| Scrum 看板 | `features/` |
+| Scrum 看板 | `feature_list.json` |
 | 站会纪要 | `progress.log` |
 | CI/CD 流水线 | `init.sh check` |
 | Code Review | 验收标准 |
@@ -144,7 +145,7 @@ agent-foreman 采用 **TDD (测试驱动开发)** 理念：先定义验收标准
 │                                              │                           │
 │                                              ▼                           │
 │                                    定义验收标准 (RED)                     │
-│                                    features/                             │
+│                                    feature_list.json                     │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
@@ -197,7 +198,7 @@ agent-foreman 采用 **TDD (测试驱动开发)** 理念：先定义验收标准
 
 | 文件 | 用途 |
 |------|------|
-| `ai/features/` | 模块化功能存储（每个功能一个 Markdown 文件） |
+| `ai/feature_list.json` | 功能清单，带状态追踪 |
 | `ai/progress.log` | 进度日志，用于会话交接 |
 | `ai/init.sh` | 环境启动脚本 |
 | `docs/ARCHITECTURE.md` | AI 生成的项目架构文档 |

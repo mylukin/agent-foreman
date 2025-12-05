@@ -1,85 +1,18 @@
 /**
- * Feature list operations for ai/features/ (modular markdown format)
- * Also supports legacy ai/feature_list.json with auto-migration
- *
- * Primary format: ai/features/index.json + ai/features/{module}/{id}.md
- * Legacy format: ai/feature_list.json (auto-migrated on first load)
+ * Feature list operations for ai/feature_list.json
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { glob } from "glob";
 import type { Feature, FeatureList, FeatureStatus, FeatureVerificationSummary, DiscoveredFeature } from "./types.js";
 import { validateFeatureList } from "./schema.js";
-import {
-  loadFeatureIndex,
-  loadSingleFeature,
-  saveSingleFeature,
-  saveFeatureIndex,
-  autoMigrateIfNeeded,
-  pathToFeatureId,
-} from "./feature-storage.js";
-import type { FeatureIndex, FeatureIndexEntry } from "./types.js";
 
-/** Default path for legacy feature list file (for migration) */
+/** Default path for feature list file */
 export const FEATURE_LIST_PATH = "ai/feature_list.json";
-
-/** Path to features directory for modular format */
-const FEATURES_DIR = "ai/features";
 
 /**
  * Load feature list from file
- * Supports both new modular format (ai/features/) and legacy JSON format
- *
- * Strategy:
- * 1. Try new format (index.json) first
- * 2. Auto-migrate if old format detected
- * 3. Load all features from markdown files
- * 4. Fall back to legacy format if neither exists
  */
 export async function loadFeatureList(basePath: string): Promise<FeatureList | null> {
-  // 1. Check if new format exists (index.json)
-  const index = await loadFeatureIndex(basePath);
-
-  if (index) {
-    // Load all features from markdown files
-    const features = await loadAllFeaturesFromMarkdown(basePath, index);
-    return {
-      $schema: "./feature_list.schema.json",
-      features,
-      metadata: index.metadata,
-    };
-  }
-
-  // 2. Check if legacy format exists and auto-migrate
-  const legacyPath = path.join(basePath, FEATURE_LIST_PATH);
-  try {
-    await fs.access(legacyPath);
-    // Legacy file exists - attempt auto-migration (silent to not corrupt JSON output)
-    await autoMigrateIfNeeded(basePath, true);
-
-    // After migration, try loading from new format
-    const migratedIndex = await loadFeatureIndex(basePath);
-    if (migratedIndex) {
-      const features = await loadAllFeaturesFromMarkdown(basePath, migratedIndex);
-      return {
-        $schema: "./feature_list.schema.json",
-        features,
-        metadata: migratedIndex.metadata,
-      };
-    }
-
-    // If migration failed or index still doesn't exist, load legacy format
-    return loadLegacyFeatureList(basePath);
-  } catch {
-    // Neither format exists
-    return null;
-  }
-}
-
-/**
- * Load legacy feature list from ai/feature_list.json
- */
-async function loadLegacyFeatureList(basePath: string): Promise<FeatureList | null> {
   const filePath = path.join(basePath, FEATURE_LIST_PATH);
   try {
     const content = await fs.readFile(filePath, "utf-8");
@@ -99,111 +32,22 @@ async function loadLegacyFeatureList(basePath: string): Promise<FeatureList | nu
 }
 
 /**
- * Load all features from markdown files based on index
- */
-async function loadAllFeaturesFromMarkdown(
-  basePath: string,
-  index: import("./types.js").FeatureIndex
-): Promise<Feature[]> {
-  const features: Feature[] = [];
-  const featureIds = Object.keys(index.features);
-
-  // Load features in parallel for better performance
-  const loadPromises = featureIds.map(async (id) => {
-    const feature = await loadSingleFeature(basePath, id);
-    if (feature) {
-      return feature;
-    }
-    // If markdown file is missing, create minimal feature from index
-    const indexEntry = index.features[id];
-    return {
-      id,
-      description: indexEntry.description,
-      module: indexEntry.module,
-      priority: indexEntry.priority,
-      status: indexEntry.status,
-      acceptance: [],
-      dependsOn: [],
-      supersedes: [],
-      tags: [],
-      version: 1,
-      origin: "manual" as const,
-      notes: "",
-    };
-  });
-
-  const loadedFeatures = await Promise.all(loadPromises);
-  features.push(...loadedFeatures);
-
-  return features;
-}
-
-/**
  * Save feature list to file
- * Writes to new modular format (ai/features/)
- *
- * Strategy:
- * 1. Ensure directory structure exists
- * 2. Write each feature to its markdown file
- * 3. Update index.json with brief properties
  */
 export async function saveFeatureList(basePath: string, list: FeatureList): Promise<void> {
-  const featuresDir = path.join(basePath, FEATURES_DIR);
-  await fs.mkdir(featuresDir, { recursive: true });
-
-  // Update metadata timestamp
-  const updatedMetadata = {
-    ...list.metadata,
-    updatedAt: new Date().toISOString(),
-  };
-
-  // Build index entries while saving features
-  const indexFeatures: Record<string, FeatureIndexEntry> = {};
-
-  // Save each feature to its markdown file in parallel
-  const savePromises = list.features.map(async (feature) => {
-    await saveSingleFeature(basePath, feature);
-
-    // Add to index
-    indexFeatures[feature.id] = {
-      status: feature.status,
-      priority: feature.priority,
-      module: feature.module,
-      description: feature.description,
-    };
-  });
-
-  await Promise.all(savePromises);
-
-  // Build and save index.json
-  const index: FeatureIndex = {
-    version: "2.0.0",
-    updatedAt: updatedMetadata.updatedAt,
-    metadata: updatedMetadata,
-    features: indexFeatures,
-  };
-
-  await saveFeatureIndex(basePath, index);
+  const filePath = path.join(basePath, FEATURE_LIST_PATH);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  list.metadata.updatedAt = new Date().toISOString();
+  await fs.writeFile(filePath, JSON.stringify(list, null, 2) + "\n");
 }
 
 /**
  * Check if feature list exists
- * Checks for both new format (index.json) and legacy format
  */
 export async function featureListExists(basePath: string): Promise<boolean> {
-  // Check new format first
-  const indexPath = path.join(basePath, FEATURES_DIR, "index.json");
+  const filePath = path.join(basePath, FEATURE_LIST_PATH);
   try {
-    await fs.access(indexPath);
-    return true;
-  } catch {
-    // Fall through to check legacy format
-  }
-
-  // Check legacy format
-  const legacyPath = path.join(basePath, FEATURE_LIST_PATH);
-  try {
-    await fs.access(legacyPath);
+    await fs.access(filePath);
     return true;
   } catch {
     return false;
@@ -490,171 +334,4 @@ export function createFeature(
     notes: options.notes ?? "",
     testRequirements: options.testRequirements ?? generateTestRequirements(module),
   };
-}
-
-// ============================================================================
-// Quick Operations (Index + Single File Only)
-// ============================================================================
-
-/** Valid status values for validation */
-const VALID_STATUSES: FeatureStatus[] = ["failing", "passing", "blocked", "needs_review", "deprecated"];
-
-/**
- * Quick status update - updates only index.json and single feature file
- * Much faster than full load/save cycle for status-only updates
- *
- * @param cwd - Project root directory
- * @param id - Feature ID to update
- * @param status - New status value
- * @param notes - Optional notes to update
- * @returns Updated Feature object
- * @throws Error if status is invalid or feature not found
- */
-export async function updateFeatureStatusQuick(
-  cwd: string,
-  id: string,
-  status: FeatureStatus,
-  notes?: string
-): Promise<Feature> {
-  // Validate status
-  if (!VALID_STATUSES.includes(status)) {
-    throw new Error(`Invalid status: ${status}. Valid values: ${VALID_STATUSES.join(", ")}`);
-  }
-
-  // Load feature index
-  const index = await loadFeatureIndex(cwd);
-  if (!index) {
-    throw new Error("Feature index not found. Run migration first.");
-  }
-
-  // Check feature exists in index
-  if (!index.features[id]) {
-    throw new Error(`Feature not found: ${id}`);
-  }
-
-  // Load single feature
-  const feature = await loadSingleFeature(cwd, id);
-  if (!feature) {
-    throw new Error(`Feature file not found: ${id}`);
-  }
-
-  // Update feature
-  const updatedFeature: Feature = {
-    ...feature,
-    status,
-    notes: notes ?? feature.notes,
-  };
-
-  // Save updated feature (single file)
-  await saveSingleFeature(cwd, updatedFeature);
-
-  // Update index entry
-  index.features[id] = {
-    ...index.features[id],
-    status,
-  };
-
-  // Save updated index
-  await saveFeatureIndex(cwd, index);
-
-  return updatedFeature;
-}
-
-/**
- * Quick stats lookup - reads only index.json
- * Much faster than loading all features for status statistics
- *
- * @param cwd - Project root directory
- * @returns Status counts keyed by status value
- * @throws Error if index not found
- */
-export async function getFeatureStatsQuick(cwd: string): Promise<Record<FeatureStatus, number>> {
-  // Load feature index only
-  const index = await loadFeatureIndex(cwd);
-  if (!index) {
-    throw new Error("Feature index not found. Run migration first.");
-  }
-
-  // Initialize stats
-  const stats: Record<FeatureStatus, number> = {
-    failing: 0,
-    passing: 0,
-    blocked: 0,
-    needs_review: 0,
-    deprecated: 0,
-  };
-
-  // Count from index entries
-  for (const entry of Object.values(index.features)) {
-    if (entry.status in stats) {
-      stats[entry.status]++;
-    }
-  }
-
-  return stats;
-}
-
-/**
- * Quick next feature selection - reads index.json for selection, loads full feature only when found
- * Much faster than loading all features when only selecting next
- *
- * @param cwd - Project root directory
- * @returns Selected Feature or null if none available
- * @throws Error if index not found
- */
-export async function selectNextFeatureQuick(cwd: string): Promise<Feature | null> {
-  // Load feature index only
-  const index = await loadFeatureIndex(cwd);
-  if (!index) {
-    throw new Error("Feature index not found. Run migration first.");
-  }
-
-  // Convert index entries to array with IDs for sorting
-  const candidates = Object.entries(index.features)
-    .filter(([, entry]) => entry.status === "needs_review" || entry.status === "failing")
-    .map(([id, entry]) => ({ id, ...entry }));
-
-  if (candidates.length === 0) {
-    return null;
-  }
-
-  // Sort: needs_review first, then by priority number (lower = higher)
-  const statusOrder: Record<FeatureStatus, number> = {
-    needs_review: 0,
-    failing: 1,
-    blocked: 2,
-    passing: 3,
-    deprecated: 4,
-  };
-
-  candidates.sort((a, b) => {
-    const statusDiff = statusOrder[a.status] - statusOrder[b.status];
-    if (statusDiff !== 0) return statusDiff;
-    return a.priority - b.priority;
-  });
-
-  // Load full feature for the selected one
-  const selectedId = candidates[0].id;
-  const feature = await loadSingleFeature(cwd, selectedId);
-
-  if (!feature) {
-    // Fall back to minimal feature from index if file missing
-    const entry = index.features[selectedId];
-    return {
-      id: selectedId,
-      description: entry.description,
-      module: entry.module,
-      priority: entry.priority,
-      status: entry.status,
-      acceptance: [],
-      dependsOn: [],
-      supersedes: [],
-      tags: [],
-      version: 1,
-      origin: "manual",
-      notes: "",
-    };
-  }
-
-  return feature;
 }

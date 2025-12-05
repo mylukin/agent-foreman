@@ -252,14 +252,13 @@ describe("CLI Integration", () => {
       const result = spawnSync("node", [CLI_PATH, "next", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
-        timeout: 180000, // 3 minutes for AI TDD guidance generation
       });
 
       const output = extractJSON(result.stdout) as { feature: { id: string; description: string; status: string } };
       expect(output.feature.id).toBe("test.feature1");
       expect(output.feature.description).toBe("First feature");
       expect(output.feature.status).toBe("failing");
-    }, 200000); // 3.5 minute test timeout
+    }, 60000);
 
     it("should show all features complete when all passing", async () => {
       const featureList = {
@@ -383,11 +382,13 @@ describe("CLI Integration", () => {
       expect(result.stdout).toContain("Skipping verification");
       expect(result.stdout).toContain("Marked 'test.feature1' as passing");
 
-      // Verify the feature was updated in the new modular storage format
-      // After auto-migration, features are stored in ai/features/{module}/{id}.md
-      const featureFile = path.join(tempDir, "ai/features/test/feature1.md");
-      const featureContent = await fs.readFile(featureFile, "utf-8");
-      expect(featureContent).toContain("status: passing");
+      // Verify the file was updated
+      const updatedContent = await fs.readFile(
+        path.join(tempDir, "ai/feature_list.json"),
+        "utf-8"
+      );
+      const updated = JSON.parse(updatedContent);
+      expect(updated.features[0].status).toBe("passing");
     });
 
     it("should show error for non-existent feature", async () => {
@@ -440,274 +441,6 @@ describe("CLI Integration", () => {
 
       // Should contain a version number pattern
       expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
-    });
-  });
-
-  describe("modular storage format (ai/features/)", () => {
-    /**
-     * Helper to create modular format structure
-     */
-    async function createModularFormat() {
-      const featuresDir = path.join(tempDir, "ai/features");
-      await fs.mkdir(path.join(featuresDir, "test"), { recursive: true });
-
-      // Create index.json
-      const index = {
-        version: "2.0.0",
-        updatedAt: new Date().toISOString(),
-        metadata: {
-          projectGoal: "Test project",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          version: "1.0.0",
-        },
-        features: {
-          "test.feature1": {
-            status: "failing",
-            priority: 1,
-            module: "test",
-            description: "Test feature 1",
-          },
-          "test.feature2": {
-            status: "passing",
-            priority: 2,
-            module: "test",
-            description: "Test feature 2",
-          },
-        },
-      };
-      await fs.writeFile(
-        path.join(featuresDir, "index.json"),
-        JSON.stringify(index, null, 2)
-      );
-
-      // Create feature markdown files
-      const feature1Md = `---
-id: test.feature1
-module: test
-priority: 1
-status: failing
-version: 1
-origin: manual
-dependsOn: []
-supersedes: []
-tags: []
----
-# Test feature 1
-
-## Acceptance Criteria
-
-1. First criterion
-
-## Notes
-
-`;
-      await fs.writeFile(path.join(featuresDir, "test/feature1.md"), feature1Md);
-
-      const feature2Md = `---
-id: test.feature2
-module: test
-priority: 2
-status: passing
-version: 1
-origin: manual
-dependsOn: []
-supersedes: []
-tags: []
----
-# Test feature 2
-
-## Acceptance Criteria
-
-1. Second criterion
-
-## Notes
-
-`;
-      await fs.writeFile(path.join(featuresDir, "test/feature2.md"), feature2Md);
-    }
-
-    describe("status command with modular format", () => {
-      it("should show statistics when ai/features/index.json exists", async () => {
-        await createModularFormat();
-
-        const result = spawnSync("node", [CLI_PATH, "status"], {
-          cwd: tempDir,
-          encoding: "utf-8",
-        });
-
-        expect(result.stdout).toContain("Passing: 1");
-        expect(result.stdout).toContain("Failing: 1");
-        expect(result.stdout).toContain("50%");
-      });
-
-      it("should output JSON with --json flag using modular format", async () => {
-        await createModularFormat();
-
-        const result = spawnSync("node", [CLI_PATH, "status", "--json"], {
-          cwd: tempDir,
-          encoding: "utf-8",
-        });
-
-        const output = extractJSON(result.stdout) as { stats: { passing: number; failing: number }; completion: number };
-        expect(output.stats.passing).toBe(1);
-        expect(output.stats.failing).toBe(1);
-        expect(output.completion).toBe(50);
-      });
-    });
-
-    describe("next command with modular format", () => {
-      it("should select next feature from modular format", async () => {
-        await createModularFormat();
-
-        const result = spawnSync("node", [CLI_PATH, "next", "--json", "--allow-dirty", "--quiet"], {
-          cwd: tempDir,
-          encoding: "utf-8",
-          timeout: 45000,
-        });
-
-        // Check if command timed out
-        if (result.signal === "SIGTERM" || !result.stdout) {
-          console.error("Command timed out or produced no output:", result.stderr);
-        }
-
-        const output = extractJSON(result.stdout) as { feature: { id: string; status: string } };
-        expect(output.feature.id).toBe("test.feature1");
-        expect(output.feature.status).toBe("failing");
-      }, 90000);
-
-      it("should show all complete when all passing in modular format", async () => {
-        const featuresDir = path.join(tempDir, "ai/features");
-        await fs.mkdir(path.join(featuresDir, "test"), { recursive: true });
-
-        const index = {
-          version: "2.0.0",
-          updatedAt: new Date().toISOString(),
-          metadata: {
-            projectGoal: "Test",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            version: "1.0.0",
-          },
-          features: {
-            "test.feature1": {
-              status: "passing",
-              priority: 1,
-              module: "test",
-              description: "Test",
-            },
-          },
-        };
-        await fs.writeFile(
-          path.join(featuresDir, "index.json"),
-          JSON.stringify(index, null, 2)
-        );
-
-        const featureMd = `---
-id: test.feature1
-module: test
-priority: 1
-status: passing
-version: 1
-origin: manual
-dependsOn: []
-supersedes: []
-tags: []
----
-# Test
-
-## Acceptance Criteria
-
-1. Criterion
-`;
-        await fs.writeFile(path.join(featuresDir, "test/feature1.md"), featureMd);
-
-        const result = spawnSync("node", [CLI_PATH, "next", "--allow-dirty"], {
-          cwd: tempDir,
-          encoding: "utf-8",
-          timeout: 30000,
-        });
-
-        expect(result.stdout).toContain("All features are passing");
-      }, 60000);
-    });
-
-    describe("done command with modular format", () => {
-      it("should update feature status in modular format", async () => {
-        await createModularFormat();
-
-        // Make initial commit
-        await fs.writeFile(path.join(tempDir, ".gitkeep"), "");
-        execSync("git add .", { cwd: tempDir, stdio: "pipe" });
-        execSync('git commit -m "init"', { cwd: tempDir, stdio: "pipe" });
-
-        const result = spawnSync("node", [CLI_PATH, "done", "test.feature1", "--skip-verify", "--no-commit"], {
-          cwd: tempDir,
-          encoding: "utf-8",
-          timeout: 30000,
-        });
-
-        expect(result.stdout).toContain("Marked 'test.feature1' as passing");
-
-        // Verify index.json was updated
-        const indexContent = await fs.readFile(
-          path.join(tempDir, "ai/features/index.json"),
-          "utf-8"
-        );
-        const index = JSON.parse(indexContent);
-        expect(index.features["test.feature1"].status).toBe("passing");
-
-        // Verify feature markdown was updated
-        const featureContent = await fs.readFile(
-          path.join(tempDir, "ai/features/test/feature1.md"),
-          "utf-8"
-        );
-        expect(featureContent).toContain("status: passing");
-      });
-    });
-
-    describe("init command creates format", () => {
-      it("should create feature list on init (legacy or modular)", async () => {
-        // Create package.json for project detection
-        await fs.writeFile(
-          path.join(tempDir, "package.json"),
-          JSON.stringify({ name: "test-project", version: "1.0.0" })
-        );
-
-        // Make initial commit
-        await fs.writeFile(path.join(tempDir, ".gitkeep"), "");
-        execSync("git add .", { cwd: tempDir, stdio: "pipe" });
-        execSync('git commit -m "init"', { cwd: tempDir, stdio: "pipe" });
-
-        // Run init command with skip mode for speed
-        spawnSync("node", [CLI_PATH, "init", "Test project goal", "--mode", "new"], {
-          cwd: tempDir,
-          encoding: "utf-8",
-          timeout: 60000,
-        });
-
-        // Check that some format was created
-        const indexExists = await fs.access(path.join(tempDir, "ai/features/index.json"))
-          .then(() => true)
-          .catch(() => false);
-        const legacyExists = await fs.access(path.join(tempDir, "ai/feature_list.json"))
-          .then(() => true)
-          .catch(() => false);
-
-        // Either format should be created
-        expect(indexExists || legacyExists).toBe(true);
-
-        // If modular format exists, verify structure
-        if (indexExists) {
-          const indexContent = await fs.readFile(
-            path.join(tempDir, "ai/features/index.json"),
-            "utf-8"
-          );
-          const index = JSON.parse(indexContent);
-          expect(index.version).toBe("2.0.0");
-          expect(index.metadata).toBeDefined();
-        }
-      }, 90000); // 90 second timeout for slow init
     });
   });
 });

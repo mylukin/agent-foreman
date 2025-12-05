@@ -13,7 +13,7 @@ description: Initialize or upgrade the long-task harness for a project
 agent-foreman init
 ```
 
-Creates: `ai/features/`, `ai/progress.log`, `ai/init.sh`, `CLAUDE.md`
+Creates: `ai/feature_list.json`, `ai/progress.log`, `ai/init.sh`, `CLAUDE.md`
 
 ## Modes
 
@@ -41,10 +41,7 @@ agent-foreman init      # Then: create harness
 
 ```
 ai/
-├── features/           # Feature backlog (modular markdown)
-│   ├── index.json      # Feature index
-│   └── {module}/       # Module directories
-│       └── {id}.md     # Individual features
+├── feature_list.json   # Feature backlog
 ├── progress.log        # Session audit log
 ├── init.sh             # Bootstrap script
 └── capabilities.json   # Detected test/lint/build

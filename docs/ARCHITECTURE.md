@@ -166,8 +166,8 @@ Agent-foreman is a TypeScript CLI harness that guides AI-assisted feature-driven
 > 按常见模式收集入口、源/测试目录与配置文件。 | project-scanner | code | 86% |
 | structure.isEmpty | Determine if project lacks source files across multiple languages/directories.
 > 判断项目在多种语言/目录下是否无源文件。 | project-scanner | code | 83% |
-| features.loadSave | Read/write ai/features/ with schema validation and metadata updates.
-> 读取/写入带架构校验和元数据更新的 ai/features/。 | feature-list | code | 88% |
+| features.loadSave | Read/write ai/feature_list.json with schema validation and metadata updates.
+> 读取/写入带架构校验和元数据更新的 ai/feature_list.json。 | feature-list | code | 88% |
 | features.selection | Select next feature prioritizing needs_review then failing by priority.
 > 选择下一个特性，按 needs_review 优先且再按优先级排序。 | feature-list | code | 87% |
 | features.dependencyQueries | Find dependents, same-module peers, and generate deprecation or dependency-aware updates.

@@ -76,10 +76,12 @@ Get the next priority feature to work on.
 ```
 /agent-foreman:next
 /agent-foreman:next <feature_id>
+/agent-foreman:next --check
 ```
 
 **Parameters:**
 - `<feature_id>` - (optional) Work on specific feature
+- `--check` - Run tests before showing task
 - `--dry-run` - Preview only
 
 **Priority Order:**
@@ -91,6 +93,7 @@ Get the next priority feature to work on.
 ```
 /agent-foreman:next
 /agent-foreman:next auth.login
+/agent-foreman:next --check
 ```
 
 ---
@@ -270,7 +273,7 @@ agent-foreman next           # Continue
 │  mkdir project && cd project                                │
 │  git init                                                    │
 │           ↓                                                  │
-│  /agent-foreman:init "goal" →  ai/features/                  │
+│  /agent-foreman:init "goal" →  ai/feature_list.json         │
 │                                ai/progress.log               │
 │                                ai/init.sh                    │
 │                                CLAUDE.md                     │
@@ -293,7 +296,7 @@ agent-foreman next           # Continue
 │                               docs/ARCHITECTURE.md           │
 │           ↓                                                  │
 │  /agent-foreman:init       →  Reads ARCHITECTURE.md +        │
-│                               ai/features/                   │
+│                               ai/feature_list.json           │
 │                               + git commit (suggested)       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -337,10 +340,7 @@ After initialization, your project will have:
 ```
 your-project/
 ├── ai/
-│   ├── features/           # Feature backlog (modular markdown)
-│   │   ├── index.json      # Feature index
-│   │   └── {module}/       # Module directories
-│   │       └── {id}.md     # Individual features
+│   ├── feature_list.json   # Feature backlog (JSON for AI)
 │   ├── progress.log        # Immutable audit log
 │   └── init.sh             # Bootstrap script
 ├── docs/

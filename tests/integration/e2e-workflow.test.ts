@@ -108,7 +108,6 @@ describe("E2E Workflow Tests", () => {
       const stepResult = spawnSync("node", [CLI_PATH, "next", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
-        timeout: 180000, // 3 minutes for AI TDD guidance generation
       });
 
       const stepOutput = JSON.parse(stepResult.stdout);
@@ -123,20 +122,12 @@ describe("E2E Workflow Tests", () => {
 
       expect(completeResult.stdout).toContain("Marked 'core.setup' as passing");
 
-      // Step 6: Verify feature was updated in modular storage format
-      // After auto-migration, features are stored in ai/features/{module}/{id}.md
-      const coreSetupContent = await fs.readFile(
-        path.join(tempDir, "ai/features/core/setup.md"),
-        "utf-8"
+      // Step 6: Verify feature list was updated
+      const updatedFeatureList = JSON.parse(
+        await fs.readFile(path.join(tempDir, "ai/feature_list.json"), "utf-8")
       );
-      expect(coreSetupContent).toContain("status: passing");
-
-      // Verify second feature is still failing
-      const coreTestsContent = await fs.readFile(
-        path.join(tempDir, "ai/features/core/tests.md"),
-        "utf-8"
-      );
-      expect(coreTestsContent).toContain("status: failing");
+      expect(updatedFeatureList.features[0].status).toBe("passing");
+      expect(updatedFeatureList.features[1].status).toBe("failing");
 
       // Step 7: Verify status shows updated stats
       const statusResult2 = spawnSync("node", [CLI_PATH, "status"], {
@@ -152,7 +143,6 @@ describe("E2E Workflow Tests", () => {
       const stepResult2 = spawnSync("node", [CLI_PATH, "next", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
-        timeout: 180000, // 3 minutes for AI TDD guidance generation
       });
 
       const stepOutput2 = JSON.parse(stepResult2.stdout);
@@ -183,7 +173,7 @@ describe("E2E Workflow Tests", () => {
 
       expect(statusResult3.stdout).toContain("Passing: 2");
       expect(statusResult3.stdout).toContain("100%");
-    }, 600000); // 10 minute test timeout for AI calls
+    }, 60000);
   });
 
   describe("File output verification", () => {
@@ -233,20 +223,14 @@ describe("E2E Workflow Tests", () => {
       });
 
       // Verify the structure is maintained
-      // After migration, the feature is stored in modular format (ai/features/)
-      // Check index.json for status, and markdown file for full data
-      const indexPath = path.join(tempDir, "ai/features/index.json");
-      const indexContent = await fs.readFile(indexPath, "utf-8");
-      const index = JSON.parse(indexContent);
+      const content = await fs.readFile(path.join(tempDir, "ai/feature_list.json"), "utf-8");
+      const updated = JSON.parse(content);
 
-      expect(index.features["test.verify"].status).toBe("passing");
-      expect(index.metadata.version).toBe("1.0.0");
-
-      // Check the markdown file for full feature data
-      const featurePath = path.join(tempDir, "ai/features/test/verify.md");
-      const featureContent = await fs.readFile(featurePath, "utf-8");
-      expect(featureContent).toContain("status: passing");
-      expect(featureContent).toContain("# Verify feature structure");
+      expect(updated.features[0].id).toBe("test.verify");
+      expect(updated.features[0].status).toBe("passing");
+      expect(updated.features[0].acceptance).toEqual(["Feature is valid"]);
+      expect(updated.features[0].tags).toEqual(["test"]);
+      expect(updated.metadata.version).toBe("1.0.0");
     });
 
     it("should verify progress.log is updated after done", async () => {
@@ -377,7 +361,7 @@ describe("E2E Workflow Tests", () => {
   });
 
   describe("Next command with dependencies", () => {
-    it("should select features based on priority and dependency status", { timeout: 60000 }, async () => {
+    it("should select features based on priority and dependency status", async () => {
       await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
 
       const featureList = {
@@ -422,15 +406,14 @@ describe("E2E Workflow Tests", () => {
       const result = spawnSync("node", [CLI_PATH, "next", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
-        timeout: 180000, // 3 minutes for AI TDD guidance generation
       });
 
       const output = JSON.parse(result.stdout);
       // Should return a valid feature (either one based on the selection algorithm)
       expect(["base.setup", "advanced.feature"]).toContain(output.feature.id);
-    }, 200000); // 3.5 minute test timeout
+    }, 60000);
 
-    it("should handle circular dependency gracefully", { timeout: 60000 }, async () => {
+    it("should handle circular dependency gracefully", async () => {
       await fs.mkdir(path.join(tempDir, "ai"), { recursive: true });
 
       // Note: This shouldn't happen in practice, but test defensive behavior
@@ -476,14 +459,13 @@ describe("E2E Workflow Tests", () => {
       const result = spawnSync("node", [CLI_PATH, "next", "--json", "--allow-dirty"], {
         cwd: tempDir,
         encoding: "utf-8",
-        timeout: 180000, // 3 minutes for AI TDD guidance generation
       });
 
       // Should not crash
       expect(result.status).toBe(0);
       const output = JSON.parse(result.stdout);
       expect(output.feature).toBeDefined();
-    }, 200000); // 3.5 minute test timeout
+    }, 60000);
   });
 
   describe("Error handling", () => {

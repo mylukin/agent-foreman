@@ -187,8 +187,7 @@ export function getTestPattern(feature: Feature): string | undefined {
 }
 
 /**
- * Feature list structure (in-memory representation)
- * Loaded from ai/features/ (modular) or legacy ai/feature_list.json
+ * Feature list file structure (ai/feature_list.json)
  */
 export interface FeatureList {
   /** JSON Schema reference */
@@ -208,40 +207,6 @@ export interface FeatureListMetadata {
   updatedAt: string;
   /** Schema version */
   version: string;
-}
-
-// ============================================================================
-// Feature Index Types (Modular Storage)
-// ============================================================================
-
-/**
- * Lightweight feature entry for quick index lookups
- * Contains only brief properties for fast status overview
- */
-export interface FeatureIndexEntry {
-  /** Current status */
-  status: FeatureStatus;
-  /** Priority (1 = highest) */
-  priority: number;
-  /** Parent module/subsystem */
-  module: string;
-  /** Human-readable description (summary) */
-  description: string;
-}
-
-/**
- * Feature index file structure (ai/features/index.json)
- * Provides quick lookup of feature status without loading full feature files
- */
-export interface FeatureIndex {
-  /** Index format version */
-  version: string;
-  /** ISO 8601 timestamp of last update */
-  updatedAt: string;
-  /** File metadata (same as FeatureListMetadata) */
-  metadata: FeatureListMetadata;
-  /** Map of feature ID to index entry */
-  features: Record<string, FeatureIndexEntry>;
 }
 
 // ============================================================================
@@ -348,7 +313,7 @@ export interface DiscoveredFeature {
   source: "route" | "test" | "controller" | "model" | "inferred" | "feature_list";
   /** Confidence score (0-1) */
   confidence: number;
-  /** Actual status from feature index (optional) */
+  /** Actual status from feature_list.json (optional) */
   status?: FeatureStatus;
 }
 

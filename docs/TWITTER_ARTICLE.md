@@ -48,7 +48,7 @@ It's inspired by Anthropic's research paper "Effective harnesses for long-runnin
 
 The harness maintains three core files:
 
-• ai/features/ → Feature backlog with acceptance criteria (modular markdown)
+• ai/feature_list.json → Feature backlog with acceptance criteria
 • ai/progress.log → Session handoff audit log
 • ai/init.sh → Project-specific test commands
 
@@ -84,7 +84,7 @@ Human engineers don't rely on memory either. We use:
 agent-foreman brings these same patterns to AI:
 
 Human Practice → AI Equivalent
-Scrum board → ai/features/
+Scrum board → feature_list.json
 Sprint notes → progress.log
 CI/CD pipeline → init.sh check
 Code review → Acceptance criteria
@@ -180,7 +180,7 @@ agent-foreman 是一个 Claude Code 插件，给 AI 提供它们急需的东西�
 
 核心文件：
 
-• ai/features/ → 带验收标准的功能清单（模块化 Markdown）
+• ai/feature_list.json → 带验收标准的功能清单
 • ai/progress.log → 会话交接审计日志
 • ai/init.sh → 项目专属测试命令
 
@@ -216,7 +216,7 @@ Anthropic 研究发现一个有趣细节：
 agent-foreman 把这些模式带给了 AI：
 
 人类实践 → AI 等效
-看板 → ai/features/
+看板 → feature_list.json
 会议纪要 → progress.log
 CI/CD → init.sh check
 Code Review → 验收标准

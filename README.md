@@ -89,6 +89,7 @@ Commands accept natural language and flags:
 ```
 /agent-foreman:init --mode new        # Fresh start, replace existing
 /agent-foreman:init --mode scan       # Preview only, don't save
+/agent-foreman:next --check           # Run tests before showing task
 /agent-foreman:analyze --verbose      # Detailed output
 ```
 
@@ -108,7 +109,7 @@ agent-foreman brings these same patterns to AI:
 
 | Human Practice | AI Equivalent |
 |----------------|---------------|
-| Scrum board | `features/` |
+| Scrum board | `feature_list.json` |
 | Sprint notes | `progress.log` |
 | CI/CD pipeline | `init.sh check` |
 | Code review | Acceptance criteria |
@@ -144,7 +145,7 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 │                                              │                           │
 │                                              ▼                           │
 │                                    Define acceptance criteria (RED)      │
-│                                    features/                             │
+│                                    feature_list.json                     │
 │                                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
@@ -197,7 +198,7 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 
 | File | Purpose |
 |------|---------|
-| `ai/features/` | Modular feature storage (one markdown file per feature) |
+| `ai/feature_list.json` | Feature backlog with status |
 | `ai/progress.log` | Session handoff audit log |
 | `ai/init.sh` | Environment bootstrap script |
 | `docs/ARCHITECTURE.md` | AI-generated project architecture |
