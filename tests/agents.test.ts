@@ -155,17 +155,17 @@ describe("Agents", () => {
         return { status: 1 } as any;
       });
 
-      // Default order: codex > gemini > claude
-      const agent1 = getAvailableAgent();
-      expect(agent1?.name).toBe("codex"); // First in default order that's available
+      // Explicit default order: codex > gemini > claude (avoids env var interference)
+      const agent1 = getAvailableAgent(["codex", "gemini", "claude"]);
+      expect(agent1?.name).toBe("codex"); // First in specified order that's available
 
       // When gemini is preferred first
       const agent2 = getAvailableAgent(["gemini", "codex", "claude"]);
       expect(agent2?.name).toBe("gemini");
 
-      // When codex is preferred first
-      const agent3 = getAvailableAgent(["codex", "gemini", "claude"]);
-      expect(agent3?.name).toBe("codex");
+      // When claude is preferred first
+      const agent3 = getAvailableAgent(["claude", "gemini", "codex"]);
+      expect(agent3?.name).toBe("claude");
     });
   });
 
