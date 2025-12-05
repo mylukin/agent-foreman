@@ -296,9 +296,8 @@ export async function runNext(
   // TDD Guidance Section (display only, not in quiet mode)
   // ─────────────────────────────────────────────────────────────────
   try {
-    const capabilities = await detectCapabilities(cwd, { verbose: false });
-
-    // Check cache validity (unless --refresh-guidance is set)
+    // Check cache validity FIRST (unless --refresh-guidance is set)
+    // This avoids expensive detectCapabilities call when cache is valid
     const isCacheValid =
       !refreshGuidance &&
       feature.tddGuidance &&
@@ -309,11 +308,14 @@ export async function runNext(
     let isAIGenerated = false;
 
     if (isCacheValid && feature.tddGuidance) {
-      // Use cached AI guidance
+      // Use cached AI guidance - no need for capabilities detection
       guidance = feature.tddGuidance;
       isCached = true;
       isAIGenerated = true;
     } else {
+      // Cache miss - need to generate new guidance, detect capabilities
+      const capabilities = await detectCapabilities(cwd, { verbose: false });
+
       // Try AI generation
       const aiGuidance = await generateTDDGuidanceWithAI(feature, capabilities, cwd);
 
