@@ -62,17 +62,18 @@ Main entry point implementing all CLI commands via yargs.
 |--------|---------|
 | `agents.ts` | Multi-agent abstraction (Claude, Gemini, Codex) |
 | `ai-scanner.ts` | Autonomous project exploration |
-| `ai-capability-discovery.ts` | AI-based capability detection |
+| `capabilities/ai-discovery.ts` | AI-based capability detection |
 
 ### Verification System
 
 | Module | Purpose |
 |--------|---------|
-| `verifier.ts` | Core verification orchestration |
-| `verification-prompts.ts` | AI prompt construction |
-| `verification-store.ts` | Result persistence |
-| `project-capabilities.ts` | Three-tier capability detection |
-| `capability-cache.ts` | Caching with staleness checks |
+| `verifier/core.ts` | Core verification orchestration |
+| `verifier/prompts.ts` | AI prompt construction |
+| `verifier/tdd.ts` | TDD verification mode |
+| `verifier/autonomous.ts` | Autonomous verification mode |
+| `verification-store/` | Result persistence (per-feature directories) |
+| `capabilities/` | Three-tier capability detection with caching |
 | `test-discovery.ts` | Test file discovery and selective execution |
 
 ### Infrastructure
@@ -95,6 +96,8 @@ agent-foreman supports multiple AI CLI tools with automatic failover:
 | Codex | 1 (highest) | `codex exec --skip-git-repo-check --full-auto -` |
 | Gemini | 2 | `gemini --output-format text --yolo` |
 | Claude | 3 | `claude --print --output-format text --dangerously-skip-permissions` |
+
+**Note:** Priority can be customized via `AGENT_FOREMAN_AGENTS` environment variable (comma-separated list).
 
 **Selection Logic:**
 
@@ -197,9 +200,19 @@ Cached capability detection results with:
 - 24-hour TTL
 - Forced refresh option
 
-### Verification Results (`ai/verification/results.json`)
+### Verification Results (`ai/verification/`)
 
-Historical verification results per feature.
+Per-feature verification results stored in directories:
+
+```text
+ai/verification/
+├── index.json                 # Index of all results
+└── {featureId}/
+    ├── 001.json               # Verification metadata
+    └── 001.md                 # Verification report
+```
+
+Legacy format (`ai/verification/results.json`) is auto-migrated to new format.
 
 ---
 

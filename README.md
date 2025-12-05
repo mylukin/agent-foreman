@@ -210,6 +210,7 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 | `passing` | Acceptance criteria met |
 | `blocked` | External dependency blocking |
 | `needs_review` | May be affected by changes |
+| `failed` | Implementation attempted but verification failed |
 | `deprecated` | No longer needed |
 
 ---

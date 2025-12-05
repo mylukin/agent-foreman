@@ -118,7 +118,7 @@ Write criteria as testable statements:
 
 ### Feature JSON Schema
 
-When adding or modifying features in `ai/feature_list.json`, use this schema:
+**IMPORTANT**: When adding or modifying features in `ai/feature_list.json`, use this exact schema:
 
 ```json
 {
@@ -152,6 +152,12 @@ When adding or modifying features in `ai/feature_list.json`, use this schema:
   }
 }
 ```
+
+**Required fields**: `id`, `description`, `module`, `priority`, `status`, `acceptance`, `version`, `origin`
+
+**Auto-generated fields**: `testRequirements` (auto-generated during init with pattern `tests/{module}/**/*.test.*`)
+
+**Optional fields**: `testRequirements` (can be overridden), `e2eTags` (Playwright tags for E2E filtering)
 
 ### testRequirements Structure
 

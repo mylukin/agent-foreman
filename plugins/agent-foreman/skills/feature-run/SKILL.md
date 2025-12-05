@@ -82,9 +82,9 @@ When `agent-foreman done` reports verification failure:
 
 1. **DO NOT STOP** - Continue to the next feature
 2. Mark the failed feature as `failed`:
-   - Edit the feature's markdown file in `ai/features/{module}/{id}.md`
-   - Change `status: failing` to `status: failed`
-   - Add to notes: `Verification failed: [reason from output]`
+   - Edit `ai/feature_list.json`
+   - Change `"status": "failing"` to `"status": "failed"`
+   - Add to notes: `"Verification failed: [reason from output]"`
 3. Log the failure in `ai/progress.log`:
    ```
    YYYY-MM-DDTHH:MM:SSZ VERIFY feature=<id> verdict=fail summary="Marked as failed"

@@ -35,12 +35,13 @@ export interface AgentState {
 /**
  * Default AI agents configuration
  * All agents use highest permission mode for automated scanning without human intervention
+ * Priority order: Codex > Gemini > Claude (configurable via AGENT_FOREMAN_AGENTS env var)
  */
 export const DEFAULT_AGENTS: AgentConfig[] = [
-  // Claude: --print for non-interactive, --dangerously-skip-permissions for full access
+  // Codex: exec mode with full-auto approval (highest priority)
   {
-    name: "claude",
-    command: ["claude", "--print", "--output-format", "text", "--dangerously-skip-permissions"],
+    name: "codex",
+    command: ["codex", "exec", "--skip-git-repo-check", "--full-auto", "-"],
     promptViaStdin: true,
   },
   // Gemini: non-interactive text output with auto-approve all tools (yolo mode)
@@ -49,10 +50,10 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     command: ["gemini", "--output-format", "text", "--yolo"],
     promptViaStdin: true,
   },
-  // Codex: exec mode with full-auto approval
+  // Claude: --print for non-interactive, --dangerously-skip-permissions for full access
   {
-    name: "codex",
-    command: ["codex", "exec", "--skip-git-repo-check", "--full-auto", "-"],
+    name: "claude",
+    command: ["claude", "--print", "--output-format", "text", "--dangerously-skip-permissions"],
     promptViaStdin: true,
   },
 ];

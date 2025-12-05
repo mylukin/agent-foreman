@@ -210,6 +210,7 @@ agent-foreman 采用 **TDD (测试驱动开发)** 理念：先定义验收标准
 | `passing` | 已完成验收 |
 | `blocked` | 被外部依赖卡住 |
 | `needs_review` | 可能受其他改动影响，需复查 |
+| `failed` | 已尝试实现但验证失败 |
 | `deprecated` | 已废弃 |
 
 ---

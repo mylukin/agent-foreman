@@ -372,7 +372,7 @@ your-project/
 }
 ```
 
-**Status values:** `failing` | `passing` | `blocked` | `needs_review` | `deprecated`
+**Status values:** `failing` | `passing` | `blocked` | `needs_review` | `failed` | `deprecated`
 
 **Origin values:** `init-auto` | `init-from-routes` | `init-from-tests` | `manual` | `replan`
 
