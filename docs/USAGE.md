@@ -231,7 +231,7 @@ npx agent-foreman <command>
 | `check <feature_id>` | Preview verification without completing |
 | `impact <feature_id>` | Analyze impact of changes |
 | `agents` | Show available AI agents |
-| `detect-capabilities` | Detect project verification capabilities |
+| `scan` | Scan project verification capabilities |
 
 ### CLI Examples
 

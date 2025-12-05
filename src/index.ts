@@ -20,7 +20,7 @@ import {
   runImpact,
   runCheck,
   runDone,
-  runDetectCapabilities,
+  runScan,
   runAgents,
   detectProjectGoal,
 } from "./commands/index.js";
@@ -308,24 +308,24 @@ async function main() {
       }
     )
     .command(
-      "detect-capabilities",
-      "Detect or refresh project verification capabilities",
+      "scan",
+      "Scan project verification capabilities",
       (yargs) =>
         yargs
           .option("force", {
             alias: "f",
             type: "boolean",
             default: false,
-            describe: "Force re-detection even if cache exists",
+            describe: "Force re-scan even if cache exists",
           })
           .option("verbose", {
             alias: "v",
             type: "boolean",
             default: false,
-            describe: "Show detailed detection output",
+            describe: "Show detailed scan output",
           }),
       async (argv) => {
-        await runDetectCapabilities(argv.force, argv.verbose);
+        await runScan(argv.force, argv.verbose);
       }
     )
     .demandCommand(1, "You need at least one command")

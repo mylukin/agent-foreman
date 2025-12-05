@@ -11,7 +11,7 @@ export { runStatus } from "./status.js";
 export { runImpact } from "./impact.js";
 export { runCheck } from "./check.js";
 export { runDone } from "./done.js";
-export { runDetectCapabilities } from "./detect-capabilities.js";
+export { runScan } from "./scan.js";
 export { runAgents } from "./agents-cmd.js";
 
 // Re-export helpers

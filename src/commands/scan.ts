@@ -1,28 +1,28 @@
 /**
- * Detect-capabilities command - Detect or refresh project verification capabilities
+ * Scan command - Detect or refresh project verification capabilities
  */
 
 import chalk from "chalk";
 
-import { detectCapabilities, formatExtendedCapabilities } from "../project-capabilities.js";
+import { detectCapabilities, formatExtendedCapabilities } from "../capabilities/index.js";
 import { createSpinner } from "../progress.js";
 
 /**
- * Run the detect-capabilities command
+ * Run the scan command
  */
-export async function runDetectCapabilities(
+export async function runScan(
   force: boolean,
   verbose: boolean
 ): Promise<void> {
   const cwd = process.cwd();
 
-  console.log(chalk.blue("🔍 Detecting project verification capabilities..."));
+  console.log(chalk.blue("🔍 Scanning project capabilities..."));
 
   if (force) {
     console.log(chalk.gray("   (forcing re-detection, ignoring cache)"));
   }
 
-  const spinner = createSpinner("Detecting capabilities");
+  const spinner = createSpinner("Scanning capabilities");
 
   try {
     const capabilities = await detectCapabilities(cwd, {
@@ -30,7 +30,7 @@ export async function runDetectCapabilities(
       verbose,
     });
 
-    spinner.succeed("Capabilities detected");
+    spinner.succeed("Scan complete");
     console.log(formatExtendedCapabilities(capabilities));
 
     // Show custom rules if any
@@ -46,7 +46,7 @@ export async function runDetectCapabilities(
     console.log(chalk.gray(`\n  Detected at: ${capabilities.detectedAt}`));
     console.log(chalk.gray(`  Cache: ai/capabilities.json`));
   } catch (error) {
-    spinner.fail(`Detection failed: ${(error as Error).message}`);
+    spinner.fail(`Scan failed: ${(error as Error).message}`);
     process.exit(1);
   }
 }

@@ -95,8 +95,8 @@ agent-foreman done <feature_id> --skip-verify
 # Analyze impact of changes
 agent-foreman impact <feature_id>
 
-# Detect project verification capabilities
-agent-foreman detect-capabilities
+# Scan project verification capabilities
+agent-foreman scan
 
 # Bootstrap/development/testing
 ./ai/init.sh bootstrap
