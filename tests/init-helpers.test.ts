@@ -64,12 +64,12 @@ vi.mock("../src/ai-scanner.js", () => ({
   generateAISurveyMarkdown: mockGenerateAISurveyMarkdown,
 }));
 
-// Mock project-capabilities module (detectCapabilities)
+// Mock capabilities module (detectCapabilities - the one init-helpers.ts actually uses)
 const { mockDetectCapabilities } = vi.hoisted(() => ({
   mockDetectCapabilities: vi.fn(),
 }));
 
-vi.mock("../src/project-capabilities.js", () => ({
+vi.mock("../src/capabilities/index.js", () => ({
   detectCapabilities: mockDetectCapabilities,
 }));
 

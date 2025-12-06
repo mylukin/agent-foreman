@@ -50,8 +50,8 @@ agent-foreman next
 # STEP 3: Implement (satisfy ALL acceptance criteria)
 # ... write code ...
 
-# STEP 4: Verify + commit
-agent-foreman done <feature_id>
+# STEP 4: Verify + commit (--loop flag maintains context across compaction)
+agent-foreman done <feature_id> --loop
 
 # STEP 5: Handle result
 # - Verification passed? → Continue to STEP 1

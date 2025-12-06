@@ -49,8 +49,8 @@ agent-foreman next
 # STEP 3: Implement feature
 # (satisfy ALL acceptance criteria shown)
 
-# STEP 4: Complete feature
-agent-foreman done <feature_id>
+# STEP 4: Complete feature (--loop flag maintains context across compaction)
+agent-foreman done <feature_id> --loop
 
 # STEP 5: Handle result
 # - Verification passed? → Continue to STEP 1

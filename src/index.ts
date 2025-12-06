@@ -212,6 +212,11 @@ async function main() {
             type: "boolean",
             default: false,
             describe: "Skip E2E tests entirely (run unit tests only)",
+          })
+          .option("loop", {
+            type: "boolean",
+            default: false,
+            describe: "Enable loop mode (outputs continuation reminder for all-features workflow)",
           }),
       async (argv) => {
         // Determine test mode: --full > --quick (default)
@@ -236,7 +241,8 @@ async function main() {
           testMode,
           argv.testPattern,
           argv.skipE2e,
-          e2eMode
+          e2eMode,
+          argv.loop
         );
       }
     )

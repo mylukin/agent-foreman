@@ -13,6 +13,8 @@ import {
   selectNextFeature,
   updateFeatureStatus,
   updateFeatureVerification,
+  getFeatureStats,
+  getCompletionPercentage,
 } from "../feature-list.js";
 import {
   appendProgressLog,
@@ -44,7 +46,8 @@ export async function runDone(
   testMode: "full" | "quick" | "skip" = "full",
   testPattern?: string,
   skipE2E: boolean = false,
-  e2eMode?: "full" | "smoke" | "tags" | "skip"
+  e2eMode?: "full" | "smoke" | "tags" | "skip",
+  loopMode: boolean = false
 ): Promise<void> {
   const cwd = process.cwd();
 
@@ -263,8 +266,62 @@ Feature: ${featureId}
   const next = selectNextFeature(featureList.features);
   if (next) {
     console.log(chalk.gray(`\n  Next up: ${next.id}`));
+
+    // Loop mode: Output explicit continuation reminder
+    if (loopMode) {
+      const stats = getFeatureStats(featureList.features);
+      const total = featureList.features.length;
+      const completed = stats.passing;
+      const percent = getCompletionPercentage(featureList.features);
+
+      console.log(chalk.bold.cyan("\n══════════════════════════════════════════════════════════════"));
+      console.log(chalk.bold.cyan("                   FEATURE LOOP MODE ACTIVE"));
+      console.log(chalk.bold.cyan("══════════════════════════════════════════════════════════════\n"));
+
+      console.log(chalk.white(`   Completed: ${featureId} (${completed}/${total} features)`));
+      console.log(chalk.white(`   Next up: ${next.id}`));
+      console.log(chalk.white(`   Progress: ${percent}% complete`));
+
+      console.log(chalk.bold.yellow("\n   LOOP INSTRUCTION (DO NOT IGNORE):"));
+      console.log(chalk.white("   You are in ALL-FEATURES loop mode. Continue workflow:"));
+      console.log(chalk.gray("   1. agent-foreman status"));
+      console.log(chalk.gray("   2. agent-foreman next"));
+      console.log(chalk.gray("   3. Implement feature"));
+      console.log(chalk.gray("   4. agent-foreman done <feature_id> --loop"));
+      console.log(chalk.gray("   5. REPEAT until all features processed"));
+
+      console.log(chalk.bold.green("\n   ➤ Do NOT stop. Continue to next feature NOW."));
+      console.log(chalk.bold.cyan("══════════════════════════════════════════════════════════════\n"));
+    }
   } else {
-    console.log(chalk.green("\n  🎉 All features are now passing!"));
+    // All features processed
+    if (loopMode) {
+      // Loop mode completion summary
+      const stats = getFeatureStats(featureList.features);
+
+      console.log(chalk.bold.green("\n══════════════════════════════════════════════════════════════"));
+      console.log(chalk.bold.green("                   FEATURE LOOP COMPLETE"));
+      console.log(chalk.bold.green("══════════════════════════════════════════════════════════════\n"));
+
+      console.log(chalk.white("   All features have been processed.\n"));
+
+      console.log(chalk.bold("   Summary:"));
+      console.log(chalk.green(`   ✓ Passing: ${stats.passing}`));
+      if (stats.failed > 0) {
+        console.log(chalk.red(`   ✗ Failed: ${stats.failed}`));
+      }
+      if (stats.blocked > 0) {
+        console.log(chalk.yellow(`   ⚠ Blocked: ${stats.blocked}`));
+      }
+      if (stats.needs_review > 0) {
+        console.log(chalk.yellow(`   ⏳ Needs Review: ${stats.needs_review}`));
+      }
+
+      console.log(chalk.gray("\n   Run 'agent-foreman status' for details."));
+      console.log(chalk.bold.green("══════════════════════════════════════════════════════════════\n"));
+    } else {
+      console.log(chalk.green("\n  🎉 All features are now passing!"));
+    }
 
     // Auto-regenerate ARCHITECTURE.md when all features complete
     console.log(chalk.blue("\n📊 Regenerating project survey..."));

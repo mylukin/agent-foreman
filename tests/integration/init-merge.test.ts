@@ -19,12 +19,12 @@ vi.mock("../../src/agents.js", () => ({
   printAgentStatus: mockPrintAgentStatus,
 }));
 
-// Mock project-capabilities module
+// Mock capabilities module (the one actually used by init-helpers.ts)
 const { mockDetectCapabilities } = vi.hoisted(() => ({
   mockDetectCapabilities: vi.fn(),
 }));
 
-vi.mock("../../src/project-capabilities.js", () => ({
+vi.mock("../../src/capabilities/index.js", () => ({
   detectCapabilities: mockDetectCapabilities,
 }));
 
