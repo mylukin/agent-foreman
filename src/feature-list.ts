@@ -10,7 +10,60 @@ import { validateFeatureList } from "./schema.js";
 export const FEATURE_LIST_PATH = "ai/feature_list.json";
 
 /**
+ * Migrate features to strict TDD mode
+ * When tddMode is "strict", all features should have testRequirements.unit.required = true
+ *
+ * @param featureList - The feature list to migrate
+ * @returns Object with migrated list and count of migrated features
+ */
+export function migrateToStrictTDD(featureList: FeatureList): {
+  list: FeatureList;
+  migratedCount: number;
+} {
+  if (featureList.metadata.tddMode !== "strict") {
+    return { list: featureList, migratedCount: 0 };
+  }
+
+  let migratedCount = 0;
+
+  const migratedFeatures = featureList.features.map((feature) => {
+    // Skip if already has required: true
+    if (feature.testRequirements?.unit?.required === true) {
+      return feature;
+    }
+
+    // Migrate: set required to true
+    migratedCount++;
+    const existingUnit = feature.testRequirements?.unit;
+    const existingE2E = feature.testRequirements?.e2e;
+
+    return {
+      ...feature,
+      testRequirements: {
+        unit: {
+          required: true,
+          pattern:
+            existingUnit?.pattern ||
+            generateTestPattern(feature.module),
+          ...(existingUnit?.cases ? { cases: existingUnit.cases } : {}),
+        },
+        ...(existingE2E ? { e2e: existingE2E } : {}),
+      },
+    };
+  });
+
+  return {
+    list: {
+      ...featureList,
+      features: migratedFeatures,
+    },
+    migratedCount,
+  };
+}
+
+/**
  * Load feature list from file
+ * When strict TDD mode is enabled, auto-migrates features to require tests
  */
 export async function loadFeatureList(basePath: string): Promise<FeatureList | null> {
   const filePath = path.join(basePath, FEATURE_LIST_PATH);
@@ -22,7 +75,23 @@ export async function loadFeatureList(basePath: string): Promise<FeatureList | n
       console.error("Invalid feature list:", errors);
       return null;
     }
-    return data as FeatureList;
+
+    let featureList = data as FeatureList;
+
+    // Auto-migrate to strict TDD if enabled
+    if (featureList.metadata.tddMode === "strict") {
+      const { list, migratedCount } = migrateToStrictTDD(featureList);
+      if (migratedCount > 0) {
+        console.log(
+          `  📋 TDD Migration: Updated ${migratedCount} feature(s) to require tests`
+        );
+        // Save the migrated list
+        await saveFeatureList(basePath, list);
+      }
+      featureList = list;
+    }
+
+    return featureList;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       return null;
@@ -162,8 +231,14 @@ export function mergeFeatures(existing: Feature[], discovered: Feature[]): Featu
 
 /**
  * Create an empty feature list with metadata
+ *
+ * @param goal - Project goal description
+ * @param tddMode - Optional TDD enforcement mode (strict/recommended/disabled)
  */
-export function createEmptyFeatureList(goal: string): FeatureList {
+export function createEmptyFeatureList(
+  goal: string,
+  tddMode?: "strict" | "recommended" | "disabled"
+): FeatureList {
   const now = new Date().toISOString();
   return {
     $schema: "./feature_list.schema.json",
@@ -173,6 +248,7 @@ export function createEmptyFeatureList(goal: string): FeatureList {
       createdAt: now,
       updatedAt: now,
       version: "1.0.0",
+      tddMode,
     },
   };
 }

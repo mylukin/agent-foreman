@@ -4,7 +4,7 @@
  */
 
 import { glob } from "glob";
-import type { Feature } from "./types.js";
+import type { Feature, FeatureListMetadata } from "./types.js";
 
 /**
  * Result of test file gate verification
@@ -151,4 +151,108 @@ function sanitizeModuleName(module: string): string {
     .replace(/[^a-z0-9-]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+// ============================================================================
+// TDD Gate (Extended Verification)
+// ============================================================================
+
+/**
+ * Extended TDD gate result with strict mode information
+ */
+export interface TDDGateResult extends TestGateResult {
+  /** Whether the feature is in strict TDD mode */
+  strictMode: boolean;
+  /** Test patterns that were checked */
+  checkedPatterns: string[];
+}
+
+/**
+ * Verify TDD gate for a feature
+ *
+ * This is an enhanced version of verifyTestFilesExist that:
+ * 1. Respects project-level strict TDD mode
+ * 2. In strict mode, requires tests even if testRequirements.required is false
+ * 3. Provides detailed pattern information for error messages
+ *
+ * @param cwd - Current working directory
+ * @param feature - The feature to verify
+ * @param metadata - Feature list metadata (for tddMode setting)
+ * @returns TDD gate result with existence check status
+ */
+export async function verifyTDDGate(
+  cwd: string,
+  feature: Feature,
+  metadata: FeatureListMetadata
+): Promise<TDDGateResult> {
+  const strictMode = metadata.tddMode === "strict";
+  const result: TDDGateResult = {
+    passed: true,
+    missingUnitTests: [],
+    missingE2ETests: [],
+    foundTestFiles: [],
+    errors: [],
+    strictMode,
+    checkedPatterns: [],
+  };
+
+  // Determine if we need to check for tests
+  const hasExplicitUnitRequirement =
+    feature.testRequirements?.unit?.required === true;
+  const hasExplicitE2ERequirement =
+    feature.testRequirements?.e2e?.required === true;
+  const shouldCheckTests =
+    strictMode || hasExplicitUnitRequirement || hasExplicitE2ERequirement;
+
+  // If not in strict mode and no explicit requirements, pass automatically
+  if (!shouldCheckTests) {
+    return result;
+  }
+
+  // Get unit test pattern
+  const unitPattern =
+    feature.testRequirements?.unit?.pattern ||
+    `tests/${sanitizeModuleName(feature.module)}/**/*.test.*`;
+
+  // In strict mode OR when unit tests are explicitly required, check for unit tests
+  if (strictMode || hasExplicitUnitRequirement) {
+    result.checkedPatterns.push(unitPattern);
+    try {
+      const files = await glob(unitPattern, { cwd, nodir: true });
+      if (files.length === 0) {
+        result.passed = false;
+        result.missingUnitTests.push(unitPattern);
+      } else {
+        result.foundTestFiles.push(...files);
+      }
+    } catch (error) {
+      result.errors.push(
+        `Error checking unit test pattern "${unitPattern}": ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  // Check E2E tests if explicitly required (strict mode doesn't auto-require E2E)
+  if (hasExplicitE2ERequirement) {
+    const e2ePattern =
+      feature.testRequirements?.e2e?.pattern ||
+      `e2e/**/*${sanitizeModuleName(feature.module)}*.spec.*`;
+
+    result.checkedPatterns.push(e2ePattern);
+    try {
+      const files = await glob(e2ePattern, { cwd, nodir: true });
+      if (files.length === 0) {
+        result.passed = false;
+        result.missingE2ETests.push(e2ePattern);
+      } else {
+        result.foundTestFiles.push(...files);
+      }
+    } catch (error) {
+      result.errors.push(
+        `Error checking E2E test pattern "${e2ePattern}": ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  return result;
 }

@@ -28,7 +28,7 @@ import {
   formatVerificationResult,
 } from "../verifier/index.js";
 import { isGitRepo, gitAdd, gitCommit } from "../git-utils.js";
-import { verifyTestFilesExist, discoverFeatureTestFiles } from "../test-gate.js";
+import { verifyTestFilesExist, discoverFeatureTestFiles, verifyTDDGate } from "../test-gate.js";
 import { aiScanProject, aiResultToSurvey, generateAISurveyMarkdown } from "../ai-scanner.js";
 import { scanDirectoryStructure } from "../project-scanner.js";
 import { promptConfirmation } from "./helpers.js";
@@ -64,9 +64,104 @@ export async function runDone(
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Test File Gate: Verify required test files exist before verification
+  // Strict TDD Mode: Adjust skipCheck behavior
   // ─────────────────────────────────────────────────────────────────
-  if (feature.testRequirements) {
+  const isStrictMode = featureList.metadata.tddMode === "strict";
+  const hasRequiredTests =
+    feature.testRequirements?.unit?.required ||
+    feature.testRequirements?.e2e?.required;
+
+  // In strict mode, warn if skipping check
+  if (skipCheck && isStrictMode) {
+    console.log(
+      chalk.bold.yellow("\n⚠ WARNING: Strict TDD mode is enabled but verification is being skipped.")
+    );
+    console.log(
+      chalk.yellow("   In strict mode, tests are required for all features.")
+    );
+    console.log(chalk.gray("   Use --no-skip-check to enforce TDD verification.\n"));
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // TDD Gate: Verify test files exist (strict mode or explicit requirements)
+  // ─────────────────────────────────────────────────────────────────
+  if (isStrictMode || hasRequiredTests) {
+    console.log(
+      chalk.bold.magenta(
+        "\n═══════════════════════════════════════════════════════════════"
+      )
+    );
+    console.log(
+      chalk.bold.magenta(
+        "                    TDD VERIFICATION GATE"
+      )
+    );
+    console.log(
+      chalk.bold.magenta(
+        "═══════════════════════════════════════════════════════════════\n"
+      )
+    );
+
+    if (isStrictMode) {
+      console.log(
+        chalk.cyan("   Mode: STRICT TDD (tests required by project configuration)")
+      );
+    } else {
+      console.log(
+        chalk.cyan("   Mode: Feature requires tests (testRequirements.required: true)")
+      );
+    }
+
+    const gateResult = await verifyTDDGate(cwd, feature, featureList.metadata);
+
+    if (!gateResult.passed) {
+      console.log(
+        chalk.red("\n   ✗ TDD GATE FAILED: Required test files are missing")
+      );
+
+      if (gateResult.missingUnitTests.length > 0) {
+        console.log(chalk.yellow("\n   Missing Unit Tests:"));
+        gateResult.missingUnitTests.forEach((pattern) => {
+          console.log(chalk.white(`     • ${pattern}`));
+        });
+      }
+
+      if (gateResult.missingE2ETests.length > 0) {
+        console.log(chalk.yellow("\n   Missing E2E Tests:"));
+        gateResult.missingE2ETests.forEach((pattern) => {
+          console.log(chalk.white(`     • ${pattern}`));
+        });
+      }
+
+      console.log(chalk.bold.yellow("\n   TDD Workflow Required:"));
+      console.log(chalk.gray("   1. Create test file(s) matching the pattern(s) above"));
+      console.log(chalk.gray("   2. Write failing tests for acceptance criteria"));
+      console.log(chalk.gray("   3. Implement the feature to make tests pass"));
+      console.log(chalk.gray(`   4. Run 'agent-foreman check ${featureId}' again`));
+
+      console.log(
+        chalk.cyan(`\n   Run 'agent-foreman next ${featureId}' for TDD guidance\n`)
+      );
+      process.exit(1);
+    }
+
+    console.log(chalk.green("   ✓ Test files exist"));
+    if (gateResult.foundTestFiles.length > 0) {
+      const displayFiles = gateResult.foundTestFiles.slice(0, 3);
+      const moreCount = gateResult.foundTestFiles.length - 3;
+      console.log(
+        chalk.gray(
+          `     Found: ${displayFiles.join(", ")}${moreCount > 0 ? ` +${moreCount} more` : ""}`
+        )
+      );
+    }
+    console.log("");
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Legacy Test File Gate (for non-strict mode with testRequirements)
+  // ─────────────────────────────────────────────────────────────────
+  if (feature.testRequirements && !isStrictMode && !hasRequiredTests) {
     console.log(chalk.bold.blue("\n═══════════════════════════════════════════════════════════════"));
     console.log(chalk.bold.blue("                    TEST FILE VERIFICATION"));
     console.log(chalk.bold.blue("═══════════════════════════════════════════════════════════════\n"));

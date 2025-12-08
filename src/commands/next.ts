@@ -338,9 +338,41 @@ export async function runNext(
       }
     }
 
-    console.log(chalk.bold.magenta("\n═══════════════════════════════════════════════════════════════"));
-    console.log(chalk.bold.magenta("                    TDD GUIDANCE"));
-    console.log(chalk.bold.magenta("═══════════════════════════════════════════════════════════════\n"));
+    // Check TDD mode from metadata
+    const tddMode = featureList.metadata.tddMode || "recommended";
+    const isStrictTDD = tddMode === "strict";
+    const hasRequiredTests =
+      feature.testRequirements?.unit?.required ||
+      feature.testRequirements?.e2e?.required;
+
+    // Show enforcement warning for strict mode
+    if (isStrictTDD || hasRequiredTests) {
+      console.log(chalk.bold.red("\n!!! TDD ENFORCEMENT ACTIVE !!!"));
+      console.log(
+        chalk.red("   Tests are REQUIRED for this feature to pass verification.")
+      );
+      console.log(
+        chalk.red("   The 'check' and 'done' commands will fail without tests.\n")
+      );
+    }
+
+    // Display TDD guidance header with appropriate styling
+    const headerColor = isStrictTDD ? chalk.bold.red : chalk.bold.magenta;
+    const headerText = isStrictTDD ? "TDD GUIDANCE (REQUIRED)" : "TDD GUIDANCE";
+    console.log(headerColor("═══════════════════════════════════════════════════════════════"));
+    console.log(headerColor(`                    ${headerText}`));
+    console.log(headerColor("═══════════════════════════════════════════════════════════════\n"));
+
+    // Show TDD workflow instructions for strict mode
+    if (isStrictTDD || hasRequiredTests) {
+      console.log(chalk.bold.yellow("📋 TDD Workflow (MANDATORY):"));
+      console.log(chalk.white("   1. RED:      Create test file(s), write failing tests"));
+      console.log(chalk.white("   2. GREEN:    Implement minimum code to pass tests"));
+      console.log(chalk.white("   3. REFACTOR: Clean up under test protection"));
+      console.log(chalk.white(`   4. CHECK:    Run 'agent-foreman check ${feature.id}'`));
+      console.log(chalk.white(`   5. DONE:     Run 'agent-foreman done ${feature.id}'`));
+      console.log("");
+    }
 
     // Show source indicator
     if (isCached) {

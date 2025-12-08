@@ -6,7 +6,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import chalk from "chalk";
 
-import type { Feature } from "../types.js";
+import type { Feature, FeatureListMetadata } from "../types.js";
 import type {
   AutomatedCheckResult,
   VerificationResult,
@@ -27,14 +27,27 @@ import { analyzeWithAI } from "./ai-analysis.js";
 
 /**
  * Determine the verification mode for a feature based on its configuration
+ * and project-wide TDD settings.
  *
- * TDD mode is activated when the feature has explicit test requirements defined.
- * In TDD mode, verification runs tests without AI analysis.
+ * TDD mode is activated when:
+ * 1. Project metadata has tddMode: "strict", OR
+ * 2. Feature has explicit test requirements (required: true)
+ *
+ * In TDD mode, verification requires tests to exist and pass.
  *
  * @param feature - The feature to check
- * @returns 'tdd' if testRequirements.unit.required OR testRequirements.e2e.required, otherwise 'ai'
+ * @param metadata - Optional feature list metadata for project-wide settings
+ * @returns 'tdd' if strict mode or tests required, otherwise 'ai'
  */
-export function determineVerificationMode(feature: Feature): VerificationMode {
+export function determineVerificationMode(
+  feature: Feature,
+  metadata?: FeatureListMetadata
+): VerificationMode {
+  // Check project-wide strict TDD mode
+  if (metadata?.tddMode === "strict") {
+    return "tdd";
+  }
+
   // Check if feature has TDD test requirements
   const hasUnitTestRequirement = feature.testRequirements?.unit?.required === true;
   const hasE2ETestRequirement = feature.testRequirements?.e2e?.required === true;

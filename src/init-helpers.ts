@@ -217,22 +217,29 @@ export async function detectAndAnalyzeProject(
  * - Loads existing feature list (if any)
  * - Converts discovered features to Feature objects
  * - Merges or replaces based on mode
+ *
+ * @param tddMode - Optional TDD enforcement mode (strict/recommended/disabled)
  */
 export async function mergeOrCreateFeatures(
   cwd: string,
   survey: ReturnType<typeof aiResultToSurvey>,
   goal: string,
   mode: InitMode,
-  verbose: boolean
+  verbose: boolean,
+  tddMode?: "strict" | "recommended" | "disabled"
 ): Promise<FeatureList> {
   // Load existing feature list or create new
   let featureList = await loadFeatureList(cwd);
 
   if (mode === "new" || !featureList) {
-    featureList = createEmptyFeatureList(goal);
+    featureList = createEmptyFeatureList(goal, tddMode);
   } else {
     // Update goal if provided
     featureList.metadata.projectGoal = goal;
+    // Update tddMode if provided
+    if (tddMode) {
+      featureList.metadata.tddMode = tddMode;
+    }
   }
 
   // Convert discovered features to Feature objects

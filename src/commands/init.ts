@@ -4,13 +4,46 @@
 
 import chalk from "chalk";
 
-import type { InitMode } from "../types.js";
+import type { InitMode, TDDMode } from "../types.js";
 import { isGitRepo, gitInit } from "../git-utils.js";
 import {
   detectAndAnalyzeProject,
   mergeOrCreateFeatures,
   generateHarnessFiles,
 } from "../init-helpers.js";
+import { promptConfirmation } from "./helpers.js";
+
+/**
+ * Prompt user for TDD mode selection
+ */
+async function promptTDDMode(): Promise<TDDMode | undefined> {
+  const readline = await import("node:readline");
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    console.log(chalk.bold.cyan("\n📋 TDD Mode Configuration"));
+    console.log(chalk.gray("   Strict mode requires tests for all features."));
+    console.log(chalk.gray("   The 'check' and 'done' commands will fail without tests.\n"));
+
+    rl.question(
+      chalk.yellow("   Enable strict TDD mode? (tests required for all features) [y/N]: "),
+      (answer) => {
+        rl.close();
+        const normalized = answer.toLowerCase().trim();
+        if (normalized === "y" || normalized === "yes") {
+          console.log(chalk.green("   ✓ Strict TDD mode enabled\n"));
+          resolve("strict");
+        } else {
+          console.log(chalk.gray("   → Using recommended mode (tests suggested but not required)\n"));
+          resolve("recommended");
+        }
+      }
+    );
+  });
+}
 
 /**
  * Initialize the agent-foreman harness
@@ -48,18 +81,33 @@ export async function runInit(goal: string, mode: InitMode, verbose: boolean): P
     console.log(chalk.gray(`  Found ${analysisResult.survey.features.length} features`));
   }
 
+  // Step 1.5: Prompt for TDD mode (only for new or merge mode)
+  let tddMode: TDDMode | undefined;
+  if (mode !== "scan") {
+    tddMode = await promptTDDMode();
+  }
+
   // Step 2-4: Merge or create features based on mode
   const featureList = await mergeOrCreateFeatures(
     cwd,
     analysisResult.survey,
     goal,
     mode,
-    verbose
+    verbose,
+    tddMode
   );
 
   // Step 5-8: Generate harness files (init.sh, CLAUDE.md, progress.log)
   await generateHarnessFiles(cwd, analysisResult.survey, featureList, goal, mode);
 
   console.log(chalk.bold.green("\n🎉 Harness initialized successfully!"));
-  console.log(chalk.gray("Next: Run 'agent-foreman next' to start working on features"));
+
+  // Show TDD mode reminder if strict mode enabled
+  if (tddMode === "strict") {
+    console.log(chalk.bold.red("\n!!! STRICT TDD MODE ENABLED !!!"));
+    console.log(chalk.yellow("   All features require tests to pass verification."));
+    console.log(chalk.yellow("   Write tests BEFORE implementation (RED → GREEN → REFACTOR)."));
+  }
+
+  console.log(chalk.gray("\nNext: Run 'agent-foreman next' to start working on features"));
 }

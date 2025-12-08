@@ -655,7 +655,7 @@ Some existing content.
       const result = await mergeOrCreateFeatures(testDir, mockSurvey as any, "Test goal", "new", false);
 
       expect(result.features).toHaveLength(2);
-      expect(mockCreateEmptyFeatureList).toHaveBeenCalledWith("Test goal");
+      expect(mockCreateEmptyFeatureList).toHaveBeenCalledWith("Test goal", undefined);
       expect(mockSaveFeatureList).toHaveBeenCalled();
     });
 

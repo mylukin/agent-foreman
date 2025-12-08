@@ -200,6 +200,14 @@ export interface FeatureList {
   metadata: FeatureListMetadata;
 }
 
+/**
+ * TDD enforcement mode for the project
+ * - strict: Tests REQUIRED by default, check/done fail without tests
+ * - recommended: Tests suggested but not enforced (default)
+ * - disabled: No TDD guidance or enforcement
+ */
+export type TDDMode = "strict" | "recommended" | "disabled";
+
 export interface FeatureListMetadata {
   /** Project goal description */
   projectGoal: string;
@@ -209,6 +217,13 @@ export interface FeatureListMetadata {
   updatedAt: string;
   /** Schema version */
   version: string;
+  /**
+   * TDD enforcement mode (optional)
+   * - strict: Tests REQUIRED, check/done fail without tests
+   * - recommended: Tests suggested but not enforced (default)
+   * - disabled: No TDD guidance
+   */
+  tddMode?: TDDMode;
 }
 
 // ============================================================================
