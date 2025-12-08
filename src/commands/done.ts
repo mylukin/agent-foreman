@@ -111,8 +111,8 @@ export async function runDone(
 
   // Step 1: Run verification (unless skipped)
   if (skipCheck) {
-    console.log(chalk.yellow("⚠ Skipping verification (--skip-check flag)"));
-    console.log(chalk.gray("  Tip: Run 'agent-foreman check <id>' before using --skip-check"));
+    console.log(chalk.yellow("⚠ Skipping verification (default behavior)"));
+    console.log(chalk.gray("  Tip: Run 'agent-foreman check <id>' first, or use --no-skip-check to verify"));
   } else {
     console.log(chalk.bold.blue("\n═══════════════════════════════════════════════════════════════"));
     console.log(chalk.bold.blue("                    FEATURE VERIFICATION"));

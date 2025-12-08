@@ -184,7 +184,7 @@ describe("TDD Workflow Integration", () => {
 
       const result = spawnSync(
         "node",
-        [CLI_PATH, "done", "auth.login", "--skip-check"],
+        [CLI_PATH, "done", "auth.login"],
         {
           cwd: tempDir,
           encoding: "utf-8",

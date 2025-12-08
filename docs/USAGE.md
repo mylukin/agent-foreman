@@ -188,7 +188,7 @@ agent-foreman done <feature_id>
 | `--full` | Run complete test suite |
 | `--test-pattern <pattern>` | Use explicit test pattern |
 | `--skip-e2e` | Skip E2E tests |
-| `--skip-check` | Skip verification (use after `check` command) |
+| `--no-skip-check` | Run verification (default skips) |
 | `--no-commit` | Skip auto-commit |
 
 **Examples:**

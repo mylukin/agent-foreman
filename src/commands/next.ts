@@ -284,7 +284,7 @@ export async function runNext(
   console.log(chalk.bold.blue("═══════════════════════════════════════════════════════════════"));
   console.log(chalk.gray("   When done:"));
   console.log(chalk.gray("     1. Verify:   ") + chalk.cyan(`agent-foreman check ${feature.id}`));
-  console.log(chalk.gray("     2. Complete: ") + chalk.cyan(`agent-foreman done ${feature.id} --skip-check`));
+  console.log(chalk.gray("     2. Complete: ") + chalk.cyan(`agent-foreman done ${feature.id}`));
   console.log(chalk.bold.blue("═══════════════════════════════════════════════════════════════\n"));
 
   if (dryRun) {

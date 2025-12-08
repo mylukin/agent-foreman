@@ -17,14 +17,14 @@ agent-foreman next auth.login  # Specific feature
 ## Workflow
 
 ```
-next → implement → check → done --skip-check
+next → implement → check → done
 ```
 
 ```bash
 agent-foreman next              # 1. Get task + acceptance criteria
 # ... implement the feature ... # 2. Write code
 agent-foreman check <id>        # 3. Verify implementation
-agent-foreman done <id> --skip-check  # 4. Mark complete + commit
+agent-foreman done <id>         # 4. Mark complete + commit
 ```
 
 ## Priority Order
