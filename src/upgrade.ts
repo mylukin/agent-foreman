@@ -10,6 +10,12 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as readline from "node:readline";
 import chalk from "chalk";
+import { isCompiledBinary } from "./plugin-installer.js";
+import {
+  fetchLatestGitHubVersion,
+  performBinaryUpgrade,
+  canWriteToExecutable,
+} from "./binary-upgrade.js";
 
 const PACKAGE_NAME = "agent-foreman";
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -152,19 +158,26 @@ export function compareVersions(v1: string, v2: string): number {
 
 /**
  * Check if an upgrade is available
+ * Uses GitHub API for binary mode, npm registry for npm mode
  */
 export async function checkForUpgrade(): Promise<UpgradeCheckResult> {
   const currentVersion = getCurrentVersion();
+  const isBinary = isCompiledBinary();
 
   try {
-    const latestVersion = await fetchLatestVersion();
+    // Use GitHub API for binary, npm registry for npm install
+    const latestVersion = isBinary
+      ? await fetchLatestGitHubVersion()
+      : await fetchLatestVersion();
 
     if (!latestVersion) {
       return {
         needsUpgrade: false,
         currentVersion,
         latestVersion: null,
-        error: "Could not fetch latest version from npm",
+        error: isBinary
+          ? "Could not fetch latest version from GitHub"
+          : "Could not fetch latest version from npm",
       };
     }
 
@@ -301,11 +314,46 @@ function performNpmUpgrade(): { success: boolean; error?: string } {
 
 /**
  * Perform full upgrade: npm package + Claude Code plugin
+ * Routes to binary upgrade for compiled binaries, npm upgrade otherwise
  */
 export async function performInteractiveUpgrade(
   currentVersion: string,
   latestVersion: string
 ): Promise<UpgradeResult> {
+  // Binary mode: use GitHub releases
+  if (isCompiledBinary()) {
+    // Check write permissions
+    if (!canWriteToExecutable()) {
+      console.log(chalk.yellow("\n⚠ Cannot write to executable location."));
+      console.log(chalk.gray("  Try running with elevated permissions or download manually:"));
+      console.log(chalk.cyan("  https://github.com/mylukin/agent-foreman/releases/latest\n"));
+      return {
+        success: false,
+        fromVersion: currentVersion,
+        toVersion: latestVersion,
+        error: "Insufficient permissions to update binary",
+      };
+    }
+
+    const result = await performBinaryUpgrade(currentVersion, latestVersion);
+
+    if (result.success) {
+      // Update plugin after binary upgrade
+      const pluginResult = await updatePlugin();
+      if (!pluginResult.success) {
+        console.log(chalk.yellow(`  ⚠ Plugin update failed: ${pluginResult.error}`));
+      }
+    }
+
+    return {
+      success: result.success,
+      fromVersion: currentVersion,
+      toVersion: latestVersion,
+      error: result.error,
+    };
+  }
+
+  // npm mode: existing logic
   console.log(chalk.blue("\n📦 Upgrading agent-foreman..."));
 
   // Step 1: Upgrade npm package
@@ -368,6 +416,11 @@ export async function interactiveUpgradeCheck(): Promise<void> {
       chalk.cyan("  Do you want to upgrade now? (y/n): ")
     );
 
+    const isBinary = isCompiledBinary();
+    const manualUpgradeHint = isBinary
+      ? "https://github.com/mylukin/agent-foreman/releases/latest"
+      : "npm install -g agent-foreman@latest";
+
     if (confirmed) {
       const upgradeResult = await performInteractiveUpgrade(
         result.currentVersion,
@@ -379,10 +432,10 @@ export async function interactiveUpgradeCheck(): Promise<void> {
         process.exit(0); // Exit after successful upgrade
       } else {
         console.log(chalk.red(`  Upgrade failed: ${upgradeResult.error}`));
-        console.log(chalk.gray("  You can manually upgrade with: npm install -g agent-foreman@latest\n"));
+        console.log(chalk.gray(`  You can manually upgrade: ${manualUpgradeHint}\n`));
       }
     } else {
-      console.log(chalk.gray("  Skipping upgrade. Run 'npm install -g agent-foreman@latest' to upgrade manually.\n"));
+      console.log(chalk.gray(`  Skipping upgrade. Manual upgrade: ${manualUpgradeHint}\n`));
     }
   } catch {
     // Silently ignore any errors during upgrade check

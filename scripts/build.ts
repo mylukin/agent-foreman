@@ -5,10 +5,11 @@
  * Uses Bun's compile feature to create standalone executables for multiple platforms.
  *
  * Usage:
- *   bun scripts/build.ts              # Build all platforms
- *   bun scripts/build.ts --target macos
- *   bun scripts/build.ts --target linux
- *   bun scripts/build.ts --target windows
+ *   bun scripts/build.ts                              # Build all platforms
+ *   bun scripts/build.ts --target macos               # Build all macOS (arm64 + x64)
+ *   bun scripts/build.ts --target linux               # Build all Linux (arm64 + x64)
+ *   bun scripts/build.ts --target windows             # Build Windows (x64)
+ *   bun scripts/build.ts --target macos --arch arm64  # Build specific platform+arch
  */
 
 import { $ } from "bun";
@@ -77,12 +78,35 @@ async function buildTarget(target: TargetKey): Promise<boolean> {
 function parseArgs(): { targets: TargetKey[] } {
   const args = process.argv.slice(2);
   let targetGroup = "all";
+  let arch: string | null = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--target" && args[i + 1]) {
       targetGroup = args[i + 1];
       i++;
+    } else if (args[i] === "--arch" && args[i + 1]) {
+      arch = args[i + 1];
+      i++;
     }
+  }
+
+  // If both --target and --arch are specified, build specific target
+  if (arch && targetGroup !== "all") {
+    const platformMap: Record<string, string> = {
+      macos: "darwin",
+      linux: "linux",
+      windows: "windows",
+    };
+    const platform = platformMap[targetGroup] || targetGroup;
+    const specificTarget = `${platform}-${arch}` as TargetKey;
+
+    if (!(specificTarget in TARGETS)) {
+      console.error(`Unknown target: ${specificTarget}`);
+      console.error(`Available targets: ${Object.keys(TARGETS).join(", ")}`);
+      process.exit(1);
+    }
+
+    return { targets: [specificTarget] };
   }
 
   const targets = PLATFORM_GROUPS[targetGroup];

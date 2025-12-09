@@ -32,7 +32,7 @@ const VERSION_FILE = join(TARGET_DIR, ".version");
 /**
  * Check if running in compiled binary mode
  */
-function isCompiledBinary(): boolean {
+export function isCompiledBinary(): boolean {
   // In compiled mode, we'll have embedded plugins
   return Object.keys(EMBEDDED_PLUGINS).length > 0;
 }
@@ -122,7 +122,7 @@ export async function checkAndInstallPlugins(): Promise<void> {
 
   // Case 1: No plugins installed (first run)
   if (installedVersion === null) {
-    console.log(chalk.cyan("Installing plugins to ~/.claude/plugins/agent-foreman..."));
+    console.log(chalk.cyan("Installing agent-foreman plugin..."));
     try {
       installPlugins();
       console.log(chalk.green("✓ Plugins installed successfully\n"));

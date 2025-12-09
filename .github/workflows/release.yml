@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            arch: x64
+          - os: ubuntu-latest
+            target: linux
+            arch: arm64
+          - os: macos-latest
+            target: macos
+            arch: x64
+          - os: macos-latest
+            target: macos
+            arch: arm64
+          - os: windows-latest
+            target: windows
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Embed assets
+        run: bun scripts/embed-assets.ts
+
+      - name: Build binary
+        run: bun scripts/build.ts --target ${{ matrix.target }} --arch ${{ matrix.arch }}
+
+      - name: Get binary name
+        id: binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            echo "name=agent-foreman-${{ matrix.target }}-${{ matrix.arch }}.exe" >> $GITHUB_OUTPUT
+          else
+            echo "name=agent-foreman-${{ matrix.target }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.binary.outputs.name }}
+          path: dist/bin/${{ steps.binary.outputs.name }}
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for OIDC trusted publishing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # OIDC Trusted Publishing - no NPM_TOKEN needed
+      # Configure at: https://www.npmjs.com/package/agent-foreman/access
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+
+  release:
+    needs: [build, publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f -exec mv {} release/ \;
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

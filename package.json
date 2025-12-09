@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "npm run build",
+    "version": "bun scripts/sync-version.ts && git add .claude-plugin/marketplace.json plugins/agent-foreman/.claude-plugin/plugin.json",
     "build:embed": "bun scripts/embed-assets.ts",
     "build:bin": "npm run build:embed && bun scripts/build.ts",
     "build:bin:macos": "npm run build:embed && bun scripts/build.ts --target macos",

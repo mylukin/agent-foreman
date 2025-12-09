@@ -252,29 +252,48 @@ Follow the **RED → GREEN → REFACTOR** cycle:
 
 ## Release Workflow
 
-When releasing a new version, **all three config files must be updated together**:
+Version numbers are automatically synced across all config files via npm lifecycle hooks.
 
-| File | Field |
-|------|-------|
-| `package.json` | `version` |
-| `.claude-plugin/marketplace.json` | `metadata.version` + `plugins[0].version` |
-| `plugins/agent-foreman/.claude-plugin/plugin.json` | `version` |
+| File | Field | Updated By |
+|------|-------|------------|
+| `package.json` | `version` | `npm version` |
+| `.claude-plugin/marketplace.json` | `metadata.version` + `plugins[0].version` | Auto-synced |
+| `plugins/agent-foreman/.claude-plugin/plugin.json` | `version` | Auto-synced |
 
-### Quick Release Command
+### Release Command
 
 ```bash
-# 1. Update marketplace.json and plugin.json to new version (e.g., 0.1.57)
-# 2. Then run:
-git add -A && git commit -m "chore: sync version numbers" && npm version patch && git push origin main --tags && npm publish
+# Single command - everything is automated
+npm version patch && git push origin main --tags
 ```
 
-### Manual Steps
+### What Happens
 
-1. Edit version in `.claude-plugin/marketplace.json` (2 places)
-2. Edit version in `plugins/agent-foreman/.claude-plugin/plugin.json`
-3. Run `npm version patch` (auto-updates `package.json`)
-4. Commit and push with tags
-5. Publish to npm
+1. `npm version patch` bumps `package.json` version
+2. `version` hook runs `scripts/sync-version.ts` to update plugin files
+3. Git commit is created with all version files
+4. `git push --tags` triggers GitHub Actions which:
+   - Builds binaries for 5 platforms (parallel)
+   - Publishes to npm registry (parallel)
+   - Creates GitHub Release with binaries attached
+
+### Required Setup (One-time)
+
+Configure npm Trusted Publishing (OIDC, no tokens needed):
+1. Go to https://www.npmjs.com/package/agent-foreman/access
+2. Click "Add trusted publisher"
+3. Fill in:
+   - Owner: `mylukin`
+   - Repository: `agent-foreman`
+   - Workflow: `release.yml`
+   - Environment: (leave empty)
+
+### Binary Distribution
+
+Binaries are automatically built and uploaded to GitHub Releases on version tags.
+Users can upgrade via:
+- **npm users**: `npm install -g agent-foreman@latest`
+- **Binary users**: Auto-download from GitHub Releases (built-in self-update)
 
 ---
 
