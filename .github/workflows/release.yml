@@ -49,10 +49,15 @@ jobs:
         id: binary
         shell: bash
         run: |
+          # Map target to actual binary name (macos -> darwin)
+          TARGET="${{ matrix.target }}"
+          if [ "$TARGET" = "macos" ]; then
+            TARGET="darwin"
+          fi
           if [ "${{ matrix.target }}" = "windows" ]; then
-            echo "name=agent-foreman-${{ matrix.target }}-${{ matrix.arch }}.exe" >> $GITHUB_OUTPUT
+            echo "name=agent-foreman-${TARGET}-${{ matrix.arch }}.exe" >> $GITHUB_OUTPUT
           else
-            echo "name=agent-foreman-${{ matrix.target }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+            echo "name=agent-foreman-${TARGET}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload artifact
