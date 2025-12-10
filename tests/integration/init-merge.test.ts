@@ -1,6 +1,9 @@
 /**
- * Integration tests for combined AI merge optimization
- * Tests the combined merge flow with real file operations
+ * Integration tests for init harness file generation
+ * Tests the init flow with real file operations
+ *
+ * NOTE: The CLAUDE.md generation has been changed from AI merge to static rules file copy.
+ * CLAUDE.md now only contains the project goal, while rules are stored in .claude/rules/
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs/promises";
@@ -31,7 +34,7 @@ vi.mock("../../src/capabilities/index.js", () => ({
 import { generateHarnessFiles } from "../../src/init-helpers.js";
 import type { FeatureList } from "../../src/types.js";
 
-describe("Combined AI Merge Integration", () => {
+describe("Init Harness Files Generation", () => {
   let testDir: string;
 
   const mockSurvey = {
@@ -88,213 +91,159 @@ describe("Combined AI Merge Integration", () => {
     }
   });
 
-  describe("Combined merge mode", () => {
-    it("should use combined AI call when both files exist in merge mode", async () => {
-      // Create existing files
+  describe("AI merge for init.sh only", () => {
+    it("should use AI merge for init.sh when it exists in merge mode", async () => {
+      // Create existing init.sh
       await fs.mkdir(path.join(testDir, "ai"), { recursive: true });
       await fs.writeFile(path.join(testDir, "ai/init.sh"), `#!/usr/bin/env bash
 bootstrap() {
   pnpm install
 }`);
-      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# My Project
-Custom content here.`);
 
-      // Mock combined merge response
-      const combinedResponse = JSON.stringify({
-        initScript: `#!/usr/bin/env bash
+      // Mock AI merge response for init.sh
+      mockCallAnyAvailableAgent.mockResolvedValueOnce({
+        success: true,
+        output: `#!/usr/bin/env bash
 bootstrap() {
   pnpm install
 }
 check() {
   npm test
 }`,
-        claudeMd: `# My Project
-Custom content here.
-
-## Long-Task Harness
-Harness section added.`,
       });
-
-      mockCallAnyAvailableAgent.mockResolvedValueOnce({ success: true, output: combinedResponse });
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
 
-      // Verify combined call was made (single call for both)
+      // Verify AI was called for init.sh merge
       expect(mockCallAnyAvailableAgent).toHaveBeenCalledTimes(1);
       const callArg = mockCallAnyAvailableAgent.mock.calls[0][0];
-      expect(callArg).toContain("Task 1: Merge ai/init.sh");
-      expect(callArg).toContain("Task 2: Merge CLAUDE.md");
+      expect(callArg).toContain("ai/init.sh");
 
-      // Verify both files were written
+      // Verify init.sh was merged
       const initScript = await fs.readFile(path.join(testDir, "ai/init.sh"), "utf-8");
       expect(initScript).toContain("pnpm install");
       expect(initScript).toContain("check()");
+    });
+
+    it("should NOT use AI for CLAUDE.md - uses static rules instead", async () => {
+      // Create existing CLAUDE.md
+      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# My Project
+Custom content here.`);
+
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
+
+      // Verify AI was NOT called (no init.sh to merge, CLAUDE.md uses static rules)
+      expect(mockCallAnyAvailableAgent).toHaveBeenCalledTimes(0);
+
+      // Verify CLAUDE.md was preserved (legacy content kept)
+      const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
+      expect(claudeMd).toContain("Custom content here");
+
+      // Verify rules were copied to .claude/rules/
+      const rulesDir = path.join(testDir, ".claude", "rules");
+      const ruleFiles = await fs.readdir(rulesDir);
+      expect(ruleFiles.length).toBe(7);
+    });
+  });
+
+  describe("Static rules file generation", () => {
+    it("should create .claude/rules/ directory with all rule files", async () => {
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new");
+
+      // Verify .claude/rules/ was created
+      const rulesDir = path.join(testDir, ".claude", "rules");
+      const stat = await fs.stat(rulesDir);
+      expect(stat.isDirectory()).toBe(true);
+
+      // Verify all 7 rule files exist
+      const ruleFiles = await fs.readdir(rulesDir);
+      expect(ruleFiles).toContain("00-overview.md");
+      expect(ruleFiles).toContain("01-workflow.md");
+      expect(ruleFiles).toContain("02-rules.md");
+      expect(ruleFiles).toContain("03-commands.md");
+      expect(ruleFiles).toContain("04-feature-schema.md");
+      expect(ruleFiles).toContain("05-tdd.md");
+      expect(ruleFiles).toContain("06-progress-log.md");
+    });
+
+    it("should create minimal CLAUDE.md with just project goal", async () => {
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new");
 
       const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
-      expect(claudeMd).toContain("Custom content");
-      expect(claudeMd).toContain("Long-Task Harness");
+      expect(claudeMd).toContain("# Project Instructions");
+      expect(claudeMd).toContain("## Project Goal");
+      expect(claudeMd).toContain("Test goal");
+      expect(claudeMd).toContain(".claude/rules/");
     });
 
-    it("should fallback to individual merges when combined merge returns invalid JSON", async () => {
-      // Create existing files
-      await fs.mkdir(path.join(testDir, "ai"), { recursive: true });
-      await fs.writeFile(path.join(testDir, "ai/init.sh"), `#!/usr/bin/env bash
-bootstrap() {
-  yarn install
-}`);
-      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# Existing Project`);
-
-      // First call (combined) returns invalid JSON, subsequent calls succeed individually
-      let callCount = 0;
-      mockCallAnyAvailableAgent.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          // Combined call fails with invalid JSON
-          return Promise.resolve({ success: true, output: "This is not valid JSON" });
-        } else if (callCount === 2) {
-          // Individual init.sh merge
-          return Promise.resolve({
-            success: true,
-            output: `#!/usr/bin/env bash
-bootstrap() {
-  yarn install
-}
-check() {
-  yarn test
-}`,
-          });
-        } else {
-          // Individual CLAUDE.md merge
-          return Promise.resolve({
-            success: true,
-            output: `# Existing Project
-
-## Long-Task Harness
-Added via fallback.`,
-          });
-        }
-      });
+    it("should skip existing rule files in merge mode", async () => {
+      // Create a custom rule file
+      await fs.mkdir(path.join(testDir, ".claude", "rules"), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, ".claude", "rules", "00-overview.md"),
+        "# Custom Overview\nMy custom content"
+      );
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
 
-      // Should have made 3 calls: 1 combined (failed) + 2 individual
-      expect(mockCallAnyAvailableAgent).toHaveBeenCalledTimes(3);
-
-      // Verify files were still written via fallback
-      const initScript = await fs.readFile(path.join(testDir, "ai/init.sh"), "utf-8");
-      expect(initScript).toContain("yarn install");
-
-      const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
-      expect(claudeMd).toContain("Existing Project");
-      expect(claudeMd).toContain("Long-Task Harness");
+      // Verify custom content was preserved
+      const overview = await fs.readFile(path.join(testDir, ".claude", "rules", "00-overview.md"), "utf-8");
+      expect(overview).toContain("My custom content");
     });
 
-    it("should fallback when combined merge returns partial results (missing initScript)", async () => {
-      await fs.mkdir(path.join(testDir, "ai"), { recursive: true });
-      await fs.writeFile(path.join(testDir, "ai/init.sh"), `#!/usr/bin/env bash
-bootstrap() { npm install; }`);
-      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# Project`);
-
-      // Combined call returns only claudeMd (missing valid initScript)
-      let callCount = 0;
-      mockCallAnyAvailableAgent.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return Promise.resolve({
-            success: true,
-            output: JSON.stringify({
-              initScript: "echo not a valid script", // Invalid - no shebang
-              claudeMd: "# Merged content",
-            }),
-          });
-        }
-        // Fallback calls
-        return Promise.resolve({ success: true, output: `#!/usr/bin/env bash
-bootstrap() { npm install; }` });
-      });
-
-      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
-
-      // Should fallback to individual merges
-      expect(mockCallAnyAvailableAgent).toHaveBeenCalledTimes(3);
-    });
-
-    it("should not use combined merge when only init.sh exists", async () => {
-      // Only create init.sh, not CLAUDE.md
-      await fs.mkdir(path.join(testDir, "ai"), { recursive: true });
-      await fs.writeFile(path.join(testDir, "ai/init.sh"), `#!/usr/bin/env bash
-bootstrap() { npm install; }`);
-
-      mockCallAnyAvailableAgent.mockResolvedValue({
-        success: true,
-        output: `#!/usr/bin/env bash
-bootstrap() { npm install; }
-check() { npm test; }`,
-      });
-
-      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
-
-      // Should use individual merge for init.sh only, then create new CLAUDE.md
-      // First call is for init.sh merge, no call for CLAUDE.md (new file created directly)
-      expect(mockCallAnyAvailableAgent).toHaveBeenCalledTimes(1);
-      const callArg = mockCallAnyAvailableAgent.mock.calls[0][0];
-      expect(callArg).not.toContain("Task 1:");
-      expect(callArg).not.toContain("Task 2:");
-    });
-
-    it("should not use combined merge when only CLAUDE.md exists", async () => {
-      // Only create CLAUDE.md, not init.sh
-      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# My Project`);
-
-      mockCallAnyAvailableAgent.mockResolvedValue({
-        success: true,
-        output: `# My Project
-
-## Long-Task Harness
-Content here.`,
-      });
-
-      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
-
-      // Should use individual merge for CLAUDE.md only
-      expect(mockCallAnyAvailableAgent).toHaveBeenCalledTimes(1);
-      const callArg = mockCallAnyAvailableAgent.mock.calls[0][0];
-      expect(callArg).not.toContain("Task 1:");
-      expect(callArg).not.toContain("Task 2:");
-    });
-
-    it("should not use combined merge in new mode", async () => {
-      // Create both files
-      await fs.mkdir(path.join(testDir, "ai"), { recursive: true });
-      await fs.writeFile(path.join(testDir, "ai/init.sh"), `#!/usr/bin/env bash
-bootstrap() { npm install; }`);
-      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# My Project`);
-
-      // In new mode, init.sh is overwritten directly (no AI merge)
-      // But CLAUDE.md still gets AI merge for existing content
-      mockCallAnyAvailableAgent.mockResolvedValue({
-        success: true,
-        output: `# My Project
-
-## Long-Task Harness
-Merged content.`,
-      });
+    it("should overwrite rule files in new mode (force)", async () => {
+      // Create a custom rule file
+      await fs.mkdir(path.join(testDir, ".claude", "rules"), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, ".claude", "rules", "00-overview.md"),
+        "# Custom Overview\nMy custom content"
+      );
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new");
 
-      // In new mode, only CLAUDE.md merge is called (init.sh is overwritten directly)
-      expect(mockCallAnyAvailableAgent).toHaveBeenCalledTimes(1);
-      const callArg = mockCallAnyAvailableAgent.mock.calls[0][0];
-      // Should NOT be a combined merge prompt
-      expect(callArg).not.toContain("Task 1:");
-      expect(callArg).not.toContain("Task 2:");
-      // Should be CLAUDE.md merge prompt
-      expect(callArg).toContain("CLAUDE.md");
+      // Verify standard content replaced custom
+      const overview = await fs.readFile(path.join(testDir, ".claude", "rules", "00-overview.md"), "utf-8");
+      expect(overview).toContain("Long-Task Harness");
+      expect(overview).not.toContain("My custom content");
+    });
+  });
 
-      // New init.sh should be written (not merged)
-      const initScript = await fs.readFile(path.join(testDir, "ai/init.sh"), "utf-8");
-      expect(initScript).toContain("#!/usr/bin/env bash");
-      expect(initScript).toContain("npm install"); // Template command, not user's
+  describe("Legacy CLAUDE.md handling", () => {
+    it("should preserve existing CLAUDE.md with harness section (legacy)", async () => {
+      // Create legacy CLAUDE.md with harness section
+      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# Project Instructions
+
+## Long-Task Harness
+Old harness content here.
+
+Custom content below.`);
+
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
+
+      // Verify legacy content was preserved
+      const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
+      expect(claudeMd).toContain("## Long-Task Harness");
+      expect(claudeMd).toContain("Custom content below");
+
+      // Verify rules were still created
+      const rulesDir = path.join(testDir, ".claude", "rules");
+      const ruleFiles = await fs.readdir(rulesDir);
+      expect(ruleFiles.length).toBe(7);
+    });
+
+    it("should add project goal to CLAUDE.md if missing", async () => {
+      // Create CLAUDE.md without project goal
+      await fs.writeFile(path.join(testDir, "CLAUDE.md"), `# My Project
+
+Some custom content.`);
+
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
+
+      // Verify project goal was added
+      const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
+      expect(claudeMd).toContain("Some custom content");
+      expect(claudeMd).toContain("## Project Goal");
+      expect(claudeMd).toContain("Test goal");
     });
   });
 });

@@ -362,18 +362,31 @@ custom() {
       },
     };
 
-    it("should create new CLAUDE.md when none exists", async () => {
+    it("should create new minimal CLAUDE.md when none exists", async () => {
       mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: "" });
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new");
 
       const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
       expect(claudeMd).toContain("Project Instructions");
-      expect(claudeMd).toContain("Long-Task Harness");
+      expect(claudeMd).toContain("Project Goal");
+      expect(claudeMd).toContain(".claude/rules/"); // Reference to rules directory
     });
 
-    it("should use AI to merge CLAUDE.md when existing content", async () => {
-      // Create existing CLAUDE.md
+    it("should create .claude/rules/ with rule files", async () => {
+      mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: "" });
+
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new");
+
+      // Verify rules directory was created with all rule files
+      const rulesDir = path.join(testDir, ".claude", "rules");
+      const ruleFiles = await fs.readdir(rulesDir);
+      expect(ruleFiles.length).toBe(7);
+      expect(ruleFiles).toContain("00-overview.md");
+    });
+
+    it("should preserve existing CLAUDE.md and add project goal if missing", async () => {
+      // Create existing CLAUDE.md without project goal
       const existingContent = `# My Project
 
 ## Custom Section
@@ -381,42 +394,30 @@ This is my custom content that should be preserved.
 `;
       await fs.writeFile(path.join(testDir, "CLAUDE.md"), existingContent);
 
-      // Mock AI to return merged content for CLAUDE.md (called after init.sh)
-      const mergedClaudeMd = `# My Project
-
-## Custom Section
-This is my custom content that should be preserved.
-
-## Long-Task Harness
-New harness section added by AI.
-`;
-      // Init.sh has no existing file, so no AI call for it
-      // CLAUDE.md has existing file, so AI is called for merge
-      mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: mergedClaudeMd });
-
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
 
       const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
       expect(claudeMd).toContain("Custom Section"); // Preserved
-      expect(claudeMd).toContain("Long-Task Harness"); // Added
+      expect(claudeMd).toContain("Project Goal"); // Added
+      expect(claudeMd).toContain("Test goal"); // Goal content added
     });
 
-    it("should append harness section when AI merge fails", async () => {
-      // Create existing CLAUDE.md
+    it("should preserve existing CLAUDE.md with harness section (legacy)", async () => {
+      // Create existing CLAUDE.md with harness section (legacy format)
       const existingContent = `# Existing Project
 
 Some existing content.
+
+## Long-Task Harness
+Legacy harness content.
 `;
       await fs.writeFile(path.join(testDir, "CLAUDE.md"), existingContent);
-
-      // Mock AI to fail
-      mockCallAnyAvailableAgent.mockResolvedValue({ success: false, error: "AI unavailable", output: "" });
 
       await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "merge");
 
       const claudeMd = await fs.readFile(path.join(testDir, "CLAUDE.md"), "utf-8");
       expect(claudeMd).toContain("Existing Project"); // Original preserved
-      expect(claudeMd).toContain("Long-Task Harness"); // Appended (fallback behavior)
+      expect(claudeMd).toContain("Long-Task Harness"); // Legacy section preserved
     });
   });
 
