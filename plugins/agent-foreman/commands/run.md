@@ -4,6 +4,11 @@ description: Work on features - auto-complete all pending features or work on a 
 
 # EXECUTE FEATURE WORKFLOW
 
+⚡ **UNATTENDED MODE** (when no feature_id provided)
+- NO questions allowed
+- NO stopping for errors
+- MUST complete all features
+
 Start immediately. Do not ask for confirmation.
 
 ## Mode Detection
@@ -15,6 +20,7 @@ Start immediately. Do not ask for confirmation.
 **If no feature_id** (e.g., `/agent-foreman:run`):
 - Auto-complete all pending features in priority order
 - Loop until all done
+- **UNATTENDED MODE ACTIVE** - see rules below
 
 ---
 
@@ -75,20 +81,86 @@ agent-foreman done <feature_id>
 | No editing criteria | Implement exactly as specified |
 | Never kill processes | Let commands finish naturally |
 
+---
+
+## NO QUESTIONS ALLOWED (CRITICAL)
+
+When in ALL-FEATURES mode (no feature_id provided):
+
+⛔ **NEVER ASK THE USER ANY QUESTIONS**
+
+| Situation | Action |
+|-----------|--------|
+| Ambiguous requirement | Make a reasonable decision, proceed |
+| Missing file or dependency | Create it or skip, proceed |
+| Multiple implementation options | Choose the simplest, proceed |
+| Unclear acceptance criteria | Interpret literally, proceed |
+| Test failure | Note it, proceed |
+| Verification failure | Mark as failed, continue to next |
+| Any unexpected error | Log it, continue to next |
+
+**Forbidden phrases** - NEVER output:
+- "Should I...?"
+- "Do you want me to...?"
+- "Which approach would you prefer?"
+- "I need clarification on..."
+- "Before I proceed, could you..."
+
+**Required behavior**:
+- ALWAYS make autonomous decisions
+- ALWAYS continue to the next feature
+- ONLY stop when status shows 0 pending features
+
+---
+
+## Loop Enforcement (MUST FOLLOW)
+
+When in ALL-FEATURES mode:
+
+1. **CHECK**: Run `agent-foreman status` - note pending count
+2. **LOOP**: While pending count > 0:
+   a. Run `agent-foreman next` - get feature details
+   b. Implement feature - satisfy ALL criteria
+   c. Run `agent-foreman check <id>` - verify
+   d. Run `agent-foreman done <id>` - complete
+   e. Handle result:
+      - Pass? → Continue to step 2
+      - Fail? → Mark failed, continue to step 2
+3. **EXIT**: Only when pending count = 0
+
+### Never Stop For:
+- Questions
+- Errors
+- Failures
+- Ambiguity
+- Missing files
+- Test failures
+
+### Only Stop When:
+- `agent-foreman status` shows 0 features with `failing` or `needs_review` status
+
+---
+
 ## On Verification Failure
 
 When `agent-foreman done` reports verification failure:
 
-1. **DO NOT STOP** - Continue to the next feature
-2. Mark the failed feature as `failed`:
+1. **DO NOT STOP** - This is the most critical rule
+2. **DO NOT ASK** - Never ask user what to do
+3. Mark the failed feature:
    - Edit `ai/feature_list.json`
    - Change `"status": "failing"` to `"status": "failed"`
-   - Add to notes: `"Verification failed: [reason from output]"`
-3. Log the failure in `ai/progress.log`:
+   - Add to notes: `"Auto-marked failed: [brief reason]"`
+4. Log to `ai/progress.log`:
    ```
-   YYYY-MM-DDTHH:MM:SSZ VERIFY feature=<id> verdict=fail summary="Marked as failed"
+   YYYY-MM-DDTHH:MM:SSZ VERIFY feature=<id> verdict=fail summary="Auto-marked as failed"
    ```
-4. Continue to the next feature immediately
+5. **IMMEDIATELY** run `agent-foreman next` for the next feature
+6. Continue the loop - DO NOT pause, reflect, or ask for guidance
+
+**This applies to ALL errors, not just verification failures.**
+
+---
 
 ## Exit Conditions
 

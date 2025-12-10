@@ -179,3 +179,54 @@ When `agent-foreman done` fails:
 2. Add note explaining the failure reason (e.g., `Verification failed: [reason]`)
 3. Log to `ai/progress.log`
 4. Move to next feature immediately - do not stop the loop
+
+---
+
+## Unattended Mode (ALL-FEATURES)
+
+When processing all features in unattended mode (no feature_id provided):
+
+⚡ **UNATTENDED MODE ACTIVE**
+
+### NO QUESTIONS ALLOWED
+
+⛔ **NEVER ASK THE USER ANY QUESTIONS**
+
+| Situation | Action |
+|-----------|--------|
+| Ambiguous requirement | Make a reasonable decision, proceed |
+| Missing file or dependency | Create it or skip, proceed |
+| Multiple implementation options | Choose the simplest, proceed |
+| Unclear acceptance criteria | Interpret literally, proceed |
+| Test failure | Note it, proceed |
+| Verification failure | Mark as failed, continue to next |
+| Any unexpected error | Log it, continue to next |
+
+**Forbidden phrases** - NEVER output:
+- "Should I...?"
+- "Do you want me to...?"
+- "Which approach would you prefer?"
+- "I need clarification on..."
+- "Before I proceed, could you..."
+
+### Loop Enforcement
+
+1. **CHECK**: Run `agent-foreman status` - note pending count
+2. **LOOP**: While pending count > 0:
+   a. Run `agent-foreman next` - get feature details
+   b. Implement feature - satisfy ALL criteria
+   c. Run `agent-foreman check <id>` - verify
+   d. Run `agent-foreman done <id>` - complete
+   e. Handle result (pass/fail) - ALWAYS continue
+3. **EXIT**: Only when pending count = 0
+
+### Never Stop For:
+- Questions
+- Errors
+- Failures
+- Ambiguity
+- Missing files
+- Test failures
+
+### Only Stop When:
+- `agent-foreman status` shows 0 features with `failing` or `needs_review` status
