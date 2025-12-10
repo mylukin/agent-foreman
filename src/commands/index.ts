@@ -13,6 +13,8 @@ export { runCheck } from "./check.js";
 export { runDone } from "./done.js";
 export { runScan } from "./scan.js";
 export { runAgents } from "./agents-cmd.js";
+export { runInstall } from "./install.js";
+export { runUninstall } from "./uninstall.js";
 
 // Re-export helpers
 export { detectProjectGoal, promptConfirmation } from "./helpers.js";

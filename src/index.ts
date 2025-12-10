@@ -23,6 +23,8 @@ import {
   runDone,
   runScan,
   runAgents,
+  runInstall,
+  runUninstall,
   detectProjectGoal,
 } from "./commands/index.js";
 
@@ -336,6 +338,29 @@ async function main() {
           }),
       async (argv) => {
         await runScan(argv.force, argv.verbose);
+      }
+    )
+    .command(
+      "install",
+      "Install Claude Code plugin (marketplace + enable)",
+      (yargs) =>
+        yargs
+          .option("force", {
+            alias: "f",
+            type: "boolean",
+            default: false,
+            describe: "Force reinstall even if already installed",
+          }),
+      async (argv) => {
+        await runInstall(argv.force);
+      }
+    )
+    .command(
+      "uninstall",
+      "Uninstall Claude Code plugin (remove all registrations)",
+      {},
+      async () => {
+        await runUninstall();
       }
     )
     .demandCommand(1, "You need at least one command")
