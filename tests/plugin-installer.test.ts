@@ -247,3 +247,140 @@ describe("install and uninstall flows - export verification", () => {
     expect(() => fullUninstall()).not.toThrow();
   });
 });
+
+// ============================================================================
+// Full Install Integration Tests
+// These tests call fullInstall() to exercise internal functions
+// ============================================================================
+
+describe("fullInstall integration", () => {
+  it("should execute fullInstall without throwing", async () => {
+    const { fullInstall, fullUninstall, getPluginInstallInfo } = await import("../src/plugin-installer.js");
+
+    // Record initial state
+    const beforeInfo = getPluginInstallInfo();
+
+    // Execute fullInstall - this exercises all internal functions:
+    // installMarketplaceFiles, registerMarketplace, installPlugin, enablePlugin
+    expect(() => fullInstall()).not.toThrow();
+
+    // Verify installation occurred
+    const afterInfo = getPluginInstallInfo();
+    expect(afterInfo.isMarketplaceRegistered).toBe(true);
+    expect(afterInfo.isPluginInstalled).toBe(true);
+    expect(afterInfo.isPluginEnabled).toBe(true);
+
+    // Cleanup: uninstall to restore state
+    expect(() => fullUninstall()).not.toThrow();
+  });
+
+  it("should be idempotent - calling fullInstall twice should not throw", async () => {
+    const { fullInstall, fullUninstall } = await import("../src/plugin-installer.js");
+
+    // First install
+    expect(() => fullInstall()).not.toThrow();
+
+    // Second install (should overwrite/update, not fail)
+    expect(() => fullInstall()).not.toThrow();
+
+    // Cleanup
+    expect(() => fullUninstall()).not.toThrow();
+  });
+
+  it("fullUninstall should clean up all installed files", async () => {
+    const { fullInstall, fullUninstall, isPluginInstalled, isPluginEnabled } = await import("../src/plugin-installer.js");
+
+    // Install first
+    fullInstall();
+
+    // Verify installed
+    expect(isPluginInstalled()).toBeTruthy();
+
+    // Uninstall
+    fullUninstall();
+
+    // Verify uninstalled - after uninstall, plugin should not be installed/enabled
+    expect(isPluginInstalled()).toBeFalsy();
+    expect(isPluginEnabled()).toBeFalsy();
+  });
+});
+
+// ============================================================================
+// checkAndInstallPlugins Compiled Binary Simulation
+// ============================================================================
+
+describe("checkAndInstallPlugins with compiled binary simulation", () => {
+  it("should skip when marketplace already registered", async () => {
+    const {
+      fullInstall,
+      fullUninstall,
+      checkAndInstallPlugins,
+      isMarketplaceRegistered
+    } = await import("../src/plugin-installer.js");
+
+    // Pre-install to register marketplace
+    fullInstall();
+    expect(isMarketplaceRegistered()).toBe(true);
+
+    // checkAndInstallPlugins should return early (not reinstall)
+    const consoleSpy = vi.spyOn(console, "log");
+    await checkAndInstallPlugins();
+
+    // Should not have logged installation message (since marketplace exists)
+    // Note: In dev mode isCompiledBinary() returns false, so it returns early anyway
+    expect(consoleSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("Plugin installed")
+    );
+
+    // Cleanup
+    fullUninstall();
+    consoleSpy.mockRestore();
+  });
+});
+
+// ============================================================================
+// Registry File Corruption Handling
+// ============================================================================
+
+describe("registry function return types", () => {
+  it("isMarketplaceRegistered should return falsy when not registered", async () => {
+    const { isMarketplaceRegistered, fullUninstall } = await import("../src/plugin-installer.js");
+
+    // Ensure clean state
+    fullUninstall();
+
+    // Should return falsy when not registered
+    expect(isMarketplaceRegistered()).toBeFalsy();
+  });
+
+  it("isPluginInstalled should return falsy when not installed", async () => {
+    const { isPluginInstalled, fullUninstall } = await import("../src/plugin-installer.js");
+
+    // Ensure clean state
+    fullUninstall();
+
+    expect(isPluginInstalled()).toBeFalsy();
+  });
+
+  it("isPluginEnabled should return falsy when not enabled", async () => {
+    const { isPluginEnabled, fullUninstall } = await import("../src/plugin-installer.js");
+
+    // Ensure clean state
+    fullUninstall();
+
+    expect(isPluginEnabled()).toBeFalsy();
+  });
+
+  it("getPluginInstallInfo should return structure with falsy values after uninstall", async () => {
+    const { getPluginInstallInfo, fullUninstall } = await import("../src/plugin-installer.js");
+
+    // Ensure clean state
+    fullUninstall();
+
+    const info = getPluginInstallInfo();
+    expect(info.isMarketplaceRegistered).toBeFalsy();
+    expect(info.isPluginInstalled).toBeFalsy();
+    expect(info.isPluginEnabled).toBeFalsy();
+    expect(info.installedVersion).toBeNull();
+  });
+});

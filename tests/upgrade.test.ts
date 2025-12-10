@@ -866,4 +866,94 @@ describe("Upgrade Utils", () => {
       expect(version).toMatch(/^\d+\.\d+\.\d+$/);
     });
   });
+
+  // ============================================================================
+  // Plugin update edge cases - coverage for updatePlugin internal function
+  // ============================================================================
+
+  describe("plugin update scenarios", () => {
+    beforeEach(() => {
+      vi.spyOn(console, "log").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("should skip plugin update when plugin directory does not exist", async () => {
+      const { spawnSync } = await import("node:child_process");
+
+      // In test environment, plugin directory doesn't exist, so updatePlugin returns early
+      // This tests the "no plugin to update" code path
+      (spawnSync as ReturnType<typeof vi.fn>).mockImplementation(
+        (cmd: string, args?: string[]) => {
+          if (cmd === "npm" && args?.includes("install")) {
+            return { status: 0, stdout: "added 1 package", stderr: "" };
+          }
+          return { status: 0, stdout: "", stderr: "" };
+        }
+      );
+
+      const result = await performInteractiveUpgrade("1.0.0", "2.0.0");
+      expect(result.success).toBe(true);
+    });
+
+    it("should handle npm upgrade and proceed even without plugin dir", async () => {
+      const { spawnSync } = await import("node:child_process");
+      const consoleSpy = vi.spyOn(console, "log");
+
+      (spawnSync as ReturnType<typeof vi.fn>).mockImplementation(
+        (cmd: string, args?: string[]) => {
+          if (cmd === "npm" && args?.includes("install")) {
+            return { status: 0, stdout: "added 1 package", stderr: "" };
+          }
+          // Plugin dir doesn't exist in tests, git commands won't be called
+          return { status: 0, stdout: "", stderr: "" };
+        }
+      );
+
+      const result = await performInteractiveUpgrade("1.0.0", "2.0.0");
+      expect(result.success).toBe(true);
+
+      const allOutput = consoleSpy.mock.calls.map(c => String(c[0])).join("\n");
+      expect(allOutput).toContain("Upgrading agent-foreman");
+      expect(allOutput).toContain("npm package updated");
+    });
+  });
+
+  // ============================================================================
+  // forceUpgradeCheck tests
+  // ============================================================================
+
+  describe("forceUpgradeCheck", () => {
+    it("should update cache and return upgrade result", async () => {
+      const { spawnSync } = await import("node:child_process");
+      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValue({
+        status: 0,
+        stdout: "999.0.0\n",
+        stderr: "",
+      });
+
+      const result = await forceUpgradeCheck();
+
+      expect(result.needsUpgrade).toBe(true);
+      expect(result.latestVersion).toBe("999.0.0");
+      expect(result.currentVersion).toBeDefined();
+    });
+
+    it("should work when no upgrade available", async () => {
+      const { spawnSync } = await import("node:child_process");
+      const currentVersion = getCurrentVersion();
+
+      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValue({
+        status: 0,
+        stdout: `${currentVersion}\n`,
+        stderr: "",
+      });
+
+      const result = await forceUpgradeCheck();
+
+      expect(result.needsUpgrade).toBe(false);
+    });
+  });
 });

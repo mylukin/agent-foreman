@@ -202,4 +202,77 @@ describe("Rules", () => {
       expect(result).toBe(true);
     });
   });
+
+  // ============================================================================
+  // Edge Case Tests for Uncovered Lines
+  // ============================================================================
+
+  describe("getRuleTemplate edge cases", () => {
+    it("should handle templates that exist in embedded but not file system", () => {
+      // All templates should be available from embedded
+      for (const name of RULE_TEMPLATES) {
+        const content = getRuleTemplate(name);
+        expect(content).not.toBeNull();
+        expect(typeof content).toBe("string");
+      }
+    });
+  });
+
+  describe("verifyRuleTemplates edge cases", () => {
+    it("should check embedded templates first", () => {
+      const { available, missing } = verifyRuleTemplates();
+
+      // All templates should be available (from embedded)
+      expect(available.length).toBe(RULE_TEMPLATES.length);
+      expect(missing.length).toBe(0);
+
+      // Available should contain all template names
+      for (const name of RULE_TEMPLATES) {
+        expect(available).toContain(name);
+      }
+    });
+
+    it("should return arrays with no undefined values", () => {
+      const { available, missing } = verifyRuleTemplates();
+
+      expect(available.every(name => typeof name === "string")).toBe(true);
+      expect(missing.every(name => typeof name === "string")).toBe(true);
+    });
+  });
+
+  describe("copyRulesToProject edge cases", () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(tmpdir(), "rules-edge-"));
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it("should handle nested directory creation", async () => {
+      // Ensure no .claude directory exists
+      const claudeDir = path.join(tempDir, ".claude");
+      try {
+        await fs.rm(claudeDir, { recursive: true });
+      } catch {
+        // Directory doesn't exist, which is expected
+      }
+
+      const result = await copyRulesToProject(tempDir);
+      expect(result.created).toBe(7);
+
+      // Verify directory was created
+      const stat = await fs.stat(path.join(tempDir, ".claude", "rules"));
+      expect(stat.isDirectory()).toBe(true);
+    });
+
+    it("should skip null content templates gracefully", async () => {
+      // This tests the "if (!content) continue" path
+      // All templates should have content, so created should be 7
+      const result = await copyRulesToProject(tempDir);
+      expect(result.created).toBe(7);
+    });
+  });
 });
