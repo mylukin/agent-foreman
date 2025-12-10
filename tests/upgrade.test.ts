@@ -34,6 +34,18 @@ vi.mock("node:child_process", async () => {
   };
 });
 
+// Mock plugin-installer to control isCompiledBinary
+vi.mock("../src/plugin-installer.js", () => ({
+  isCompiledBinary: vi.fn().mockReturnValue(false),
+}));
+
+// Mock binary-upgrade module
+vi.mock("../src/binary-upgrade.js", () => ({
+  fetchLatestGitHubVersion: vi.fn().mockResolvedValue(null),
+  performBinaryUpgrade: vi.fn().mockResolvedValue({ success: true }),
+  canWriteToExecutable: vi.fn().mockReturnValue(true),
+}));
+
 // ============================================================================
 // compareVersions Tests
 // ============================================================================
@@ -713,7 +725,7 @@ describe("Upgrade Utils", () => {
   describe("fetchLatestVersion - stdout conditions", () => {
     it("should return null when status is 0 but stdout is undefined", async () => {
       const { spawnSync } = await import("node:child_process");
-      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValue({
         status: 0,
         stdout: undefined,
         stderr: "",
@@ -725,7 +737,7 @@ describe("Upgrade Utils", () => {
 
     it("should return null when status is 0 but stdout is null", async () => {
       const { spawnSync } = await import("node:child_process");
-      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      (spawnSync as ReturnType<typeof vi.fn>).mockReturnValue({
         status: 0,
         stdout: null,
         stderr: "",
