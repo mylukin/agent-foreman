@@ -15,14 +15,14 @@ agent-foreman init
 
 Creates: `ai/feature_list.json`, `ai/progress.log`, `ai/init.sh`, `CLAUDE.md`
 
-## TDD Mode (Default: Strict)
+## TDD Mode (Default: Recommended)
 
-During init, you'll be prompted for TDD mode. **Strict is the default and recommended**.
+During init, you'll be prompted for TDD mode. **Recommended is the default** (tests suggested but not required).
 
 | User Says | TDD Mode | Effect |
 |-----------|----------|--------|
-| "strict TDD" / "require tests" / (default) | `strict` | Tests REQUIRED - check/done fail without tests |
-| "recommended" / "optional tests" | `recommended` | Tests suggested but not enforced |
+| "strict TDD" / "require tests" | `strict` | Tests REQUIRED - check/done fail without tests |
+| "recommended" / "optional tests" / (default) | `recommended` | Tests suggested but not enforced |
 | "disable TDD" / "no TDD" | `disabled` | No TDD guidance |
 
 ### Strict Mode Behavior

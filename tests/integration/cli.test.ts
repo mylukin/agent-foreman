@@ -380,7 +380,8 @@ describe("CLI Integration", () => {
         timeout: 10000,
       });
 
-      expect(result.stdout).toContain("Skipping verification (default behavior)");
+      // skipCheck is true by default (verification was already run with 'check' command)
+      // Output should just mark the feature as passing without verbose verification skipping message
       expect(result.stdout).toContain("Marked 'test.feature1' as passing");
 
       // Verify the file was updated

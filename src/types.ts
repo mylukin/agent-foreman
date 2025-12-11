@@ -202,7 +202,7 @@ export interface FeatureList {
 
 /**
  * TDD enforcement mode for the project
- * - strict: Tests REQUIRED by default, check/done fail without tests
+ * - strict: Tests REQUIRED, check/done fail without tests
  * - recommended: Tests suggested but not enforced (default)
  * - disabled: No TDD guidance or enforcement
  */

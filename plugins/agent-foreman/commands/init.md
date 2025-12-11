@@ -12,19 +12,20 @@ agent-foreman init
 
 Wait for completion. Do not interrupt.
 
-**TDD Mode Prompt**: During init, you will be asked about TDD mode. **Default: strict mode (recommended)**.
+**TDD Mode Prompt**: During init, you will be asked about TDD mode. **Default: recommended mode** (tests suggested but not required). The prompt auto-skips after 10 seconds with default.
 
 ## TDD Mode Configuration
 
 | User Says | TDD Mode | Effect |
 |-----------|----------|--------|
-| "strict TDD" / "require tests" / "enforce TDD" / (default) | `strict` | Tests REQUIRED for all features |
-| "recommended" / "optional tests" / "no strict" | `recommended` | Tests suggested but not enforced |
+| "strict TDD" / "require tests" / "enforce TDD" | `strict` | Tests REQUIRED for all features |
+| "recommended" / "optional tests" / "no strict" / (default) | `recommended` | Tests suggested but not enforced |
 | "disable TDD" / "no TDD" | `disabled` | No TDD guidance |
 
 When prompted "Enable strict TDD mode?":
-- Press **Y** (default) for strict mode - tests required
-- Press **N** for recommended mode - tests optional
+- Press **Y** for strict mode - tests required
+- Press **N** (default) for recommended mode - tests optional
+- Wait 10s for auto-skip with recommended mode
 
 ## Context-Based Behavior
 

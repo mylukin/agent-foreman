@@ -67,8 +67,8 @@ describe("Rules", () => {
       // 01-workflow
       const workflow = getRuleTemplate("01-workflow");
       expect(workflow).toContain("Workflow");
-      expect(workflow).toContain("Start");
-      expect(workflow).toContain("Done");
+      expect(workflow).toContain("agent-foreman done");
+      expect(workflow).toContain("agent-foreman check");
 
       // 02-rules
       const rules = getRuleTemplate("02-rules");

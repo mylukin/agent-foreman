@@ -106,8 +106,8 @@ The project's TDD enforcement is controlled by `metadata.tddMode` in `ai/feature
 
 | Mode | Effect |
 |------|--------|
-| `strict` (default) | Tests REQUIRED - check/done fail without tests |
-| `recommended` | Tests suggested but not enforced |
+| `strict` | Tests REQUIRED - check/done fail without tests |
+| `recommended` (default) | Tests suggested but not enforced |
 | `disabled` | No TDD guidance |
 
 ### Strict Mode Behavior

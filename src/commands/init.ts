@@ -13,8 +13,12 @@ import {
 } from "../init-helpers.js";
 import { promptConfirmation } from "./helpers.js";
 
+/** Default timeout for TDD mode prompt (in milliseconds) */
+const TDD_PROMPT_TIMEOUT_MS = 10000; // 10 seconds
+
 /**
- * Prompt user for TDD mode selection
+ * Prompt user for TDD mode selection with timeout
+ * Default is "recommended" (tests suggested but not required)
  */
 async function promptTDDMode(): Promise<TDDMode | undefined> {
   const readline = await import("node:readline");
@@ -26,20 +30,36 @@ async function promptTDDMode(): Promise<TDDMode | undefined> {
   return new Promise((resolve) => {
     console.log(chalk.bold.cyan("\n📋 TDD Mode Configuration"));
     console.log(chalk.gray("   Strict mode requires tests for all features."));
-    console.log(chalk.gray("   The 'check' and 'done' commands will fail without tests.\n"));
+    console.log(chalk.gray("   The 'check' and 'done' commands will fail without tests."));
+    console.log(chalk.gray(`   (Auto-skip in ${TDD_PROMPT_TIMEOUT_MS / 1000}s with default: recommended)\n`));
+
+    let answered = false;
+
+    // Set timeout to auto-resolve with default
+    const timeout = setTimeout(() => {
+      if (!answered) {
+        answered = true;
+        rl.close();
+        console.log(chalk.gray("\n   → Timeout: Using recommended mode (tests suggested but not required)\n"));
+        resolve("recommended");
+      }
+    }, TDD_PROMPT_TIMEOUT_MS);
 
     rl.question(
-      chalk.yellow("   Enable strict TDD mode? (tests required for all features) [Y/n]: "),
+      chalk.yellow("   Enable strict TDD mode? (tests required for all features) [y/N]: "),
       (answer) => {
+        if (answered) return; // Already resolved by timeout
+        answered = true;
+        clearTimeout(timeout);
         rl.close();
         const normalized = answer.toLowerCase().trim();
-        if (normalized === "n" || normalized === "no") {
-          console.log(chalk.gray("   → Using recommended mode (tests suggested but not required)\n"));
-          resolve("recommended");
-        } else {
-          // Default is strict (empty or "y" or "yes")
+        if (normalized === "y" || normalized === "yes") {
           console.log(chalk.green("   ✓ Strict TDD mode enabled\n"));
           resolve("strict");
+        } else {
+          // Default is recommended (empty or "n" or "no")
+          console.log(chalk.gray("   → Using recommended mode (tests suggested but not required)\n"));
+          resolve("recommended");
         }
       }
     );
