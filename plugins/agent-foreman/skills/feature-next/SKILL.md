@@ -18,7 +18,7 @@ agent-foreman next auth.login  # Specific feature
 
 ### Check TDD Mode First
 
-Look for `!!! TDD ENFORCEMENT ACTIVE !!!` in `agent-foreman next` output.
+Look for "!!! TDD ENFORCEMENT ACTIVE !!!" in agent-foreman next output.
 
 ### TDD Workflow (when strict mode active)
 

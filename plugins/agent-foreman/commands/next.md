@@ -25,7 +25,7 @@ Wait for completion. Review the feature shown.
 
 ### Check TDD Mode First
 
-Look for `!!! TDD ENFORCEMENT ACTIVE !!!` in the output.
+Look for "!!! TDD ENFORCEMENT ACTIVE !!!" in the output.
 
 **If TDD strict mode active → MUST follow TDD Workflow:**
 
