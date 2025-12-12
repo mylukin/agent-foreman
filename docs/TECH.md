@@ -101,7 +101,7 @@ agent-foreman supports multiple AI CLI tools with automatic failover:
 
 | Agent | Priority | Command |
 |-------|----------|---------|
-| Claude | 1 (highest) | `claude --print --output-format text --permission-mode bypassPermissions` |
+| Claude | 1 (highest) | `claude --print --output-format text --permission-mode bypassPermissions -` |
 | Codex | 2 | `codex exec --skip-git-repo-check --full-auto -` |
 | Gemini | 3 | `gemini --output-format text --yolo` |
 

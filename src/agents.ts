@@ -41,11 +41,11 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
   // Claude: --print for non-interactive, --permission-mode bypassPermissions for full access (highest priority)
   // Note: Using --permission-mode bypassPermissions instead of --dangerously-skip-permissions
   // because the latter is blocked when running as root user
-  // Note: promptViaStdin: false to pass prompt as argument (fixes Claude Code v2.0.67+ stdin validation issue)
+  // Note: "-" at the end indicates stdin input (fixes Claude Code v2.0.67+ stdin validation issue)
   {
     name: "claude",
-    command: ["claude", "--print", "--output-format", "text", "--permission-mode", "bypassPermissions"],
-    promptViaStdin: false,
+    command: ["claude", "--print", "--output-format", "text", "--permission-mode", "bypassPermissions", "-"],
+    promptViaStdin: true,
   },
   // Codex: exec mode with full-auto approval
   {

@@ -58,17 +58,18 @@ describe("Agents", () => {
       expect(codex!.command).toContain("--skip-git-repo-check");
     });
 
-    it("should have all agents configured with promptViaStdin property", () => {
+    it("should have all agents configured with promptViaStdin: true", () => {
       for (const agent of DEFAULT_AGENTS) {
-        // Each agent should explicitly define promptViaStdin (true or false)
-        expect(typeof agent.promptViaStdin).toBe("boolean");
+        // All agents use stdin for prompt delivery (safer for complex content)
+        expect(agent.promptViaStdin).toBe(true);
       }
     });
 
-    it("should have claude agent with promptViaStdin: false for v2.0.67+ compatibility", () => {
+    it("should have claude agent with '-' stdin indicator for v2.0.67+ compatibility", () => {
       const claude = DEFAULT_AGENTS.find((a) => a.name === "claude");
-      // Claude Code v2.0.67+ requires prompt as argument, not stdin
-      expect(claude!.promptViaStdin).toBe(false);
+      // Claude Code v2.0.67+ requires "-" argument to indicate stdin input
+      expect(claude!.command).toContain("-");
+      expect(claude!.promptViaStdin).toBe(true);
     });
   });
 
@@ -273,8 +274,7 @@ describe("Agents", () => {
       const mockProcess = createMockProcess('{"result": "success"}');
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
-      // Use gemini (promptViaStdin: true) for stdin-based spawn test
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "gemini")!;
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
       await callAgent(agent, "test prompt", { cwd: "/test/project" });
 
       expect(spawn).toHaveBeenCalledWith(
@@ -288,29 +288,13 @@ describe("Agents", () => {
       const mockProcess = createMockProcess('{"result": "success"}');
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
-      // Use gemini (promptViaStdin: true) for stdin-based spawn test
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "gemini")!;
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
       await callAgent(agent, "test prompt");
 
       expect(spawn).toHaveBeenCalledWith(
         agent.command[0],
         agent.command.slice(1),
         expect.objectContaining({ cwd: undefined })
-      );
-    });
-
-    it("should pass prompt as argument for claude (promptViaStdin: false)", async () => {
-      const mockProcess = createMockProcess('{"result": "success"}');
-      vi.mocked(spawn).mockReturnValue(mockProcess);
-
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
-      await callAgent(agent, "test prompt", { cwd: "/test/project" });
-
-      // Claude uses promptViaStdin: false, so prompt is passed as last argument
-      expect(spawn).toHaveBeenCalledWith(
-        agent.command[0],
-        [...agent.command.slice(1), "test prompt"],
-        expect.objectContaining({ cwd: "/test/project", stdio: ["ignore", "pipe", "pipe"] })
       );
     });
 
@@ -339,24 +323,11 @@ describe("Agents", () => {
       const mockProcess = createMockProcess("response");
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
-      // Use gemini (promptViaStdin: true) for stdin-based test
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "gemini")!;
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
       await callAgent(agent, "my test prompt");
 
       expect(mockProcess.stdin.write).toHaveBeenCalledWith("my test prompt");
       expect(mockProcess.stdin.end).toHaveBeenCalled();
-    });
-
-    it("should not write to stdin for argument-based agents (claude)", async () => {
-      const mockProcess = createMockProcess("response");
-      vi.mocked(spawn).mockReturnValue(mockProcess);
-
-      // Claude uses promptViaStdin: false
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
-      await callAgent(agent, "my test prompt");
-
-      // stdin.write should not be called for argument-based agents
-      expect(mockProcess.stdin.write).not.toHaveBeenCalled();
     });
   });
 

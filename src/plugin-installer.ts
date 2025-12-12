@@ -217,7 +217,7 @@ export function isMarketplaceRegistered(): boolean {
 export function isPluginInstalled(): boolean {
   const registry = readInstalledPlugins();
   const installations = registry.plugins[PLUGIN_KEY];
-  return installations && installations.length > 0;
+  return Boolean(installations && installations.length > 0);
 }
 
 /**
