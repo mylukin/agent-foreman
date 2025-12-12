@@ -1,6 +1,6 @@
 ---
 name: feature-run
-description: Work on features - auto-complete all pending features or work on a specific one
+description: Executes unattended batch processing of all pending features with autonomous decision-making. Use when running all features automatically, batch processing features without supervision, or completing entire feature backlog. Triggers on "run all features", "complete all features", "batch feature processing", "unattended mode", "auto-complete features".
 ---
 
 # 🔄 Feature Run

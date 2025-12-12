@@ -1,6 +1,6 @@
 ---
 name: feature-next
-description: Work on the next priority feature with guided implementation
+description: Implements a single feature following the next → implement → check → done workflow with TDD support. Use when working on one specific feature, implementing a single task from the backlog, or following TDD red-green-refactor cycle. Triggers on "next feature", "implement feature", "work on feature", "single feature mode".
 ---
 
 # 🚀 Feature Next
