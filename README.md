@@ -29,11 +29,14 @@ AI coding agents face three common failure modes:
 ## Installation
 
 ```bash
-# Global installation
+# Global installation via npm
 npm install -g agent-foreman
 
 # Or use with npx
 npx agent-foreman --help
+
+# Or download standalone binary from GitHub Releases
+# https://github.com/mylukin/agent-foreman/releases
 ```
 
 ---
@@ -91,6 +94,28 @@ Commands accept natural language and flags:
 /agent-foreman:init --mode scan       # Preview only, don't save
 /agent-foreman:analyze --verbose      # Detailed output
 ```
+
+---
+
+## CLI Commands
+
+For standalone CLI usage (without Claude Code):
+
+| Command | Description |
+|---------|-------------|
+| `analyze [output]` | Generate project architecture report |
+| `init [goal]` | Initialize or upgrade the harness |
+| `next [feature_id]` | Show next feature to work on |
+| `status` | Show current project status |
+| `check <feature_id>` | Preview verification without completing |
+| `done <feature_id>` | Verify, mark complete, and auto-commit |
+| `impact <feature_id>` | Analyze impact of changes |
+| `agents` | Show available AI agents |
+| `scan` | Scan project verification capabilities |
+| `install` | Install Claude Code plugin |
+| `uninstall` | Uninstall Claude Code plugin |
+
+See [Detailed Usage Guide](./docs/USAGE.md) for complete options.
 
 ---
 
@@ -206,6 +231,8 @@ agent-foreman embraces **TDD (Test-Driven Development)** philosophy: define acce
 | `ai/feature_list.json` | Feature backlog with status |
 | `ai/progress.log` | Session handoff audit log |
 | `ai/init.sh` | Environment bootstrap script |
+| `ai/capabilities.json` | Cached project capabilities |
+| `CLAUDE.md` | AI agent instructions |
 | `docs/ARCHITECTURE.md` | AI-generated project architecture |
 
 ## Feature Status Values

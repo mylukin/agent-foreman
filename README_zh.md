@@ -29,11 +29,14 @@ AI 编程助手在处理复杂项目时，常常会掉进这三个坑：
 ## 安装
 
 ```bash
-# 全局安装
+# 通过 npm 全局安装
 npm install -g agent-foreman
 
 # 或者用 npx 直接运行
 npx agent-foreman --help
+
+# 或从 GitHub Releases 下载独立二进制文件
+# https://github.com/mylukin/agent-foreman/releases
 ```
 
 ---
@@ -91,6 +94,28 @@ agent-foreman 设计为 **Claude Code 插件**，这是推荐的使用方式。
 /agent-foreman:init --mode scan       # 仅预览，不保存
 /agent-foreman:analyze --verbose      # 详细输出
 ```
+
+---
+
+## CLI 命令
+
+独立使用 CLI（不通过 Claude Code）：
+
+| 命令 | 说明 |
+|------|------|
+| `analyze [output]` | 生成项目架构报告 |
+| `init [goal]` | 初始化或升级框架 |
+| `next [feature_id]` | 显示下一个待处理任务 |
+| `status` | 显示当前项目状态 |
+| `check <feature_id>` | 预览验证（不标记完成） |
+| `done <feature_id>` | 验证、标记完成并自动提交 |
+| `impact <feature_id>` | 分析变更影响 |
+| `agents` | 显示可用的 AI 代理 |
+| `scan` | 扫描项目验证能力 |
+| `install` | 安装 Claude Code 插件 |
+| `uninstall` | 卸载 Claude Code 插件 |
+
+详细参数请参阅 [详细使用指南](./docs/USAGE.md)。
 
 ---
 
@@ -206,6 +231,8 @@ agent-foreman 采用 **TDD (测试驱动开发)** 理念：先定义验收标准
 | `ai/feature_list.json` | 功能清单，带状态追踪 |
 | `ai/progress.log` | 进度日志，用于会话交接 |
 | `ai/init.sh` | 环境启动脚本 |
+| `ai/capabilities.json` | 项目能力缓存 |
+| `CLAUDE.md` | AI 代理指令文件 |
 | `docs/ARCHITECTURE.md` | AI 生成的项目架构文档 |
 
 ## 功能状态

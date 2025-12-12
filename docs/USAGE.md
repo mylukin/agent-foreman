@@ -80,7 +80,12 @@ Get the next priority feature to work on.
 
 **Parameters:**
 - `<feature_id>` - (optional) Work on specific feature
-- `--dry-run` - Preview only
+- `--dry-run` / `-d` - Preview only, don't select
+- `--check` / `-c` - Run basic tests before showing next task
+- `--allow-dirty` - Allow running with uncommitted changes
+- `--json` - Output as JSON for scripting
+- `--quiet` / `-q` - Suppress decorative output
+- `--refresh-guidance` - Force regenerate TDD guidance
 
 **Priority Order:**
 1. `needs_review` status (highest priority)
@@ -91,6 +96,7 @@ Get the next priority feature to work on.
 ```
 /agent-foreman:next
 /agent-foreman:next auth.login
+/agent-foreman:next --json
 ```
 
 ---
@@ -190,6 +196,10 @@ agent-foreman done <feature_id>
 | `--skip-e2e` | Skip E2E tests |
 | `--no-skip-check` | Run verification (default skips) |
 | `--no-commit` | Skip auto-commit |
+| `--verbose` / `-v` | Show detailed verification output |
+| `--no-autonomous` | Use diff-based verification instead of AI exploration |
+| `--loop` / `--no-loop` | Enable/disable loop mode (continuation reminder) |
+| `--notes` / `-n` | Add completion notes |
 
 **Examples:**
 ```bash
@@ -197,10 +207,47 @@ agent-foreman done <feature_id>
 agent-foreman done auth.login
 
 # Full mode - runs all tests
-agent-foreman done auth.login --full
+agent-foreman done auth.login --full --no-skip-check
 
 # Explicit pattern
 agent-foreman done auth.login --test-pattern "tests/auth/*.test.ts"
+
+# With verification
+agent-foreman done auth.login --no-skip-check --verbose
+```
+
+---
+
+## Feature Verification
+
+Preview verification without completing a feature:
+
+```bash
+agent-foreman check <feature_id>
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--verbose` / `-v` | Show detailed AI reasoning |
+| `--skip-checks` / `-s` | Skip automated checks, AI only |
+| `--no-autonomous` | Use diff-based verification instead of AI exploration |
+| `--quick` / `-q` | Run only related tests (default) |
+| `--full` | Run complete test suite |
+| `--test-pattern <pattern>` | Explicit test pattern |
+| `--skip-e2e` | Skip E2E tests |
+
+**Examples:**
+
+```bash
+# Standard verification
+agent-foreman check auth.login
+
+# Verbose mode with full tests
+agent-foreman check auth.login --verbose --full
+
+# AI-only verification (skip automated checks)
+agent-foreman check auth.login --skip-checks
 ```
 
 ---
@@ -232,6 +279,21 @@ npx agent-foreman <command>
 | `impact <feature_id>` | Analyze impact of changes |
 | `agents` | Show available AI agents |
 | `scan` | Scan project verification capabilities |
+| `install` | Install Claude Code plugin |
+| `uninstall` | Uninstall Claude Code plugin |
+
+### Plugin Installation
+
+```bash
+# Install plugin (registers marketplace + installs + enables)
+agent-foreman install
+
+# Force reinstall
+agent-foreman install --force
+
+# Uninstall (removes all registrations)
+agent-foreman uninstall
+```
 
 ### CLI Examples
 

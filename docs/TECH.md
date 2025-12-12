@@ -72,9 +72,13 @@ Main entry point implementing all CLI commands via yargs.
 | `verifier/prompts.ts` | AI prompt construction |
 | `verifier/tdd.ts` | TDD verification mode |
 | `verifier/autonomous.ts` | Autonomous verification mode |
+| `verifier/ai-analysis.ts` | AI-powered analysis with retry logic |
+| `verifier/check-executor.ts` | Automated check execution |
+| `verifier/git-operations.ts` | Git diff and file tracking |
 | `verification-store/` | Result persistence (per-feature directories) |
-| `capabilities/` | Three-tier capability detection with caching |
+| `capabilities/` | Two-tier capability detection with caching |
 | `test-discovery.ts` | Test file discovery and selective execution |
+| `tdd-guidance/` | TDD guidance and test skeleton generation |
 
 ### Infrastructure
 
@@ -84,6 +88,10 @@ Main entry point implementing all CLI commands via yargs.
 | `file-utils.ts` | Safe file operations with path validation |
 | `progress-log.ts` | Session handoff logging |
 | `progress.ts` | TTY progress indicators |
+| `timeout-config.ts` | Agent timeout and priority configuration |
+| `gitignore/` | .gitignore template generation |
+| `plugin-installer.ts` | Claude Code plugin installation |
+| `upgrade.ts` | Version upgrade management |
 
 ---
 
@@ -107,28 +115,25 @@ agent-foreman supports multiple AI CLI tools with automatic failover:
 
 ---
 
-## Capability Detection (Three-Tier)
+## Capability Detection (Two-Tier)
 
 ```text
 ┌──────────────────────────────────────────────────────┐
-│              Capability Detection Flow                │
+│              Capability Detection Flow               │
 ├──────────────────────────────────────────────────────┤
-│                                                       │
-│  1. Cache Check                                       │
-│     └─ Read ai/capabilities.json                     │
-│     └─ If valid and not stale → use cached          │
-│                    │                                  │
-│                    ▼ (cache miss)                    │
-│  2. Preset Detection                                 │
-│     └─ Pattern matching on config files              │
-│     └─ If high confidence → use preset              │
-│                    │                                  │
-│                    ▼ (low confidence)                │
-│  3. AI Discovery                                     │
-│     └─ Spawn AI agent to analyze project            │
-│     └─ Parse JSON response                          │
-│     └─ Cache results                                │
-│                                                       │
+│                                                      │
+│  1. Cache Check (Memory + Disk)                      │
+│     └─ Memory cache first (fastest)                  │
+│     └─ Then ai/capabilities.json                     │
+│     └─ Git-based staleness detection                 │
+│     └─ If valid and not stale → use cached           │
+│                    │                                 │
+│                    ▼ (cache miss or stale)           │
+│  2. AI Discovery                                     │
+│     └─ Spawn AI agent to analyze project             │
+│     └─ Parse JSON response                           │
+│     └─ Cache results (memory + disk)                 │
+│                                                      │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -240,9 +245,8 @@ Patterns indicating retry-able failures:
 
 Graceful degradation strategies:
 
-- AI agent failover (Codex → Gemini → Claude)
-- Preset fallback when AI unavailable
-- Minimal capability profile as last resort
+- AI agent failover (Claude → Codex → Gemini)
+- Default capability profile as last resort
 
 ---
 
@@ -279,13 +283,16 @@ agent-foreman integrates with Claude Code as a plugin:
 
 ```text
 plugins/agent-foreman/
-├── agents/foreman.md      # Agent definition
-├── skills/                 # 4 skills
+├── .claude-plugin/
+│   └── plugin.json         # Plugin metadata
+├── agents/
+│   └── foreman.md          # Agent definition
+├── skills/                  # 4 skills
 │   ├── project-analyze/
 │   ├── init-harness/
 │   ├── feature-next/
 │   └── feature-run/
-└── commands/               # 5 slash commands
+└── commands/                # 5 slash commands
     ├── analyze.md
     ├── init.md
     ├── next.md
