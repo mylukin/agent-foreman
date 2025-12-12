@@ -24,7 +24,9 @@ export default defineConfig({
         // Module index files (re-exports only)
         "src/verifier/index.ts",
         "src/verifier/types.ts",
+        "src/verifier/verification-types.ts",
         "src/capabilities/index.ts",
+        "src/gitignore/index.ts",
         "src/tdd-guidance/index.ts",
         "src/tdd-guidance/types.ts",
         "src/verification-store/index.ts",
