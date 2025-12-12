@@ -7,7 +7,7 @@ import * as path from "node:path";
 import chalk from "chalk";
 
 import { aiScanProject, aiResultToSurvey, generateAISurveyMarkdown } from "../ai-scanner.js";
-import { printAgentStatus } from "../agents.js";
+import { printAgentStatus, getAgentPriorityString } from "../agents.js";
 import { scanDirectoryStructure } from "../project-scanner.js";
 
 /**
@@ -16,7 +16,7 @@ import { scanDirectoryStructure } from "../project-scanner.js";
 export async function runAnalyze(outputPath: string, verbose: boolean): Promise<void> {
   const cwd = process.cwd();
 
-  console.log(chalk.blue("🤖 AI-powered project analysis (priority: Codex > Gemini > Claude)"));
+  console.log(chalk.blue(`🤖 AI-powered project analysis (priority: ${getAgentPriorityString()})`));
   if (verbose) {
     printAgentStatus();
   }

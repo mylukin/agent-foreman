@@ -41,10 +41,11 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
   // Claude: --print for non-interactive, --permission-mode bypassPermissions for full access (highest priority)
   // Note: Using --permission-mode bypassPermissions instead of --dangerously-skip-permissions
   // because the latter is blocked when running as root user
+  // Note: promptViaStdin: false to pass prompt as argument (fixes Claude Code v2.0.67+ stdin validation issue)
   {
     name: "claude",
     command: ["claude", "--print", "--output-format", "text", "--permission-mode", "bypassPermissions"],
-    promptViaStdin: true,
+    promptViaStdin: false,
   },
   // Codex: exec mode with full-auto approval
   {
@@ -374,4 +375,15 @@ export function printAgentStatus(): void {
     const status = agent.available ? chalk.green("✓ available") : chalk.red("✗ not found");
     console.log(`  ${agent.name}: ${status}`);
   }
+}
+
+/**
+ * Get formatted string of agent priority order
+ * Returns format like "Claude > Codex > Gemini" with proper capitalization
+ */
+export function getAgentPriorityString(): string {
+  const priority = getAgentPriority();
+  // Capitalize first letter of each agent name
+  const capitalized = priority.map((name) => name.charAt(0).toUpperCase() + name.slice(1));
+  return capitalized.join(" > ");
 }

@@ -14,6 +14,7 @@ import {
   callAgentWithRetry,
   callAnyAvailableAgent,
   printAgentStatus,
+  getAgentPriorityString,
 } from "../src/agents.js";
 
 // Mock child_process
@@ -57,10 +58,17 @@ describe("Agents", () => {
       expect(codex!.command).toContain("--skip-git-repo-check");
     });
 
-    it("should have all agents configured with promptViaStdin", () => {
+    it("should have all agents configured with promptViaStdin property", () => {
       for (const agent of DEFAULT_AGENTS) {
-        expect(agent.promptViaStdin).toBe(true);
+        // Each agent should explicitly define promptViaStdin (true or false)
+        expect(typeof agent.promptViaStdin).toBe("boolean");
       }
+    });
+
+    it("should have claude agent with promptViaStdin: false for v2.0.67+ compatibility", () => {
+      const claude = DEFAULT_AGENTS.find((a) => a.name === "claude");
+      // Claude Code v2.0.67+ requires prompt as argument, not stdin
+      expect(claude!.promptViaStdin).toBe(false);
     });
   });
 
@@ -265,7 +273,8 @@ describe("Agents", () => {
       const mockProcess = createMockProcess('{"result": "success"}');
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      // Use gemini (promptViaStdin: true) for stdin-based spawn test
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "gemini")!;
       await callAgent(agent, "test prompt", { cwd: "/test/project" });
 
       expect(spawn).toHaveBeenCalledWith(
@@ -279,13 +288,29 @@ describe("Agents", () => {
       const mockProcess = createMockProcess('{"result": "success"}');
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      // Use gemini (promptViaStdin: true) for stdin-based spawn test
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "gemini")!;
       await callAgent(agent, "test prompt");
 
       expect(spawn).toHaveBeenCalledWith(
         agent.command[0],
         agent.command.slice(1),
         expect.objectContaining({ cwd: undefined })
+      );
+    });
+
+    it("should pass prompt as argument for claude (promptViaStdin: false)", async () => {
+      const mockProcess = createMockProcess('{"result": "success"}');
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      await callAgent(agent, "test prompt", { cwd: "/test/project" });
+
+      // Claude uses promptViaStdin: false, so prompt is passed as last argument
+      expect(spawn).toHaveBeenCalledWith(
+        agent.command[0],
+        [...agent.command.slice(1), "test prompt"],
+        expect.objectContaining({ cwd: "/test/project", stdio: ["ignore", "pipe", "pipe"] })
       );
     });
 
@@ -314,11 +339,24 @@ describe("Agents", () => {
       const mockProcess = createMockProcess("response");
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
-      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      // Use gemini (promptViaStdin: true) for stdin-based test
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "gemini")!;
       await callAgent(agent, "my test prompt");
 
       expect(mockProcess.stdin.write).toHaveBeenCalledWith("my test prompt");
       expect(mockProcess.stdin.end).toHaveBeenCalled();
+    });
+
+    it("should not write to stdin for argument-based agents (claude)", async () => {
+      const mockProcess = createMockProcess("response");
+      vi.mocked(spawn).mockReturnValue(mockProcess);
+
+      // Claude uses promptViaStdin: false
+      const agent = DEFAULT_AGENTS.find((a) => a.name === "claude")!;
+      await callAgent(agent, "my test prompt");
+
+      // stdin.write should not be called for argument-based agents
+      expect(mockProcess.stdin.write).not.toHaveBeenCalled();
     });
   });
 
@@ -842,6 +880,20 @@ describe("Agents", () => {
       expect(output).toContain("not found");
 
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe("getAgentPriorityString", () => {
+    it("should return capitalized agent names joined with ' > '", () => {
+      // Uses default priority: claude > codex > gemini
+      const result = getAgentPriorityString();
+      expect(result).toMatch(/^[A-Z][a-z]+ > [A-Z][a-z]+ > [A-Z][a-z]+$/);
+    });
+
+    it("should capitalize first letter of each agent name", () => {
+      const result = getAgentPriorityString();
+      // Default priority should be "Claude > Codex > Gemini"
+      expect(result).toBe("Claude > Codex > Gemini");
     });
   });
 });
