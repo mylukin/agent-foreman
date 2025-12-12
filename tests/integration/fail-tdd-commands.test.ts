@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { spawnSync, execSync } from "node:child_process";
 import * as fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
@@ -14,7 +15,8 @@ describe("fail command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "foreman-fail-test-"));
+    const rawTempDir = await fs.mkdtemp(path.join(os.tmpdir(), "foreman-fail-test-"));
+    tempDir = fsSync.realpathSync(rawTempDir); // Resolve symlinks (macOS /var -> /private/var)
     execSync("git init", { cwd: tempDir, stdio: "pipe" });
     execSync("git config user.email 'test@test.com'", { cwd: tempDir, stdio: "pipe" });
     execSync("git config user.name 'Test User'", { cwd: tempDir, stdio: "pipe" });
@@ -388,7 +390,8 @@ describe("tdd command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "foreman-tdd-test-"));
+    const rawTempDir = await fs.mkdtemp(path.join(os.tmpdir(), "foreman-tdd-test-"));
+    tempDir = fsSync.realpathSync(rawTempDir); // Resolve symlinks (macOS /var -> /private/var)
     execSync("git init", { cwd: tempDir, stdio: "pipe" });
     execSync("git config user.email 'test@test.com'", { cwd: tempDir, stdio: "pipe" });
     execSync("git config user.name 'Test User'", { cwd: tempDir, stdio: "pipe" });

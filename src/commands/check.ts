@@ -196,6 +196,9 @@ export async function runCheck(
     console.log(chalk.cyan(`   Run 'agent-foreman done ${featureId}' to mark as passing`));
   } else if (result.verdict === "fail") {
     console.log(chalk.red("\n   ✗ Verification failed. Review the criteria above and fix issues."));
+    console.log(chalk.yellow("\n   Options:"));
+    console.log(chalk.gray(`   1. Fix issues and run 'agent-foreman check ${featureId}' again`));
+    console.log(chalk.gray(`   2. Mark as failed: 'agent-foreman fail ${featureId} -r "reason"'`));
   } else {
     console.log(chalk.yellow("\n   ⚠ Needs review. Some criteria could not be verified automatically."));
   }

@@ -47,7 +47,7 @@ export async function runDone(
   testPattern?: string,
   skipE2E: boolean = false,
   e2eMode?: "full" | "smoke" | "tags" | "skip",
-  loopMode: boolean = false
+  loopMode: boolean = true
 ): Promise<void> {
   const cwd = process.cwd();
 
@@ -264,7 +264,9 @@ export async function runDone(
     // Handle verdict
     if (result.verdict === "fail") {
       console.log(chalk.red("\n   ✗ Verification failed. Feature NOT marked as complete."));
-      console.log(chalk.yellow("   Fix the issues above and run again."));
+      console.log(chalk.yellow("\n   Options:"));
+      console.log(chalk.gray(`   1. Fix the issues above and run 'agent-foreman done ${featureId}' again`));
+      console.log(chalk.gray(`   2. Mark as failed and continue: 'agent-foreman fail ${featureId} -r "reason"'`));
       process.exit(1);
     }
 

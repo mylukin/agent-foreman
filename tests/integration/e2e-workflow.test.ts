@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { execSync, spawnSync } from "node:child_process";
 import * as fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
@@ -56,7 +57,8 @@ describe("E2E Workflow Tests", () => {
 
   beforeEach(async () => {
     // Create a unique temp directory for each test
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "foreman-e2e-"));
+    const rawTempDir = await fs.mkdtemp(path.join(os.tmpdir(), "foreman-e2e-"));
+    tempDir = fsSync.realpathSync(rawTempDir); // Resolve symlinks (macOS /var -> /private/var)
     // Initialize git repo for commands that require it
     execSync("git init", { cwd: tempDir, stdio: "pipe" });
     execSync("git config user.email 'test@test.com'", { cwd: tempDir, stdio: "pipe" });
