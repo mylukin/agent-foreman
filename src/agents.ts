@@ -9,6 +9,53 @@ import * as path from "node:path";
 import chalk from "chalk";
 import { isTTY } from "./progress.js";
 import { getTimeout, getAgentPriority } from "./timeout-config.js";
+import { debugAgents } from "./debug.js";
+
+/**
+ * OpenCode configuration helpers
+ *
+ * NOTE: `opencode run` accepts the prompt as positional args (NOT stdin).
+ * In practice, it may also require an explicit model to avoid hanging
+ * (e.g. when the default provider/model is rate-limited).
+ */
+const OPENCODE_MODEL_ENV_VARS = ["AGENT_FOREMAN_OPENCODE_MODEL", "OPENCODE_MODEL"] as const;
+const OPENCODE_AGENT_ENV_VARS = ["AGENT_FOREMAN_OPENCODE_AGENT", "OPENCODE_AGENT"] as const;
+
+function firstNonEmptyEnv(names: readonly string[]): string | undefined {
+  for (const name of names) {
+    const v = process.env[name];
+    if (v && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
+function defaultOpencodeAgent(): string {
+  // Keep output minimal/structured for JSON-only prompts used by agent-foreman scanners.
+  return firstNonEmptyEnv(OPENCODE_AGENT_ENV_VARS) ?? "summary";
+}
+
+function defaultOpencodeModel(): string | undefined {
+  const configured = firstNonEmptyEnv(OPENCODE_MODEL_ENV_VARS);
+  if (configured) return configured;
+
+  // Heuristic: if Vertex is configured, default to a Gemini model (avoids Anthropic/Vertex
+  // quota issues seen in non-interactive runs).
+  const hasVertex =
+    Boolean(process.env.GOOGLE_VERTEX_PROJECT) ||
+    Boolean(process.env.GOOGLE_CLOUD_PROJECT) ||
+    Boolean(process.env.GOOGLE_VERTEX_LOCATION);
+
+  return hasVertex ? "google-vertex/gemini-2.5-flash" : undefined;
+}
+
+function buildOpencodeCommand(): string[] {
+  const agent = defaultOpencodeAgent();
+  const model = defaultOpencodeModel();
+
+  const cmd = ["opencode", "run", "--format", "default", "--agent", agent];
+  if (model) cmd.push("--model", model);
+  return cmd;
+}
 
 /**
  * Agent configuration
@@ -65,10 +112,12 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     promptViaStdin: true,
   },
   // OpenCode: non-interactive mode via `opencode run`
-  // Use @file syntax to bypass shell argument limits
+  // Prompt is passed as a positional arg (NOT stdin). Model/agent are configurable via env:
+  // - AGENT_FOREMAN_OPENCODE_MODEL / OPENCODE_MODEL
+  // - AGENT_FOREMAN_OPENCODE_AGENT / OPENCODE_AGENT
   {
     name: "opencode",
-    command: ["opencode", "run", "--format", "default"],
+    command: buildOpencodeCommand(),
     promptViaStdin: false,
     promptViaFile: true,
   },
@@ -170,16 +219,21 @@ export async function callAgent(
       promptFile = path.join(tmpDir, `agent-foreman-prompt-${randomId}.txt`);
       fs.writeFileSync(promptFile, prompt, "utf-8");
 
-      child = spawn(config.command[0], [...config.command.slice(1), `@${promptFile}`], {
+      const args = [...config.command.slice(1), `@${promptFile}`];
+      debugAgents(`Spawning agent ${config.name} with file args: ${config.command[0]} ${args.join(" ")}`);
+
+      child = spawn(config.command[0], args, {
         stdio: ["ignore", "pipe", "pipe"],
         cwd,
       });
     } else if (useStdin) {
+      debugAgents(`Spawning agent ${config.name} with stdin: ${config.command[0]} ${config.command.slice(1).join(" ")}`);
       child = spawn(config.command[0], config.command.slice(1), {
         stdio: ["pipe", "pipe", "pipe"],
         cwd,
       });
     } else {
+      debugAgents(`Spawning agent ${config.name} with args: ${config.command[0]} ${config.command.slice(1).join(" ")} [prompt length: ${prompt.length}]`);
       child = spawn(config.command[0], [...config.command.slice(1), prompt], {
         stdio: ["ignore", "pipe", "pipe"],
         cwd,
@@ -210,14 +264,18 @@ export async function callAgent(
   if (child.stdout) {
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
-      state.stdout.push(chunk.toString());
+      const text = chunk.toString();
+      debugAgents(`[stdout] ${text}`);
+      state.stdout.push(text);
     });
   }
 
   if (child.stderr) {
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
-      state.stderr.push(chunk.toString());
+      const text = chunk.toString();
+      debugAgents(`[stderr] ${text}`);
+      state.stderr.push(text);
     });
   }
 

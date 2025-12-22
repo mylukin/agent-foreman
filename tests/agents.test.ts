@@ -77,6 +77,8 @@ describe("Agents", () => {
       expect(opencode!.command).toContain("run");
       expect(opencode!.command).toContain("--format");
       expect(opencode!.command).toContain("default");
+      // opencode should run a simple agent to keep outputs JSON-friendly
+      expect(opencode!.command).toContain("--agent");
       expect(opencode!.promptViaStdin).toBe(false);
       // @ts-ignore
       expect(opencode!.promptViaFile).toBe(true);
