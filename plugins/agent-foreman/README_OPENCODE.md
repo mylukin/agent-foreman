@@ -4,30 +4,41 @@ This plugin integrates the `agent-foreman` CLI into OpenCode, allowing you to ma
 
 ## Prerequisites
 
-The `agent-foreman` CLI tool must be installed and available in your system PATH.
+The plugin requires the `agent-foreman` CLI to be available in your system PATH.
 
+### Option A: Use Your Local Version (Recommended for Testing)
+If you want to use the version from this repository (including any local changes):
+1. Open a terminal in the root of this repository.
+2. Run:
+   ```bash
+   npm install && npm run build
+   npm link
+   ```
+   This makes the `agent-foreman` command point to your local code.
+
+### Option B: Use Public Version
+For standard usage (once changes are published):
 ```bash
 npm install -g agent-foreman
-# or if developing locally, link it:
-npm link
 ```
 
 ## Installation
 
-To use this plugin in another OpenCode project, you must copy the plugin files into your project's configuration directory.
+To use this plugin in another OpenCode project, you must **manually install the plugin files** from this repository.
 
-**Manual Installation**:
-
-1. Create the plugin directory in your project:
+1. **Create the plugin directory** in your target project:
    ```bash
    mkdir -p .opencode/plugin/agent-foreman
    ```
 
-2. Copy the contents of this `plugins/agent-foreman` directory into it:
-   - `opencode-plugin.js`
-   - `package.json`
+2. **Copy the plugin files** from this repository to your target project:
+   ```bash
+   # From the root of this agent-foreman repo:
+   cp plugins/agent-foreman/opencode-plugin.js /path/to/target/project/.opencode/plugin/agent-foreman/
+   cp plugins/agent-foreman/package.json /path/to/target/project/.opencode/plugin/agent-foreman/
+   ```
 
-3. Restart OpenCode or reload plugins.
+3. **Reload OpenCode** (or restart the session).
 
 ## Usage
 
@@ -43,11 +54,11 @@ The plugin registers the following tools that the Agent can use autonomously:
 ### Slash Commands (Manual Mode)
 You can invoke commands manually in the chat. Both space-separated and colon-separated syntaxes are supported:
 
-**Space Syntax (Preferred):**
+**Standard Syntax (Preferred):**
 - `/agent-foreman status` (or alias `/foreman status`)
 - `/agent-foreman next [feature-id]`
 
-**Colon Syntax (Compatible):**
+**Compatibility Syntax:**
 - `/agent-foreman:status`
 - `/agent-foreman:next [feature-id]`
 
@@ -58,4 +69,3 @@ To execute the autonomous loop (equivalent to Claude's `/run`):
    - Call the `foreman_run` tool.
    - Receive the "System Instruction" prompt as output.
    - Enter a loop of `next` -> implement -> `check` -> `done` until all features are complete.
-   - It will strictly avoid asking questions as per the prompt instructions.
