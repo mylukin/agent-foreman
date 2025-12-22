@@ -141,8 +141,15 @@ export async function runInit(goal: string, mode: InitMode, verbose: boolean): P
     );
   }
 
-  // Step 5-8: Generate harness files (init.sh, CLAUDE.md, progress.log)
-  await generateHarnessFiles(cwd, analysisResult.survey, featureList, goal, mode);
+  // Step 5-8: Generate harness files (init.sh, CLAUDE.md/AGENTS.md, progress.log)
+  await generateHarnessFiles(
+    cwd,
+    analysisResult.survey,
+    featureList,
+    goal,
+    mode,
+    analysisResult.agentUsed
+  );
 
   console.log(chalk.bold.green("\n🎉 Harness initialized successfully!"));
 

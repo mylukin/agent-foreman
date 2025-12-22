@@ -197,7 +197,8 @@ export async function generateHarnessFiles(
   survey: ReturnType<typeof aiResultToSurvey>,
   featureList: FeatureList,
   goal: string,
-  mode: InitMode
+  mode: InitMode,
+  agentUsed?: string
 ): Promise<void> {
   // Step 6a: Detect project capabilities (creates ai/capabilities.json)
   // This ensures init.sh uses the SAME commands as verification
@@ -254,10 +255,10 @@ export async function generateHarnessFiles(
   // Generate/merge init.sh (still uses AI for merge mode if needed)
   await generateOrMergeInitScript(cwd, capabilities, survey, mode, existingInitScript, initScriptExists);
 
-  // Setup Claude rules using the NEW static file approach
+  // Setup Agent rules (Claude or OpenCode)
   // This replaces the old AI merge approach for CLAUDE.md
   const forceRules = mode === "new";
-  await setupClaudeRules(cwd, goal, forceRules);
+  await setupAgentRules(cwd, goal, forceRules, agentUsed);
 
   // Write progress log entry
   if (mode !== "scan") {
@@ -387,15 +388,105 @@ Return ONLY the merged bash script content. No explanations, no markdown code bl
 }
 
 /**
- * Helper: Setup Claude rules files in .claude/rules/ directory
+ * Helper: Setup Agent rules files (CLAUDE.md/AGENTS.md and rules directory)
  *
- * This is the NEW approach that copies static rule files instead of generating
- * a monolithic harness section. Claude Code automatically loads all .md files
- * from .claude/rules/ as project memory.
+ * Supports both Claude Code (.claude/rules, CLAUDE.md) and OpenCode (.opencode/rules, AGENTS.md).
+ * Structure depends on the agent used during initialization.
  *
  * @param cwd - Current working directory
  * @param goal - Project goal description
  * @param force - Force overwrite existing rule files
+ * @param agentUsed - The agent used for initialization ("opencode", "claude", etc.)
+ */
+async function setupAgentRules(
+  cwd: string,
+  goal: string,
+  force: boolean = false,
+  agentUsed?: string
+): Promise<void> {
+  // If opencode is used, setup OpenCode structure
+  if (agentUsed === "opencode") {
+    await setupOpenCodeRules(cwd, goal, force);
+  } else {
+    // Default to Claude structure for others (claude, codex, gemini) or fallback
+    await setupClaudeRules(cwd, goal, force);
+  }
+}
+
+/**
+ * Setup OpenCode-specific rules and config
+ */
+async function setupOpenCodeRules(cwd: string, goal: string, force: boolean): Promise<void> {
+  // Step 1: Copy rules to .opencode/rules/
+  const rulesResult = await copyRulesToProject(cwd, { force, targetDir: ".opencode/rules" });
+
+  if (rulesResult.created > 0) {
+    console.log(chalk.green(`✓ Created ${rulesResult.created} rule files in .opencode/rules/`));
+  }
+
+  // Step 2: Create AGENTS.md (similar to CLAUDE.md)
+  const agentsMdPath = path.join(cwd, "AGENTS.md");
+  let existingAgentsMd = "";
+  let agentsMdExists = false;
+
+  try {
+    existingAgentsMd = await fs.readFile(agentsMdPath, "utf-8");
+    agentsMdExists = existingAgentsMd.trim().length > 0;
+  } catch {
+    // Ignore
+  }
+
+  if (agentsMdExists) {
+    const hasProjectGoal = existingAgentsMd.includes("## Project Goal") || existingAgentsMd.includes("# Project Goal");
+    if (!hasProjectGoal) {
+      const goalSection = `\n## Project Goal\n\n${goal}\n`;
+      await fs.writeFile(agentsMdPath, existingAgentsMd.trimEnd() + goalSection);
+      console.log(chalk.green("✓ Updated AGENTS.md (added project goal)"));
+    } else {
+      console.log(chalk.gray("  AGENTS.md already configured"));
+    }
+  } else {
+    const content = generateMinimalClaudeMd(goal).replace("# CLAUDE.md", "# AGENTS.md");
+    await fs.writeFile(agentsMdPath, content);
+    console.log(chalk.green("✓ Generated AGENTS.md"));
+  }
+
+  // Step 3: Create opencode.json config to load rules
+  const configPath = path.join(cwd, "opencode.json");
+  const config = {
+    $schema: "https://opencode.ai/config.json",
+    instructions: [".opencode/rules/*.md"]
+  };
+
+  // Merge with existing config if needed, but for now just ensure instructions exist
+  try {
+    let currentConfig: any = {};
+    try {
+      const content = await fs.readFile(configPath, "utf-8");
+      currentConfig = JSON.parse(content);
+    } catch {
+      // New config
+    }
+
+    if (!currentConfig.instructions) {
+      currentConfig.instructions = [];
+    }
+    
+    // Add rule pattern if missing
+    if (!currentConfig.instructions.includes(".opencode/rules/*.md")) {
+      currentConfig.instructions.push(".opencode/rules/*.md");
+      await fs.writeFile(configPath, JSON.stringify(currentConfig, null, 2));
+      console.log(chalk.green("✓ Updated opencode.json with rule instructions"));
+    }
+  } catch (err) {
+    // Fallback if JSON parse fails or other error
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+    console.log(chalk.green("✓ Generated opencode.json"));
+  }
+}
+
+/**
+ * Setup Claude-specific rules and config
  */
 async function setupClaudeRules(
   cwd: string,
@@ -405,7 +496,7 @@ async function setupClaudeRules(
   const claudeMdPath = path.join(cwd, "CLAUDE.md");
 
   // Step 1: Copy rule template files to .claude/rules/
-  const rulesResult = await copyRulesToProject(cwd, { force });
+  const rulesResult = await copyRulesToProject(cwd, { force, targetDir: ".claude/rules" });
 
   if (rulesResult.created > 0) {
     console.log(chalk.green(`✓ Created ${rulesResult.created} rule files in .claude/rules/`));
