@@ -31,7 +31,7 @@ To use this plugin in another OpenCode project, you must copy the plugin files i
 
 ## Usage
 
-### Tools
+### Tools (Autonomous Mode)
 The plugin registers the following tools that the Agent can use autonomously:
 - `foreman_status`: Check project status.
 - `foreman_next`: Get the next task.
@@ -40,12 +40,17 @@ The plugin registers the following tools that the Agent can use autonomously:
 - `foreman_fail`: Mark a feature as failed.
 - `foreman_run`: **Unattended Mode** - returns the strict system prompt to force the agent into an autonomous loop.
 
-### Slash Commands
-You can invoke commands manually in the chat:
-- `/foreman status`
-- `/foreman next [feature-id]`
-- `/foreman check <feature-id>`
-- `/foreman done <feature-id>`
+### Slash Commands (Manual Mode)
+You can invoke commands manually in the chat using either syntax:
+
+**Standard Syntax:**
+- `/agent-foreman status` (or alias `/foreman status`)
+- `/agent-foreman next [feature-id]`
+- `/agent-foreman check <feature-id>`
+- `/agent-foreman done <feature-id>`
+
+**Compatibility Syntax:**
+- `/agent-foreman:run`: Provides instructions to start the autonomous loop.
 
 ### Batch Mode ("Run")
 To execute the autonomous loop (equivalent to Claude's `/run`):

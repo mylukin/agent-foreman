@@ -237,6 +237,7 @@ export const AgentForemanPlugin = async ({ client, $ }) => {
 - "Should I...?"
 - "Do you want me to...?"
 - "Which approach would you prefer?"
+- "I need clarification on..."
 
 **CRITICAL: NEVER stop due to verification failure - always use 'foreman_fail' and continue!**
 `;
@@ -249,17 +250,24 @@ export const AgentForemanPlugin = async ({ client, $ }) => {
       if (event.type === 'tui.command.execute') {
         const { command, args } = event.data;
         
-        // Handle /foreman command
-        if (command === 'foreman') {
+        // Handle /agent-foreman:run (special compatibility mode)
+        if (command === 'agent-foreman:run') {
+           console.log("To enter Run Mode, please tell the agent:");
+           console.log('"Call foreman_run to start autonomous batch processing."');
+           return;
+        }
+
+        // Handle /agent-foreman or /foreman
+        if (command === 'agent-foreman' || command === 'foreman') {
           const subCommand = args && args.length > 0 ? args[0] : null;
           
           if (!subCommand) {
-            console.log("Usage: /foreman <command> [args]");
+            console.log("Usage: /agent-foreman <command> [args]");
             console.log("Commands: status, next, check, done, fail, init, analyze, scan, run");
             return;
           }
 
-          // Handle special "run" command by instructing user to call the tool
+          // Handle special "run" command
           if (subCommand === 'run') {
              console.log("To enter Run Mode, please tell the agent:");
              console.log('"Call foreman_run to start autonomous batch processing."');
