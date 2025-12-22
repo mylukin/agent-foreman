@@ -52,10 +52,21 @@ function buildOpencodeCommand(): string[] {
   const agent = defaultOpencodeAgent();
   const model = defaultOpencodeModel();
 
-  // Add -y to auto-approve permissions/tools in non-interactive mode
-  const cmd = ["opencode", "run", "-y", "--format", "default", "--agent", agent];
+  // Note: Permissions are handled via OPENCODE_PERMISSION env var, not CLI flags
+  const cmd = ["opencode", "run", "--format", "default", "--agent", agent];
   if (model) cmd.push("--model", model);
   return cmd;
+}
+
+/**
+ * Agent configuration
+ */
+export interface AgentConfig {
+  name: string;
+  command: string[];
+  promptViaStdin?: boolean;
+  promptViaFile?: boolean; // Pass prompt via @filename argument
+  env?: Record<string, string>; // Custom environment variables
 }
 
 /**
@@ -121,6 +132,16 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     command: buildOpencodeCommand(),
     promptViaStdin: false,
     promptViaFile: true,
+    env: {
+      // Auto-approve all permissions for non-interactive execution
+      OPENCODE_PERMISSION: JSON.stringify({
+        bash: "allow",
+        edit: "allow",
+        webfetch: "allow",
+        doom_loop: "allow",
+        external_directory: "allow",
+      }),
+    },
   },
 ];
 
@@ -226,18 +247,21 @@ export async function callAgent(
       child = spawn(config.command[0], args, {
         stdio: ["ignore", "pipe", "pipe"],
         cwd,
+        env: { ...process.env, ...config.env },
       });
     } else if (useStdin) {
       debugAgents(`Spawning agent ${config.name} with stdin: ${config.command[0]} ${config.command.slice(1).join(" ")}`);
       child = spawn(config.command[0], config.command.slice(1), {
         stdio: ["pipe", "pipe", "pipe"],
         cwd,
+        env: { ...process.env, ...config.env },
       });
     } else {
       debugAgents(`Spawning agent ${config.name} with args: ${config.command[0]} ${config.command.slice(1).join(" ")} [prompt length: ${prompt.length}]`);
       child = spawn(config.command[0], [...config.command.slice(1), prompt], {
         stdio: ["ignore", "pipe", "pipe"],
         cwd,
+        env: { ...process.env, ...config.env },
       });
     }
   } catch (err) {

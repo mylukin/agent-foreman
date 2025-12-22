@@ -73,7 +73,6 @@ describe("Agents", () => {
       const opencode = DEFAULT_AGENTS.find((a) => a.name === "opencode");
       expect(opencode).toBeDefined();
       expect(opencode!.command).toContain("run");
-      expect(opencode!.command).toContain("-y"); // Auto-approve permissions
       expect(opencode!.command).toContain("--format");
       expect(opencode!.command).toContain("default");
       // opencode should run a simple agent to keep outputs JSON-friendly
@@ -81,6 +80,13 @@ describe("Agents", () => {
       expect(opencode!.promptViaStdin).toBe(false);
       // @ts-ignore
       expect(opencode!.promptViaFile).toBe(true);
+      // Should have OPENCODE_PERMISSION env var
+      // @ts-ignore
+      expect(opencode!.env).toBeDefined();
+      // @ts-ignore
+      expect(opencode!.env!.OPENCODE_PERMISSION).toBeDefined();
+      // @ts-ignore
+      expect(opencode!.env!.OPENCODE_PERMISSION).toContain('"bash":"allow"');
     });
 
     it("should have claude agent with '-' stdin indicator for v2.0.67+ compatibility", () => {
