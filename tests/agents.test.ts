@@ -27,11 +27,12 @@ import { spawn, spawnSync } from "node:child_process";
 
 describe("Agents", () => {
   describe("DEFAULT_AGENTS", () => {
-    it("should have claude, gemini, and codex agents defined", () => {
+    it("should have claude, gemini, codex, and opencode agents defined", () => {
       const agentNames = DEFAULT_AGENTS.map((a) => a.name);
       expect(agentNames).toContain("claude");
       expect(agentNames).toContain("gemini");
       expect(agentNames).toContain("codex");
+      expect(agentNames).toContain("opencode");
     });
 
     it("should have claude configured with --permission-mode bypassPermissions", () => {
@@ -58,11 +59,25 @@ describe("Agents", () => {
       expect(codex!.command).toContain("--skip-git-repo-check");
     });
 
-    it("should have all agents configured with promptViaStdin: true", () => {
+    it("should have most agents configured with promptViaStdin: true (except opencode)", () => {
       for (const agent of DEFAULT_AGENTS) {
-        // All agents use stdin for prompt delivery (safer for complex content)
-        expect(agent.promptViaStdin).toBe(true);
+        if (agent.name === "opencode") {
+          // OpenCode uses argv for prompt delivery (opencode run [message..])
+          expect(agent.promptViaStdin).toBe(false);
+        } else {
+          // Other agents use stdin for prompt delivery (safer for complex content)
+          expect(agent.promptViaStdin).toBe(true);
+        }
       }
+    });
+
+    it("should have opencode configured for non-interactive run", () => {
+      const opencode = DEFAULT_AGENTS.find((a) => a.name === "opencode");
+      expect(opencode).toBeDefined();
+      expect(opencode!.command).toContain("run");
+      expect(opencode!.command).toContain("--format");
+      expect(opencode!.command).toContain("default");
+      expect(opencode!.promptViaStdin).toBe(false);
     });
 
     it("should have claude agent with '-' stdin indicator for v2.0.67+ compatibility", () => {
@@ -195,7 +210,7 @@ describe("Agents", () => {
 
       expect(result.available.length).toBe(1);
       expect(result.available[0].name).toBe("claude");
-      expect(result.unavailable.length).toBe(2);
+      expect(result.unavailable.length).toBe(3);
     });
 
     it("should return all unavailable when none found", () => {
@@ -204,7 +219,7 @@ describe("Agents", () => {
       const result = filterAvailableAgents(DEFAULT_AGENTS);
 
       expect(result.available.length).toBe(0);
-      expect(result.unavailable.length).toBe(3);
+      expect(result.unavailable.length).toBe(4);
     });
 
     it("should return all available when all found", () => {
@@ -212,7 +227,7 @@ describe("Agents", () => {
 
       const result = filterAvailableAgents(DEFAULT_AGENTS);
 
-      expect(result.available.length).toBe(3);
+      expect(result.available.length).toBe(4);
       expect(result.unavailable.length).toBe(0);
     });
   });
@@ -227,7 +242,7 @@ describe("Agents", () => {
 
       const result = checkAvailableAgents();
 
-      expect(result.length).toBe(3);
+      expect(result.length).toBe(4);
       expect(result.every((r) => r.name && typeof r.available === "boolean")).toBe(true);
     });
 
@@ -889,6 +904,7 @@ describe("Agents", () => {
       expect(output).toContain("claude");
       expect(output).toContain("gemini");
       expect(output).toContain("codex");
+      expect(output).toContain("opencode");
 
       consoleSpy.mockRestore();
     });

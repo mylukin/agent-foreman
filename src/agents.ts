@@ -1,6 +1,6 @@
 /**
  * AI Agent subprocess management
- * Spawns Claude, Gemini, or Codex CLI tools for intelligent analysis
+ * Spawns Claude, Gemini, Codex, or OpenCode CLI tools for intelligent analysis
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import chalk from "chalk";
@@ -36,6 +36,7 @@ export interface AgentState {
  * Default AI agents configuration
  * All agents use highest permission mode for automated scanning without human intervention
  * Priority order: Claude > Codex > Gemini (configurable via AGENT_FOREMAN_AGENTS env var)
+ * OpenCode is also supported but not in default priority; enable via AGENT_FOREMAN_AGENTS=opencode,...
  */
 export const DEFAULT_AGENTS: AgentConfig[] = [
   // Claude: --print for non-interactive, --permission-mode bypassPermissions for full access (highest priority)
@@ -58,6 +59,13 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     name: "gemini",
     command: ["gemini", "--output-format", "text", "--yolo"],
     promptViaStdin: true,
+  },
+  // OpenCode: non-interactive mode via `opencode run [message..]`
+  // Prompt is passed as argv (not stdin). Use --format default for readable output.
+  {
+    name: "opencode",
+    command: ["opencode", "run", "--format", "default"],
+    promptViaStdin: false,
   },
 ];
 
@@ -274,7 +282,7 @@ export async function callAgentWithRetry(
 /**
  * Try multiple agents in order until one succeeds
  * Uses AGENT_FOREMAN_AGENTS env var for priority order if set
- * Default priority: Claude > Codex > Gemini
+ * Default priority: Claude > Codex > Gemini (OpenCode available via env var)
  * No timeout by default - let the AI agent complete
  *
  * @param prompt - The prompt to send to the agent

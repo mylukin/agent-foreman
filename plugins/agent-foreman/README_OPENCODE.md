@@ -28,17 +28,23 @@ To use this plugin in another OpenCode project, you must **manually install the 
 
 1. **Create the plugin directory** in your target project:
    ```bash
-   mkdir -p .opencode/plugin/agent-foreman
+   mkdir -p .opencode/plugin
    ```
 
-2. **Copy the plugin files** from this repository to your target project:
+2. **Copy the plugin file** from this repository to your target project:
    ```bash
    # From the root of this agent-foreman repo:
-   cp plugins/agent-foreman/opencode-plugin.js /path/to/target/project/.opencode/plugin/agent-foreman/
-   cp plugins/agent-foreman/package.json /path/to/target/project/.opencode/plugin/agent-foreman/
+   cp plugins/agent-foreman/opencode-plugin.js /path/to/target/project/.opencode/plugin/agent-foreman.js
    ```
 
-3. **Reload OpenCode** (or restart the session).
+3. **Install the OpenCode slash commands** (required for `/agent-foreman ...`):
+   ```bash
+   # From the root of this agent-foreman repo:
+   mkdir -p /path/to/target/project/.opencode/command
+   cp -R plugins/agent-foreman/opencode/command/* /path/to/target/project/.opencode/command/
+   ```
+
+4. **Reload OpenCode** (or restart the session).
 
 ## Usage
 
@@ -52,19 +58,25 @@ The plugin registers the following tools that the Agent can use autonomously:
 - `foreman_run`: **Unattended Mode** - returns the strict system prompt to force the agent into an autonomous loop.
 
 ### Slash Commands (Manual Mode)
-You can invoke commands manually in the chat. Both space-separated and colon-separated syntaxes are supported:
+You can invoke commands manually in the chat (OpenCode command files):
 
-**Standard Syntax (Preferred):**
-- `/agent-foreman status` (or alias `/foreman status`)
+**Preferred:**
+- `/agent-foreman status`
 - `/agent-foreman next [feature-id]`
+- `/agent-foreman check <feature-id>`
+- `/agent-foreman done <feature-id>`
+- `/agent-foreman fail <feature-id> <reason>`
+- `/agent-foreman init [goal]`
+- `/agent-foreman analyze [output-path]`
+- `/agent-foreman scan`
+- `/agent-foreman impact <feature-id>`
+- `/agent-foreman run`
 
-**Compatibility Syntax:**
-- `/agent-foreman:status`
-- `/agent-foreman:next [feature-id]`
+Note: Claude-style `/agent-foreman:<cmd>` is not used by the OpenCode command system in this port.
 
 ### Batch Mode ("Run")
 To execute the autonomous loop (equivalent to Claude's `/run`):
-1. **Instruct the Agent**: "Call `foreman_run` to start autonomous batch processing." (or use `/agent-foreman:run`)
+1. Run: `/agent-foreman run`
 2. **The Agent will**:
    - Call the `foreman_run` tool.
    - Receive the "System Instruction" prompt as output.

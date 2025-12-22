@@ -1,292 +1,183 @@
+import { tool } from "@opencode-ai/plugin";
+
 /**
  * Agent Foreman OpenCode Plugin
  *
- * Exposes agent-foreman CLI commands as OpenCode tools and slash commands.
+ * Exposes agent-foreman CLI commands as OpenCode tools.
+ *
+ * Docs:
+ * - https://opencode.ai/docs/plugins/
  */
-export const AgentForemanPlugin = async ({ client, $ }) => {
-  // Helper to run agent-foreman commands
+export const AgentForemanPlugin = async ({ $, directory, worktree }) => {
+  const cwd = worktree || directory;
+
   const runForeman = async (args) => {
-    try {
-      const result = await $`agent-foreman ${args}`;
-      return {
-        output: result.stdout,
-        error: result.stderr,
-        exitCode: result.exitCode
-      };
-    } catch (error) {
-       return {
-        output: error.stdout,
-        error: error.stderr || error.message,
-        exitCode: error.exitCode || 1
-       };
-    }
+    const cmd = $`agent-foreman ${args}`.cwd(cwd).nothrow();
+    const result = await cmd;
+
+    const stdout = (result.stdout ?? "").toString();
+    const stderr = (result.stderr ?? "").toString();
+    const exitCode = Number(result.exitCode ?? 0);
+
+    const parts = [];
+    if (stdout.trim()) parts.push(stdout.trimEnd());
+    if (stderr.trim()) parts.push(`(stderr)\n${stderr.trimEnd()}`);
+    parts.push(`(exit ${exitCode})`);
+    return parts.join("\n\n");
   };
 
-  // Register foreman_status
-  await client.registerTool({
-    name: "foreman_status",
-    description: "Show current project status with feature completion and recent activity",
-    parameters: {
-      type: "object",
-      properties: {
-        json: { type: "boolean", description: "Output as JSON" },
-        quiet: { type: "boolean", description: "Minimal output" }
-      }
-    },
-    handler: async ({ json, quiet }) => {
-      const args = ["status"];
-      if (json) args.push("--json");
-      if (quiet) args.push("--quiet");
-      return await runForeman(args);
-    }
-  });
-
-  // Register foreman_next
-  await client.registerTool({
-    name: "foreman_next",
-    description: "Get next/specific feature to work on",
-    parameters: {
-      type: "object",
-      properties: {
-        featureId: { type: "string", description: "Specific feature ID to work on" },
-        check: { type: "boolean", description: "Run tests before showing feature" },
-        dryRun: { type: "boolean", description: "Preview without changes" },
-        json: { type: "boolean", description: "Output as JSON" },
-        allowDirty: { type: "boolean", description: "Allow with uncommitted changes" }
-      }
-    },
-    handler: async ({ featureId, check, dryRun, json, allowDirty }) => {
-      const args = ["next"];
-      if (featureId) args.push(featureId);
-      if (check) args.push("--check");
-      if (dryRun) args.push("--dry-run");
-      if (json) args.push("--json");
-      if (allowDirty) args.push("--allow-dirty");
-      return await runForeman(args);
-    }
-  });
-
-  // Register foreman_check
-  await client.registerTool({
-    name: "foreman_check",
-    description: "Verify implementation of a feature",
-    parameters: {
-      type: "object",
-      properties: {
-        featureId: { type: "string", description: "Feature ID to check" },
-        verbose: { type: "boolean", description: "Show detailed output" },
-        ai: { type: "boolean", description: "Enable AI autonomous exploration" },
-        full: { type: "boolean", description: "Run full verification" }
-      }
-    },
-    handler: async ({ featureId, verbose, ai, full }) => {
-      const args = ["check"];
-      if (featureId) args.push(featureId);
-      if (verbose) args.push("--verbose");
-      if (ai) args.push("--ai");
-      if (full) args.push("--full");
-      return await runForeman(args);
-    }
-  });
-
-  // Register foreman_done
-  await client.registerTool({
-    name: "foreman_done",
-    description: "Mark complete + auto-commit",
-    parameters: {
-      type: "object",
-      properties: {
-        featureId: { type: "string", description: "Feature ID to mark as done" },
-        notes: { type: "string", description: "Additional notes" },
-        noCommit: { type: "boolean", description: "Skip auto-commit" },
-        skipCheck: { type: "boolean", description: "Skip verification" }
-      },
-      required: ["featureId"]
-    },
-    handler: async ({ featureId, notes, noCommit, skipCheck }) => {
-      const args = ["done", featureId];
-      if (notes) args.push("-m", notes);
-      if (noCommit) args.push("--no-commit");
-      if (skipCheck) args.push("--skip-check");
-      return await runForeman(args);
-    }
-  });
-
-  // Register foreman_fail
-  await client.registerTool({
-    name: "foreman_fail",
-    description: "Mark as failed and continue to next",
-    parameters: {
-      type: "object",
-      properties: {
-        featureId: { type: "string", description: "Feature ID to mark as failed" },
-        reason: { type: "string", description: "Reason for failure" }
-      },
-      required: ["featureId", "reason"]
-    },
-    handler: async ({ featureId, reason }) => {
-      const args = ["fail", featureId, "-r", reason];
-      return await runForeman(args);
-    }
-  });
-
-  // Register foreman_impact
-  await client.registerTool({
-    name: "foreman_impact",
-    description: "Analyze impact of changes",
-    parameters: {
-      type: "object",
-      properties: {
-        featureId: { type: "string", description: "Feature ID" }
-      },
-      required: ["featureId"]
-    },
-    handler: async ({ featureId }) => {
-      const args = ["impact", featureId];
-      return await runForeman(args);
-    }
-  });
-
-  // Register foreman_init
-  await client.registerTool({
-    name: "foreman_init",
-    description: "Initialize harness",
-    parameters: {
-      type: "object",
-      properties: {
-        goal: { type: "string", description: "Project goal" }
-      }
-    },
-    handler: async ({ goal }) => {
-      const args = ["init"];
-      if (goal) args.push(goal);
-      return await runForeman(args);
-    }
-  });
-
-  // Register foreman_analyze
-  await client.registerTool({
-    name: "foreman_analyze",
-    description: "Generate AI-powered project analysis",
-    parameters: {
-      type: "object",
-      properties: {
-        output: { type: "string", description: "Output file path" }
-      }
-    },
-    handler: async ({ output }) => {
-      const args = ["analyze"];
-      if (output) args.push(output);
-      return await runForeman(args);
-    }
-  });
-  
-  // Register foreman_scan
-  await client.registerTool({
-    name: "foreman_scan",
-    description: "Scan project verification capabilities",
-    parameters: {
-      type: "object",
-      properties: {}
-    },
-    handler: async () => {
-      return await runForeman(["scan"]);
-    }
-  });
-
-  // Register foreman_run (unattended mode)
-  await client.registerTool({
-    name: "foreman_run",
-    description: "Enter unattended mode to run all features. This tool returns the strict system prompt for autonomous execution.",
-    parameters: {
-      type: "object",
-      properties: {}
-    },
-    handler: async () => {
-       // Return the content of SKILL.md as tool output
-       return `
-# Feature Run Mode - SYSTEM INSTRUCTION
-
-⚡ **UNATTENDED MODE ACTIVE**
-- NO questions allowed
-- NO stopping for errors
-- MUST complete all features
-
-## Loop Enforcement (MUST FOLLOW)
-
-1. **CHECK**: Run 'foreman_status' - note pending count
-2. **LOOP**: While pending count > 0:
-   a. Run 'foreman_next' - get feature details
-   b. Implement feature - satisfy ALL criteria
-   c. Run 'foreman_check <id>' - verify
-   d. Run 'foreman_done <id>' - complete
-   e. Handle result:
-      - Pass? → Continue to step 2
-      - Fail? → Run 'foreman_fail <id> -r "reason"', continue to step 2
-3. **EXIT**: Only when pending count = 0
-
-### Never Stop For:
-- Questions
-- Errors
-- Failures
-- Ambiguity
-- Missing files
-- Test failures
-
-### Forbidden phrases - NEVER output:
-- "Should I...?"
-- "Do you want me to...?"
-- "Which approach would you prefer?"
-- "I need clarification on..."
-
-**CRITICAL: NEVER stop due to verification failure - always use 'foreman_fail' and continue!**
-`;
-    }
-  });
-
   return {
-    event: async ({ event }) => {
-      // Handle slash commands via TUI events
-      if (event.type === 'tui.command.execute') {
-        const { command, args } = event.data;
-        
-        let subCommand = null;
-        let finalArgs = [...(args || [])];
+    tool: {
+      foreman_status: tool({
+        description: "Show current project status with feature completion and recent activity",
+        args: {
+          json: tool.schema.boolean().optional().describe("Output as JSON"),
+          quiet: tool.schema.boolean().optional().describe("Minimal output"),
+        },
+        async execute({ json, quiet }) {
+          const args = ["status"];
+          if (json) args.push("--json");
+          if (quiet) args.push("--quiet");
+          return await runForeman(args);
+        },
+      }),
 
-        // 1. Handle /agent-foreman:xxx syntax
-        if (command.startsWith('agent-foreman:')) {
-           subCommand = command.split(':')[1];
-        } 
-        // 2. Handle /agent-foreman xxx or /foreman xxx
-        else if (command === 'agent-foreman' || command === 'foreman') {
-           subCommand = finalArgs.shift(); // Remove first arg as subcommand
-        }
+      foreman_next: tool({
+        description: "Get next/specific feature to work on",
+        args: {
+          featureId: tool.schema.string().optional().describe("Specific feature ID to work on"),
+          check: tool.schema.boolean().optional().describe("Run tests before showing feature"),
+          dryRun: tool.schema.boolean().optional().describe("Preview without changes"),
+          json: tool.schema.boolean().optional().describe("Output as JSON"),
+          allowDirty: tool.schema.boolean().optional().describe("Allow with uncommitted changes"),
+        },
+        async execute({ featureId, check, dryRun, json, allowDirty }) {
+          const args = ["next"];
+          if (featureId) args.push(featureId);
+          if (check) args.push("--check");
+          if (dryRun) args.push("--dry-run");
+          if (json) args.push("--json");
+          if (allowDirty) args.push("--allow-dirty");
+          return await runForeman(args);
+        },
+      }),
 
-        // Proceed if we identified a subcommand (or if the user just typed /agent-foreman with no args, we might want to show help)
-        if (subCommand) {
-             // Special case for 'run'
-             if (subCommand === 'run') {
-                 console.log("To enter Run Mode, please tell the agent:");
-                 console.log('"Call foreman_run to start autonomous batch processing."');
-                 return;
-             }
+      foreman_check: tool({
+        description: "Verify implementation of a feature",
+        args: {
+          featureId: tool.schema.string().optional().describe("Feature ID to check"),
+          verbose: tool.schema.boolean().optional().describe("Show detailed output"),
+          ai: tool.schema.boolean().optional().describe("Enable AI autonomous exploration"),
+          full: tool.schema.boolean().optional().describe("Run full verification"),
+        },
+        async execute({ featureId, verbose, ai, full }) {
+          const args = ["check"];
+          if (featureId) args.push(featureId);
+          if (verbose) args.push("--verbose");
+          if (ai) args.push("--ai");
+          if (full) args.push("--full");
+          return await runForeman(args);
+        },
+      }),
 
-             // Execute CLI
-             const cliArgs = [subCommand, ...finalArgs];
-             console.log(`Executing: agent-foreman ${cliArgs.join(' ')}`);
-             const result = await runForeman(cliArgs);
-             if (result.output) console.log(result.output);
-             if (result.error) console.error(result.error);
-             return;
-        }
+      foreman_done: tool({
+        description: "Mark complete + auto-commit",
+        args: {
+          featureId: tool.schema.string().describe("Feature ID to mark as done"),
+          notes: tool.schema.string().optional().describe("Additional notes"),
+          noCommit: tool.schema.boolean().optional().describe("Skip auto-commit"),
+          skipCheck: tool.schema.boolean().optional().describe("Skip verification"),
+        },
+        async execute({ featureId, notes, noCommit, skipCheck }) {
+          const args = ["done", featureId];
+          if (notes) args.push("-m", notes);
+          if (noCommit) args.push("--no-commit");
+          if (skipCheck) args.push("--skip-check");
+          return await runForeman(args);
+        },
+      }),
 
-        // Fallback help
-        if (command === 'agent-foreman' || command === 'foreman') {
-            console.log("Usage: /agent-foreman <command> [args]");
-            console.log("   or: /agent-foreman:<command> [args]");
-            console.log("Commands: status, next, check, done, fail, init, analyze, scan, run");
-        }
-      }
-    }
+      foreman_fail: tool({
+        description: "Mark as failed and continue to next",
+        args: {
+          featureId: tool.schema.string().describe("Feature ID to mark as failed"),
+          reason: tool.schema.string().describe("Reason for failure"),
+        },
+        async execute({ featureId, reason }) {
+          const args = ["fail", featureId, "-r", reason];
+          return await runForeman(args);
+        },
+      }),
+
+      foreman_impact: tool({
+        description: "Analyze impact of changes",
+        args: {
+          featureId: tool.schema.string().describe("Feature ID"),
+        },
+        async execute({ featureId }) {
+          return await runForeman(["impact", featureId]);
+        },
+      }),
+
+      foreman_init: tool({
+        description: "Initialize harness",
+        args: {
+          goal: tool.schema.string().optional().describe("Project goal"),
+        },
+        async execute({ goal }) {
+          const args = ["init"];
+          if (goal) args.push(goal);
+          return await runForeman(args);
+        },
+      }),
+
+      foreman_analyze: tool({
+        description: "Generate AI-powered project analysis",
+        args: {
+          output: tool.schema.string().optional().describe("Output file path"),
+          verbose: tool.schema.boolean().optional().describe("Verbose output"),
+        },
+        async execute({ output, verbose }) {
+          const args = ["analyze"];
+          if (output) args.push(output);
+          if (verbose) args.push("--verbose");
+          return await runForeman(args);
+        },
+      }),
+
+      foreman_scan: tool({
+        description: "Scan project verification capabilities",
+        args: {},
+        async execute() {
+          return await runForeman(["scan"]);
+        },
+      }),
+
+      foreman_run: tool({
+        description:
+          "Return strict system instructions for autonomous batch processing (equivalent to Claude plugin /run).",
+        args: {},
+        async execute() {
+          return `
+Feature Run Mode - SYSTEM INSTRUCTION
+
+UNATTENDED MODE ACTIVE
+- No questions
+- No stopping for errors
+- Must complete all features
+
+Loop:
+1) Run foreman_status (note pending count)
+2) While pending > 0:
+   - Run foreman_next
+   - Implement
+   - Run foreman_check <id>
+   - Run foreman_done <id>
+   - If failure: foreman_fail <id> -r "reason"
+3) Exit only when pending == 0
+`.trim();
+        },
+      }),
+    },
   };
 };

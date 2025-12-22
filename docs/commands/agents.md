@@ -70,6 +70,8 @@ The default priority order is:
 2. **Codex**
 3. **Gemini** (lowest priority)
 
+**OpenCode** is also supported but not in the default priority. Enable it via the environment variable.
+
 The first available agent in priority order will be used for all AI operations.
 
 ### Environment Variable Override
@@ -82,6 +84,9 @@ export AGENT_FOREMAN_AGENTS="gemini,claude"
 
 # Use only Codex
 export AGENT_FOREMAN_AGENTS="codex"
+
+# Use OpenCode first, then Claude as fallback
+export AGENT_FOREMAN_AGENTS="opencode,claude"
 ```
 
 ## Agent CLI Invocations
@@ -92,6 +97,7 @@ flowchart LR
         Claude[claude CLI]
         Codex[codex CLI]
         Gemini[gemini CLI]
+        OpenCode[opencode CLI]
     end
 
     subgraph Flags["Automation Flags"]
@@ -102,11 +108,13 @@ flowchart LR
 --skip-git-repo-check"]
         GeminiFlags["--output-format text
 --yolo"]
+        OpenCodeFlags["run --format default"]
     end
 
     Claude --> ClaudeFlags
     Codex --> CodexFlags
     Gemini --> GeminiFlags
+    OpenCode --> OpenCodeFlags
 ```
 
 ### Claude
@@ -132,6 +140,14 @@ gemini --output-format text --yolo
 ```
 - `--output-format text`: Plain text output
 - `--yolo`: Autonomous mode (skip confirmations)
+
+### OpenCode
+```bash
+opencode run --format default [message..]
+```
+- `run`: Non-interactive mode
+- `--format default`: Human-readable output
+- Prompt is passed as command-line argument (not stdin)
 
 ## Agent Availability Detection
 
@@ -196,6 +212,7 @@ flowchart LR
   - `claude` - Anthropic Claude CLI
   - `codex` - OpenAI Codex CLI
   - `gemini` - Google Gemini CLI
+  - `opencode` - OpenCode CLI
 
 ## Files Read
 
@@ -273,7 +290,7 @@ agent-foreman agents
    ✗ Gemini - not found
 
    ⚠ No AI agents available!
-   Install at least one of: claude, codex, gemini
+   Install at least one of: claude, codex, gemini, opencode
 ```
 
 ### Custom Priority Order
@@ -320,6 +337,18 @@ npm install -g @google/gemini-cli
 
 # Configure API key
 export GOOGLE_API_KEY="your-api-key"
+```
+
+### OpenCode
+
+```bash
+# Install OpenCode CLI
+curl -fsSL https://opencode.ai/install | bash
+# or via npm
+npm install -g opencode-ai
+
+# Configure via opencode auth login
+opencode auth login
 ```
 
 ## Use Cases

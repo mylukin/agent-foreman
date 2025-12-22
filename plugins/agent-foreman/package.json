@@ -7,9 +7,6 @@
     "file": "opencode-plugin.js",
     "location": "project"
   },
-  "hooks": {
-    "tui": ["tui.command.execute"]
-  },
   "keywords": [
     "ai",
     "agent",

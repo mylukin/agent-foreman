@@ -105,7 +105,7 @@ export const DEFAULT_AGENT_PRIORITY = ["claude", "codex", "gemini"] as const;
 /**
  * Valid agent names that can be configured
  */
-export const VALID_AGENT_NAMES = ["claude", "gemini", "codex"] as const;
+export const VALID_AGENT_NAMES = ["claude", "gemini", "codex", "opencode"] as const;
 export type ValidAgentName = (typeof VALID_AGENT_NAMES)[number];
 
 /**

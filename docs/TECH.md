@@ -279,25 +279,25 @@ Git safety measures:
 
 ## Plugin System
 
-agent-foreman integrates with Claude Code as a plugin:
+agent-foreman integrates with Claude Code and OpenCode as plugins:
 
 ```text
 plugins/agent-foreman/
 ├── .claude-plugin/
-│   └── plugin.json         # Plugin metadata
+│   └── plugin.json           # Claude Code plugin metadata
 ├── agents/
-│   └── foreman.md          # Agent definition
-├── skills/                  # 4 skills
+│   └── foreman.md            # Claude Code agent definition
+├── skills/                   # 4 Claude Code skills
 │   ├── project-analyze/
 │   ├── init-harness/
 │   ├── feature-next/
 │   └── feature-run/
-└── commands/                # 5 slash commands
-    ├── analyze.md
-    ├── init.md
-    ├── next.md
-    ├── run.md
-    └── status.md
+├── opencode/
+│   └── command/
+│       └── agent-foreman.md  # OpenCode slash command
+├── opencode-plugin.js        # OpenCode plugin (tools)
+├── package.json              # OpenCode plugin metadata
+└── README_OPENCODE.md        # OpenCode installation guide
 ```
 
 ---
