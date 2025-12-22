@@ -3,6 +3,9 @@
  * Spawns Claude, Gemini, Codex, or OpenCode CLI tools for intelligent analysis
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import chalk from "chalk";
 import { isTTY } from "./progress.js";
 import { getTimeout, getAgentPriority } from "./timeout-config.js";
@@ -14,6 +17,7 @@ export interface AgentConfig {
   name: string;
   command: string[];
   promptViaStdin?: boolean;
+  promptViaFile?: boolean; // Pass prompt via @filename argument
 }
 
 /**
@@ -61,11 +65,12 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     promptViaStdin: true,
   },
   // OpenCode: non-interactive mode via `opencode run`
-  // Use "-" to read prompt from stdin (standard convention)
+  // Use @file syntax to bypass shell argument limits
   {
     name: "opencode",
-    command: ["opencode", "run", "--format", "default", "-"],
-    promptViaStdin: true,
+    command: ["opencode", "run", "--format", "default"],
+    promptViaStdin: false,
+    promptViaFile: true,
   },
 ];
 
@@ -150,21 +155,44 @@ export async function callAgent(
   };
 
   const useStdin = config.promptViaStdin !== false;
+  const useFile = config.promptViaFile === true;
   state.startTime = Date.now();
   state.status = "running";
 
   let child: ChildProcess;
+  let promptFile: string | null = null;
+
   try {
-    child = useStdin
-      ? spawn(config.command[0], config.command.slice(1), {
-          stdio: ["pipe", "pipe", "pipe"],
-          cwd,
-        })
-      : spawn(config.command[0], [...config.command.slice(1), prompt], {
-          stdio: ["ignore", "pipe", "pipe"],
-          cwd,
-        });
+    if (useFile) {
+      // Write prompt to temp file
+      const tmpDir = os.tmpdir();
+      const randomId = Math.random().toString(36).substring(7);
+      promptFile = path.join(tmpDir, `agent-foreman-prompt-${randomId}.txt`);
+      fs.writeFileSync(promptFile, prompt, "utf-8");
+
+      child = spawn(config.command[0], [...config.command.slice(1), `@${promptFile}`], {
+        stdio: ["ignore", "pipe", "pipe"],
+        cwd,
+      });
+    } else if (useStdin) {
+      child = spawn(config.command[0], config.command.slice(1), {
+        stdio: ["pipe", "pipe", "pipe"],
+        cwd,
+      });
+    } else {
+      child = spawn(config.command[0], [...config.command.slice(1), prompt], {
+        stdio: ["ignore", "pipe", "pipe"],
+        cwd,
+      });
+    }
   } catch (err) {
+    if (promptFile && fs.existsSync(promptFile)) {
+      try {
+        fs.unlinkSync(promptFile);
+      } catch (e) {
+        // Ignore cleanup error
+      }
+    }
     return {
       success: false,
       output: "",
@@ -174,7 +202,7 @@ export async function callAgent(
 
   state.process = child;
 
-  if (useStdin && child.stdin) {
+  if (useStdin && !useFile && child.stdin) {
     child.stdin.write(prompt);
     child.stdin.end();
   }
@@ -195,6 +223,15 @@ export async function callAgent(
 
   const completion = new Promise<AgentState>((resolve) => {
     child.on("close", (code) => {
+      // Clean up prompt file if used
+      if (promptFile && fs.existsSync(promptFile)) {
+        try {
+          fs.unlinkSync(promptFile);
+        } catch (e) {
+          // Ignore
+        }
+      }
+
       state.exitCode = code;
       state.endTime = Date.now();
       if (state.status === "killed" || state.status === "timeout") {
@@ -205,6 +242,15 @@ export async function callAgent(
     });
 
     child.on("error", (err) => {
+      // Clean up prompt file if used
+      if (promptFile && fs.existsSync(promptFile)) {
+        try {
+          fs.unlinkSync(promptFile);
+        } catch (e) {
+          // Ignore
+        }
+      }
+
       state.endTime = Date.now();
       state.status = "error";
       state.errorMessage = err instanceof Error ? err.message : String(err);

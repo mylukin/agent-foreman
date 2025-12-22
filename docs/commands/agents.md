@@ -143,11 +143,11 @@ gemini --output-format text --yolo
 
 ### OpenCode
 ```bash
-opencode run --format default [message..]
+opencode run --format default @/path/to/prompt.txt
 ```
 - `run`: Non-interactive mode
 - `--format default`: Human-readable output
-- Prompt is passed as command-line argument (not stdin)
+- Prompt is passed via `@file` argument to bypass shell size limits and handle special characters
 
 ## Agent Availability Detection
 

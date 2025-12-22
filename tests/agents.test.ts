@@ -59,21 +59,27 @@ describe("Agents", () => {
       expect(codex!.command).toContain("--skip-git-repo-check");
     });
 
-    it("should have all agents configured with promptViaStdin: true", () => {
+    it("should have most agents configured with promptViaStdin: true (except opencode)", () => {
       for (const agent of DEFAULT_AGENTS) {
-        // All agents use stdin for prompt delivery (safer for complex content)
-        expect(agent.promptViaStdin).toBe(true);
+        if (agent.name === "opencode") {
+          expect(agent.promptViaStdin).toBe(false);
+          // @ts-ignore
+          expect(agent.promptViaFile).toBe(true);
+        } else {
+          expect(agent.promptViaStdin).toBe(true);
+        }
       }
     });
 
-    it("should have opencode configured for non-interactive run with stdin", () => {
+    it("should have opencode configured for non-interactive run with @file", () => {
       const opencode = DEFAULT_AGENTS.find((a) => a.name === "opencode");
       expect(opencode).toBeDefined();
       expect(opencode!.command).toContain("run");
       expect(opencode!.command).toContain("--format");
       expect(opencode!.command).toContain("default");
-      expect(opencode!.command).toContain("-");
-      expect(opencode!.promptViaStdin).toBe(true);
+      expect(opencode!.promptViaStdin).toBe(false);
+      // @ts-ignore
+      expect(opencode!.promptViaFile).toBe(true);
     });
 
     it("should have claude agent with '-' stdin indicator for v2.0.67+ compatibility", () => {
