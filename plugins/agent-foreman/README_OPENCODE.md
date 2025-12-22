@@ -41,20 +41,19 @@ The plugin registers the following tools that the Agent can use autonomously:
 - `foreman_run`: **Unattended Mode** - returns the strict system prompt to force the agent into an autonomous loop.
 
 ### Slash Commands (Manual Mode)
-You can invoke commands manually in the chat using either syntax:
+You can invoke commands manually in the chat. Both space-separated and colon-separated syntaxes are supported:
 
-**Standard Syntax:**
+**Space Syntax (Preferred):**
 - `/agent-foreman status` (or alias `/foreman status`)
 - `/agent-foreman next [feature-id]`
-- `/agent-foreman check <feature-id>`
-- `/agent-foreman done <feature-id>`
 
-**Compatibility Syntax:**
-- `/agent-foreman:run`: Provides instructions to start the autonomous loop.
+**Colon Syntax (Compatible):**
+- `/agent-foreman:status`
+- `/agent-foreman:next [feature-id]`
 
 ### Batch Mode ("Run")
 To execute the autonomous loop (equivalent to Claude's `/run`):
-1. **Instruct the Agent**: "Call `foreman_run` to start autonomous batch processing."
+1. **Instruct the Agent**: "Call `foreman_run` to start autonomous batch processing." (or use `/agent-foreman:run`)
 2. **The Agent will**:
    - Call the `foreman_run` tool.
    - Receive the "System Instruction" prompt as output.

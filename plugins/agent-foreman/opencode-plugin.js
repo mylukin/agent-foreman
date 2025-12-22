@@ -250,36 +250,41 @@ export const AgentForemanPlugin = async ({ client, $ }) => {
       if (event.type === 'tui.command.execute') {
         const { command, args } = event.data;
         
-        // Handle /agent-foreman:run (special compatibility mode)
-        if (command === 'agent-foreman:run') {
-           console.log("To enter Run Mode, please tell the agent:");
-           console.log('"Call foreman_run to start autonomous batch processing."');
-           return;
+        let subCommand = null;
+        let finalArgs = [...(args || [])];
+
+        // 1. Handle /agent-foreman:xxx syntax
+        if (command.startsWith('agent-foreman:')) {
+           subCommand = command.split(':')[1];
+        } 
+        // 2. Handle /agent-foreman xxx or /foreman xxx
+        else if (command === 'agent-foreman' || command === 'foreman') {
+           subCommand = finalArgs.shift(); // Remove first arg as subcommand
         }
 
-        // Handle /agent-foreman or /foreman
-        if (command === 'agent-foreman' || command === 'foreman') {
-          const subCommand = args && args.length > 0 ? args[0] : null;
-          
-          if (!subCommand) {
-            console.log("Usage: /agent-foreman <command> [args]");
-            console.log("Commands: status, next, check, done, fail, init, analyze, scan, run");
-            return;
-          }
+        // Proceed if we identified a subcommand (or if the user just typed /agent-foreman with no args, we might want to show help)
+        if (subCommand) {
+             // Special case for 'run'
+             if (subCommand === 'run') {
+                 console.log("To enter Run Mode, please tell the agent:");
+                 console.log('"Call foreman_run to start autonomous batch processing."');
+                 return;
+             }
 
-          // Handle special "run" command
-          if (subCommand === 'run') {
-             console.log("To enter Run Mode, please tell the agent:");
-             console.log('"Call foreman_run to start autonomous batch processing."');
+             // Execute CLI
+             const cliArgs = [subCommand, ...finalArgs];
+             console.log(`Executing: agent-foreman ${cliArgs.join(' ')}`);
+             const result = await runForeman(cliArgs);
+             if (result.output) console.log(result.output);
+             if (result.error) console.error(result.error);
              return;
-          }
-          
-          // Pass through to CLI
-          console.log(`Executing: agent-foreman ${args.join(' ')}`);
-          const result = await runForeman(args);
-          
-          if (result.output) console.log(result.output);
-          if (result.error) console.error(result.error);
+        }
+
+        // Fallback help
+        if (command === 'agent-foreman' || command === 'foreman') {
+            console.log("Usage: /agent-foreman <command> [args]");
+            console.log("   or: /agent-foreman:<command> [args]");
+            console.log("Commands: status, next, check, done, fail, init, analyze, scan, run");
         }
       }
     }
