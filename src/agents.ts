@@ -60,12 +60,12 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     command: ["gemini", "--output-format", "text", "--yolo"],
     promptViaStdin: true,
   },
-  // OpenCode: non-interactive mode via `opencode run [message..]`
-  // Prompt is passed as argv (not stdin). Use --format default for readable output.
+  // OpenCode: non-interactive mode via `opencode run`
+  // Use "-" to read prompt from stdin (standard convention)
   {
     name: "opencode",
-    command: ["opencode", "run", "--format", "default"],
-    promptViaStdin: false,
+    command: ["opencode", "run", "--format", "default", "-"],
+    promptViaStdin: true,
   },
 ];
 
@@ -179,13 +179,19 @@ export async function callAgent(
     child.stdin.end();
   }
 
-  child.stdout?.on("data", (chunk) => {
-    state.stdout.push(chunk.toString());
-  });
+  if (child.stdout) {
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      state.stdout.push(chunk.toString());
+    });
+  }
 
-  child.stderr?.on("data", (chunk) => {
-    state.stderr.push(chunk.toString());
-  });
+  if (child.stderr) {
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      state.stderr.push(chunk.toString());
+    });
+  }
 
   const completion = new Promise<AgentState>((resolve) => {
     child.on("close", (code) => {

@@ -59,25 +59,21 @@ describe("Agents", () => {
       expect(codex!.command).toContain("--skip-git-repo-check");
     });
 
-    it("should have most agents configured with promptViaStdin: true (except opencode)", () => {
+    it("should have all agents configured with promptViaStdin: true", () => {
       for (const agent of DEFAULT_AGENTS) {
-        if (agent.name === "opencode") {
-          // OpenCode uses argv for prompt delivery (opencode run [message..])
-          expect(agent.promptViaStdin).toBe(false);
-        } else {
-          // Other agents use stdin for prompt delivery (safer for complex content)
-          expect(agent.promptViaStdin).toBe(true);
-        }
+        // All agents use stdin for prompt delivery (safer for complex content)
+        expect(agent.promptViaStdin).toBe(true);
       }
     });
 
-    it("should have opencode configured for non-interactive run", () => {
+    it("should have opencode configured for non-interactive run with stdin", () => {
       const opencode = DEFAULT_AGENTS.find((a) => a.name === "opencode");
       expect(opencode).toBeDefined();
       expect(opencode!.command).toContain("run");
       expect(opencode!.command).toContain("--format");
       expect(opencode!.command).toContain("default");
-      expect(opencode!.promptViaStdin).toBe(false);
+      expect(opencode!.command).toContain("-");
+      expect(opencode!.promptViaStdin).toBe(true);
     });
 
     it("should have claude agent with '-' stdin indicator for v2.0.67+ compatibility", () => {
@@ -269,7 +265,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
 
       // Simulate async output and close
       setTimeout(() => {
@@ -351,7 +349,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
 
       setTimeout(() => {
         mockProcess.stdout.emit("data", Buffer.from(output));
@@ -525,7 +525,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
 
       setTimeout(() => {
         mockProcess.stdout.emit("data", Buffer.from('{"result": "ok"}'));
@@ -554,7 +556,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
 
       setTimeout(() => {
         mockProcess.stdout.emit("data", Buffer.from('{"result": "ok"}'));
@@ -582,7 +586,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
       mockProcess.kill = vi.fn();
 
       setTimeout(() => {
@@ -623,7 +629,9 @@ describe("Agents", () => {
         const mockProcess = new EventEmitter() as any;
         mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
         mockProcess.stdout = new EventEmitter();
+        mockProcess.stdout.setEncoding = vi.fn();
         mockProcess.stderr = new EventEmitter();
+        mockProcess.stderr.setEncoding = vi.fn();
         mockProcess.kill = vi.fn();
 
         // Schedule the close event after a very short delay
@@ -734,7 +742,9 @@ describe("Agents", () => {
         const mockProcess = new EventEmitter() as any;
         mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
         mockProcess.stdout = new EventEmitter();
+        mockProcess.stdout.setEncoding = vi.fn();
         mockProcess.stderr = new EventEmitter();
+        mockProcess.stderr.setEncoding = vi.fn();
         mockProcess.kill = vi.fn();
 
         setTimeout(() => {
@@ -761,7 +771,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
       mockProcess.kill = vi.fn();
 
       setTimeout(() => {
@@ -781,7 +793,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
 
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
@@ -803,7 +817,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
 
       vi.mocked(spawn).mockReturnValue(mockProcess);
 
@@ -828,7 +844,9 @@ describe("Agents", () => {
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdin = { write: vi.fn(), end: vi.fn() };
       mockProcess.stdout = new EventEmitter();
+      mockProcess.stdout.setEncoding = vi.fn();
       mockProcess.stderr = new EventEmitter();
+      mockProcess.stderr.setEncoding = vi.fn();
       mockProcess.kill = vi.fn();
 
       vi.mocked(spawn).mockReturnValue(mockProcess);
