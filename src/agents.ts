@@ -52,7 +52,8 @@ function buildOpencodeCommand(): string[] {
   const agent = defaultOpencodeAgent();
   const model = defaultOpencodeModel();
 
-  const cmd = ["opencode", "run", "--format", "default", "--agent", agent];
+  // Add -y to auto-approve permissions/tools in non-interactive mode
+  const cmd = ["opencode", "run", "-y", "--format", "default", "--agent", agent];
   if (model) cmd.push("--model", model);
   return cmd;
 }
@@ -64,7 +65,7 @@ export interface AgentConfig {
   name: string;
   command: string[];
   promptViaStdin?: boolean;
-  promptViaFile?: boolean; // Pass prompt via @filename argument
+  promptViaFile?: boolean; // Pass prompt via @filename argument (supported by some CLIs; NOT opencode)
 }
 
 /**

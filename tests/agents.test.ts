@@ -63,8 +63,6 @@ describe("Agents", () => {
       for (const agent of DEFAULT_AGENTS) {
         if (agent.name === "opencode") {
           expect(agent.promptViaStdin).toBe(false);
-          // @ts-ignore
-          expect(agent.promptViaFile).toBe(true);
         } else {
           expect(agent.promptViaStdin).toBe(true);
         }
@@ -75,6 +73,7 @@ describe("Agents", () => {
       const opencode = DEFAULT_AGENTS.find((a) => a.name === "opencode");
       expect(opencode).toBeDefined();
       expect(opencode!.command).toContain("run");
+      expect(opencode!.command).toContain("-y"); // Auto-approve permissions
       expect(opencode!.command).toContain("--format");
       expect(opencode!.command).toContain("default");
       // opencode should run a simple agent to keep outputs JSON-friendly
