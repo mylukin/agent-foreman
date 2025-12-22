@@ -13,7 +13,7 @@ import { aiScanProject, generateFeaturesFromGoal, generateFeaturesFromSurvey, ai
 import { generateInitScript, generateMinimalInitScript, generateInitScriptFromCapabilities } from "./init-script.js";
 import { detectCapabilities } from "./capabilities/index.js";
 import type { ExtendedCapabilities } from "./verifier/verification-types.js";
-import { generateMinimalClaudeMd } from "./prompts.js";
+import { generateMinimalClaudeMd, generateMinimalAgentsMd } from "./prompts.js";
 import { copyRulesToProject, hasRulesInstalled } from "./rules/index.js";
 import { callAnyAvailableAgent, printAgentStatus } from "./agents.js";
 import { appendProgressLog, createInitEntry } from "./progress-log.js";
@@ -446,7 +446,7 @@ async function setupOpenCodeRules(cwd: string, goal: string, force: boolean): Pr
       console.log(chalk.gray("  AGENTS.md already configured"));
     }
   } else {
-    const content = generateMinimalClaudeMd(goal).replace("# CLAUDE.md", "# AGENTS.md");
+    const content = generateMinimalAgentsMd(goal);
     await fs.writeFile(agentsMdPath, content);
     console.log(chalk.green("✓ Generated AGENTS.md"));
   }
