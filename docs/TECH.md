@@ -350,4 +350,15 @@ Framework: Vitest with v8 coverage
 
 ---
 
+## Known Issues & Risks
+
+### `init.sh` Syntax Errors
+When using an AI agent (especially Gemini or less capable models) to generate the `init.sh` script, the agent may hallucinate placeholder syntax (e.g., `<number>`) that is invalid in Bash. This can cause syntax errors when running `./ai/init.sh`.
+
+**Mitigation:**
+- Manually inspect `ai/init.sh` after generation.
+- Future versions may include automated bash validation to prevent invalid scripts from being written.
+
+---
+
 *For usage documentation, see [USAGE.md](./USAGE.md)*
