@@ -18,7 +18,7 @@ export {
   generateCapabilities,
   generateGitignore,
   generateInitScript,
-  generateClaudeRules,
+  generateRules,
   generateProgressLog,
   showGitSuggestion,
   type InitContext,

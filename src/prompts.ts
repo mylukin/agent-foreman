@@ -7,6 +7,7 @@
 
 export {
   generateMinimalClaudeMd,
+  generateMinimalAgentsMd,
   generateCommitMessage,
   generateFeatureGuidance,
   generateImpactGuidance,
