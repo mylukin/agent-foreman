@@ -295,7 +295,7 @@ Git safety measures:
 
 ## Plugin System
 
-agent-foreman integrates with Claude Code as a plugin:
+agent-foreman integrates with Claude Code and OpenCode as plugins:
 
 ```text
 plugins/agent-foreman/
@@ -305,12 +305,17 @@ plugins/agent-foreman/
 │   ├── init-harness/
 │   ├── feature-next/
 │   └── feature-run/
-└── commands/               # 5 slash commands
-    ├── analyze.md
-    ├── init.md
-    ├── next.md
-    ├── run.md
-    └── status.md
+├── commands/               # 5 slash commands (Claude)
+│   ├── analyze.md
+│   ├── init.md
+│   ├── next.md
+│   ├── run.md
+│   └── status.md
+├── opencode/               # OpenCode integration
+│   └── command/
+│       └── agent-foreman.md
+├── opencode-plugin.js      # OpenCode plugin (tools)
+└── README_OPENCODE.md      # OpenCode installation guide
 ```
 
 ---

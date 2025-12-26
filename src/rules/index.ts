@@ -119,6 +119,8 @@ export interface CopyRulesOptions {
   force?: boolean;
   /** Verbose output */
   verbose?: boolean;
+  /** Target directory relative to cwd (default: .claude/rules) */
+  targetDir?: string;
 }
 
 /**
@@ -136,7 +138,7 @@ export interface CopyRulesResult {
 }
 
 /**
- * Copy rule templates to project's .claude/rules/ directory
+ * Copy rule templates to project's rules directory (default: .claude/rules/)
  *
  * @param cwd - Project root directory
  * @param options - Copy options
@@ -146,9 +148,9 @@ export async function copyRulesToProject(
   cwd: string,
   options: CopyRulesOptions = {}
 ): Promise<CopyRulesResult> {
-  const { force = false } = options;
+  const { force = false, targetDir = ".claude/rules" } = options;
 
-  const rulesDir = join(cwd, ".claude", "rules");
+  const rulesDir = join(cwd, targetDir);
   const result: CopyRulesResult = {
     created: 0,
     skipped: 0,
@@ -156,7 +158,7 @@ export async function copyRulesToProject(
     skippedFiles: [],
   };
 
-  // Ensure .claude/rules/ directory exists
+  // Ensure rules directory exists
   await fs.mkdir(rulesDir, { recursive: true });
 
   // Copy each rule template
@@ -214,8 +216,8 @@ export function verifyRuleTemplates(): {
 /**
  * Check if rules are already installed in a project
  */
-export function hasRulesInstalled(cwd: string): boolean {
-  const rulesDir = join(cwd, ".claude", "rules");
+export function hasRulesInstalled(cwd: string, targetDir: string = ".claude/rules"): boolean {
+  const rulesDir = join(cwd, targetDir);
   if (!existsSync(rulesDir)) {
     return false;
   }
@@ -229,4 +231,44 @@ export function hasRulesInstalled(cwd: string): boolean {
   }
 
   return false;
+}
+/**
+ * Update project rules if they already exist
+ * Used during CLI upgrade to keep rules in sync
+ *
+ * @param cwd - Project root directory
+ * @returns Result with counts and file lists, or null if no rules were installed
+ */
+export async function updateProjectRulesIfExists(
+  cwd: string
+): Promise<CopyRulesResult | null> {
+  // Only update if rules are already installed
+  // Check both locations
+  const hasClaude = hasRulesInstalled(cwd, ".claude/rules");
+  const hasOpenCode = hasRulesInstalled(cwd, ".opencode/rules");
+
+  if (!hasClaude && !hasOpenCode) {
+    return null;
+  }
+
+  const result: CopyRulesResult = {
+    created: 0,
+    skipped: 0,
+    createdFiles: [],
+    skippedFiles: [],
+  };
+
+  if (hasClaude) {
+    const r = await copyRulesToProject(cwd, { force: true, targetDir: ".claude/rules" });
+    result.created += r.created;
+    result.createdFiles.push(...r.createdFiles.map(f => `.claude/rules/${f}`));
+  }
+
+  if (hasOpenCode) {
+    const r = await copyRulesToProject(cwd, { force: true, targetDir: ".opencode/rules" });
+    result.created += r.created;
+    result.createdFiles.push(...r.createdFiles.map(f => `.opencode/rules/${f}`));
+  }
+
+  return result;
 }

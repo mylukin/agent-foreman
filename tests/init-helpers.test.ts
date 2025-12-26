@@ -378,6 +378,36 @@ custom() {
       expect(claudeMd).toContain(".claude/rules/");
     });
 
+    it("should create .claude/rules/ with rule files", async () => {
+      mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: "" });
+
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new");
+
+      // Verify rules directory was created with all rule files
+      const rulesDir = path.join(testDir, ".claude", "rules");
+      const ruleFiles = await fs.readdir(rulesDir);
+      expect(ruleFiles.length).toBe(7);
+      expect(ruleFiles).toContain("00-overview.md");
+    });
+
+    it("should create OpenCode artifacts when agent is opencode", async () => {
+      mockCallAnyAvailableAgent.mockResolvedValue({ success: true, output: "" });
+
+      await generateHarnessFiles(testDir, mockSurvey as any, mockFeatureList, "Test goal", "new", "opencode");
+
+      // Verify OpenCode artifacts
+      const agentsMd = await fs.readFile(path.join(testDir, "AGENTS.md"), "utf-8");
+      expect(agentsMd).toContain("Project Instructions");
+      expect(agentsMd).toContain("Project Goal");
+      
+      const config = JSON.parse(await fs.readFile(path.join(testDir, "opencode.json"), "utf-8"));
+      expect(config.instructions).toContain(".opencode/rules/*.md");
+
+      const rulesDir = path.join(testDir, ".opencode", "rules");
+      const ruleFiles = await fs.readdir(rulesDir);
+      expect(ruleFiles.length).toBe(7);
+    });
+
     it("should use AI to merge CLAUDE.md when existing content", async () => {
       // Create existing CLAUDE.md
       const existingContent = `# My Project

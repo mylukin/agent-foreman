@@ -17,6 +17,7 @@ import { runFail } from "./fail.js";
 import { runTDD } from "./tdd.js";
 import { runInstall } from "./install.js";
 import { runUninstall } from "./uninstall.js";
+import { runOpencodeInstall } from "../opencode-installer.js";
 // Note: migrate is internal only, auto-executed when loading features
 
 /**
@@ -285,16 +286,26 @@ export function registerUtilityCommands(yargs: Argv): Argv {
 export function registerInstallCommand(yargs: Argv): Argv {
   return yargs.command(
     "install",
-    "Install agent-foreman Claude Code plugin",
+    "Install plugin (Claude Code by default, or --opencode for OpenCode)",
     (y) =>
-      y.option("force", {
-        alias: "f",
-        type: "boolean",
-        default: false,
-        describe: "Force reinstall even if already installed",
-      }),
+      y
+        .option("force", {
+          alias: "f",
+          type: "boolean",
+          default: false,
+          describe: "Force reinstall even if already installed",
+        })
+        .option("opencode", {
+          type: "boolean",
+          default: false,
+          describe: "Install OpenCode plugin to current project (.opencode/)",
+        }),
     async (argv) => {
-      await runInstall(argv.force);
+      if (argv.opencode) {
+        await runOpencodeInstall(argv.force);
+      } else {
+        await runInstall(argv.force);
+      }
     }
   );
 }
