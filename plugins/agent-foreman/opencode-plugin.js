@@ -46,6 +46,7 @@ export const AgentForemanPlugin = async ({ $, directory, worktree }) => {
     const finalArgs = ensurePlainArgs(args);
 
     const plainEnv = {
+      ...process.env, // Inherit current environment (PATH, etc.)
       AGENT_FOREMAN_PLAIN: "true",
       OPENCODE: "1",
       NO_COLOR: "1",
@@ -183,8 +184,8 @@ export const AgentForemanPlugin = async ({ $, directory, worktree }) => {
           verbose: tool.schema.boolean().optional().describe("Verbose output"),
         },
         async execute({ output, verbose }) {
-          const args = ["analyze"];
-          if (output) args.push(output);
+          const args = ["init", "--analyze"];
+          if (output) args.push("--analyze-output", output);
           if (verbose) args.push("--verbose");
           return await runForeman(args);
         },
@@ -194,7 +195,7 @@ export const AgentForemanPlugin = async ({ $, directory, worktree }) => {
         description: "Scan project verification capabilities",
         args: {},
         async execute() {
-          return await runForeman(["scan"]);
+          return await runForeman(["init", "--scan"]);
         },
       }),
 
