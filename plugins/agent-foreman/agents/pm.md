@@ -1,8 +1,13 @@
 ---
 name: pm
 description: Product Manager agent for spec workflow. Clarifies WHAT and WHY of requirements. Identifies target users, business goals, success metrics, scope boundaries, and assumptions. First analyst in the serial workflow - insights inform all subsequent roles.
-model: inherit
-tools: Read, Glob, Grep, Write, AskUserQuestion, WebSearch
+mode: subagent
+tools:
+  read: true
+  glob: true
+  grep: true
+  write: true
+  webfetch: true
 ---
 
 # Product Manager (pm)

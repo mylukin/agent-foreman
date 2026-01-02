@@ -1,8 +1,13 @@
 ---
 name: ux
 description: UX/UI Designer agent for spec workflow. Designs HOW users interact with the system. Creates user journeys, screen definitions with ASCII wireframes, interactions, error handling, and accessibility requirements. Second analyst in serial workflow - builds on PM's defined scope and personas.
-model: inherit
-tools: Read, Glob, Grep, Write, AskUserQuestion, WebSearch
+mode: subagent
+tools:
+  read: true
+  glob: true
+  grep: true
+  write: true
+  webfetch: true
 ---
 
 # UX/UI Designer (ux)

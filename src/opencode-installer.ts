@@ -6,7 +6,7 @@
  *   agent-foreman install --opencode
  */
 
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync, cpSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
@@ -52,12 +52,16 @@ export async function installOpencodePlugin(targetDir: string = process.cwd()): 
     // Create .opencode directories
     const pluginDir = join(targetDir, ".opencode", "plugin");
     const commandDir = join(targetDir, ".opencode", "command");
+    const skillDir = join(targetDir, ".opencode", "skill");
 
     if (!existsSync(pluginDir)) {
       mkdirSync(pluginDir, { recursive: true });
     }
     if (!existsSync(commandDir)) {
       mkdirSync(commandDir, { recursive: true });
+    }
+    if (!existsSync(skillDir)) {
+      mkdirSync(skillDir, { recursive: true });
     }
 
     // Copy plugin file
@@ -69,6 +73,13 @@ export async function installOpencodePlugin(targetDir: string = process.cwd()): 
       filesCreated.push(".opencode/plugin/agent-foreman.js");
     }
 
+    // Copy skills directory
+    const skillsSource = join(sourceDir, "skills");
+    if (existsSync(skillsSource)) {
+      cpSync(skillsSource, skillDir, { recursive: true });
+      filesCreated.push(".opencode/skill/ (recursive)");
+    }
+
     // Copy command file
     const commandSource = join(sourceDir, "opencode", "command", "agent-foreman.md");
     const commandTarget = join(commandDir, "agent-foreman.md");
@@ -76,6 +87,26 @@ export async function installOpencodePlugin(targetDir: string = process.cwd()): 
       const content = readFileSync(commandSource, "utf-8");
       writeFileSync(commandTarget, content, "utf-8");
       filesCreated.push(".opencode/command/agent-foreman.md");
+    }
+
+    // Copy agent files
+    const agentsSource = join(sourceDir, "agents");
+    const agentDir = join(targetDir, ".opencode", "agent");
+
+    if (!existsSync(agentDir)) {
+      mkdirSync(agentDir, { recursive: true });
+    }
+
+    if (existsSync(agentsSource)) {
+      const files = readdirSync(agentsSource);
+      for (const file of files) {
+        if (file.endsWith(".md")) {
+          const content = readFileSync(join(agentsSource, file), "utf-8");
+          const targetName = `agent-foreman-${file}`;
+          writeFileSync(join(agentDir, targetName), content, "utf-8");
+          filesCreated.push(`.opencode/agent/${targetName}`);
+        }
+      }
     }
 
     // Create or update package.json in .opencode if needed for plugin dependencies

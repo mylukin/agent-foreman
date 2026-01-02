@@ -62,7 +62,7 @@ When task_id is provided:
 ```bash
 # STEP 1: Delegate to implementer agent
 Task(
-  subagent_type="agent-foreman:implementer",
+  subagent_type="agent-foreman-implementer",
   prompt="TASK: <task_id>
 Execute: next <task_id> → implement → check → return result"
 )
@@ -85,7 +85,7 @@ agent-foreman status
 # STEP 2: LOOP
   # 2a: Delegate to implementer agent (auto-select task)
   Task(
-    subagent_type="agent-foreman:implementer",
+    subagent_type="agent-foreman-implementer",
     prompt="Execute: next → implement → check → return result"
   )
 
@@ -127,7 +127,7 @@ agent-foreman status
 
 ## TDD Mode
 
-TDD workflow is handled internally by the `agent-foreman:implementer` agent. No action required from the orchestrator.
+TDD workflow is handled internally by the `agent-foreman-implementer` agent. No action required from the orchestrator.
 
 ---
 
@@ -147,7 +147,7 @@ When in ALL-TASKS mode:
 
 1. **START**: Run `agent-foreman status` once - show initial state
 2. **LOOP**:
-   a. **Delegate**: Call `Task(subagent_type="agent-foreman:implementer")` - agent runs next → implement → check
+   a. **Delegate**: Call `Task(subagent_type="agent-foreman-implementer")` - agent runs next → implement → check
    b. **Parse result**: Extract `task_id`, `status`, `verification_passed`, `notes`
    c. **Check exit**: If `status: blocked` and `notes` contains "No pending tasks" → EXIT to step 3
    d. **Complete**: Based on result:

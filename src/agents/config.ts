@@ -35,14 +35,8 @@ function defaultOpencodeModel(): string | undefined {
   const configured = firstNonEmptyEnv(OPENCODE_MODEL_ENV_VARS);
   if (configured) return configured;
 
-  // Heuristic: if Vertex is configured, default to a Gemini model (avoids Anthropic/Vertex
-  // quota issues seen in non-interactive runs).
-  const hasVertex =
-    Boolean(process.env.GOOGLE_VERTEX_PROJECT) ||
-    Boolean(process.env.GOOGLE_CLOUD_PROJECT) ||
-    Boolean(process.env.GOOGLE_VERTEX_LOCATION);
-
-  return hasVertex ? "google-vertex/gemini-2.5-flash" : undefined;
+  // No heuristic - let OpenCode use its own default (or configured) model
+  return undefined;
 }
 
 function buildOpencodeCommand(): string[] {

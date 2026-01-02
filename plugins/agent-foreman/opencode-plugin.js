@@ -74,6 +74,16 @@ export const AgentForemanPlugin = async ({ $, directory, worktree }) => {
 
   return {
     tool: {
+      foreman_spec: tool({
+        description: "Transform requirements into tasks (Expert Council)",
+        args: {
+          requirement: tool.schema.string().describe("Requirement description"),
+        },
+        async execute({ requirement }) {
+          return `Please call the skill "foreman-spec" to process this requirement: ${requirement}\n\n[tool_call: skill { name: "foreman-spec" }]`;
+        },
+      }),
+
       foreman_status: tool({
         description: "Show current project status with feature completion and recent activity",
         args: {

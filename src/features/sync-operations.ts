@@ -23,10 +23,22 @@ export async function syncIndexFromFeatures(
   let hasChanges = false;
   const loadedIds = new Set(features.map((f) => f.id));
 
-  // Update status for existing features (when .md differs from index)
+  // Update index with loaded features
   for (const feature of features) {
     const indexEntry = index.features[feature.id];
-    if (indexEntry && indexEntry.status !== feature.status) {
+    
+    if (!indexEntry) {
+      // New feature found in filesystem but not in index - ADD IT
+      index.features[feature.id] = {
+        status: feature.status,
+        priority: feature.priority,
+        module: feature.module,
+        description: feature.description,
+        filePath: feature.filePath
+      };
+      hasChanges = true;
+    } else if (indexEntry.status !== feature.status) {
+      // Update status for existing features (when .md differs from index)
       indexEntry.status = feature.status;
       hasChanges = true;
     }
