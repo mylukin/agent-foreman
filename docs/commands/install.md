@@ -1,6 +1,8 @@
 # install Command
 
-Install the agent-foreman Claude Code plugin.
+Install the agent-foreman plugin for Claude Code or OpenCode.
+
+> 安装 agent-foreman Claude Code 或 OpenCode 插件。
 
 ## Command Syntax
 
@@ -10,13 +12,41 @@ agent-foreman install [options]
 
 ## Description
 
-The `install` command installs the agent-foreman plugin for Claude Code, enabling slash commands and skills integration. It registers the marketplace, installs plugin files, and enables the plugin in Claude Code settings.
+The `install` command installs and enables the agent-foreman plugin. By default, it installs for Claude Code. Use `--opencode` to install for OpenCode instead.
+
+> `install` 命令安装并启用 agent-foreman 插件。默认安装到 Claude Code，使用 `--opencode` 安装到 OpenCode。
 
 ## Options
 
-| Option | Alias | Type | Default | Description |
-|--------|-------|------|---------|-------------|
-| `--force` | `-f` | boolean | `false` | Force reinstall even if already installed |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `--force` | `-f` | `false` | Force reinstall even if already installed |
+| `--opencode` | | `false` | Install OpenCode plugin to current project (.opencode/) |
+
+## Examples
+
+### Install for Claude Code (default)
+
+```bash
+agent-foreman install
+```
+
+### Install for OpenCode
+
+```bash
+# From your OpenCode project directory:
+agent-foreman install --opencode
+
+# Then install plugin dependencies:
+cd .opencode && npm install
+```
+
+### Force Reinstall
+
+```bash
+agent-foreman install --force
+agent-foreman install --opencode --force
+```
 
 ## Execution Flow
 

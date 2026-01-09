@@ -20,10 +20,10 @@ Each agent conducts web research BEFORE analysis to:
 - Ground recommendations in real-world data
 
 **Agents** (all equipped with WebSearch):
-- agent-foreman:pm (Product Manager) - Clarifies WHAT and WHY, researches market/industry
-- agent-foreman:ux (UX/UI Designer) - Designs HOW users interact, researches UX patterns
-- agent-foreman:tech (Technical Architect) - Architects HOW to build, researches frameworks/security
-- agent-foreman:qa (QA Manager) - Plans HOW to verify, researches testing strategies
+- agent-foreman-pm (Product Manager) - Clarifies WHAT and WHY, researches market/industry
+- agent-foreman-ux (UX/UI Designer) - Designs HOW users interact, researches UX patterns
+- agent-foreman-tech (Technical Architect) - Architects HOW to build, researches frameworks/security
+- agent-foreman-qa (QA Manager) - Plans HOW to verify, researches testing strategies
 
 **Modes**:
 - Quick Mode (parallel) - ~3-4 min, includes research, one combined Q&A session at the end
@@ -164,13 +164,13 @@ research_context = {
 Launch all 4 agents IN PARALLEL using Task tool. Each agent will conduct web research before analysis:
 
 ```
-Task(subagent_type="agent-foreman:pm", prompt="Analyze requirement: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research industry best practices before analysis.")
+Task(subagent_type="agent-foreman-pm", prompt="Analyze requirement: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research industry best practices before analysis.")
 
-Task(subagent_type="agent-foreman:ux", prompt="Design UX for: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research UX patterns before design.")
+Task(subagent_type="agent-foreman-ux", prompt="Design UX for: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research UX patterns before design.")
 
-Task(subagent_type="agent-foreman:tech", prompt="Design architecture for: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research framework best practices before architecture.")
+Task(subagent_type="agent-foreman-tech", prompt="Design architecture for: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research framework best practices before architecture.")
 
-Task(subagent_type="agent-foreman:qa", prompt="Define QA strategy for: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research testing strategies before planning.")
+Task(subagent_type="agent-foreman-qa", prompt="Define QA strategy for: {requirement}. Project context: {codebase_context}. Research context: {research_context}. IMPORTANT: Use WebSearch to research testing strategies before planning.")
 ```
 
 Wait for all to complete (~30-60 seconds).
@@ -195,7 +195,7 @@ This ensures:
 **Step 2A: Product Manager**
 
 ```
-Task(subagent_type="agent-foreman:pm", prompt="Analyze requirement: {requirement}. Project context: {codebase_context}. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research industry best practices, market trends, and competitor approaches before starting your analysis.")
+Task(subagent_type="agent-foreman-pm", prompt="Analyze requirement: {requirement}. Project context: {codebase_context}. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research industry best practices, market trends, and competitor approaches before starting your analysis.")
 ```
 
 Wait for completion. PM will:
@@ -212,7 +212,7 @@ Wait for completion. PM will:
 **Step 2B: UX Designer**
 
 ```
-Task(subagent_type="agent-foreman:ux", prompt="Design UX for: {requirement}. IMPORTANT: First read ai/tasks/spec/PM.md to see PM's analysis AND user's answers to PM questions. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research UX patterns before starting your design.")
+Task(subagent_type="agent-foreman-ux", prompt="Design UX for: {requirement}. IMPORTANT: First read ai/tasks/spec/PM.md to see PM's analysis AND user's answers to PM questions. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research UX patterns before starting your design.")
 ```
 
 Wait for completion. UX will:
@@ -230,7 +230,7 @@ Wait for completion. UX will:
 **Step 2C: Technical Architect**
 
 ```
-Task(subagent_type="agent-foreman:tech", prompt="Design architecture for: {requirement}. IMPORTANT: First read ai/tasks/spec/PM.md and ai/tasks/spec/UX.md to see previous analyses AND user's answers. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research framework best practices before starting your design.")
+Task(subagent_type="agent-foreman-tech", prompt="Design architecture for: {requirement}. IMPORTANT: First read ai/tasks/spec/PM.md and ai/tasks/spec/UX.md to see previous analyses AND user's answers. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research framework best practices before starting your design.")
 ```
 
 Wait for completion. Tech will:
@@ -248,7 +248,7 @@ Wait for completion. Tech will:
 **Step 2D: QA Manager**
 
 ```
-Task(subagent_type="agent-foreman:qa", prompt="Define QA strategy for: {requirement}. IMPORTANT: First read all spec files (PM.md, UX.md, TECH.md) including their Q&A sections. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research testing strategies before defining your strategy.")
+Task(subagent_type="agent-foreman-qa", prompt="Define QA strategy for: {requirement}. IMPORTANT: First read all spec files (PM.md, UX.md, TECH.md) including their Q&A sections. Research context: {research_context}. CRITICAL: Use WebSearch FIRST to research testing strategies before defining your strategy.")
 ```
 
 Wait for completion. QA will:
@@ -372,7 +372,7 @@ Launch the breakdown-writer agent:
 
 ```
 Task(
-  subagent_type="agent-foreman:breakdown-writer",
+  subagent_type="agent-foreman-breakdown-writer",
   prompt="""
 SPEC BREAKDOWN TASK
 
@@ -475,16 +475,16 @@ Display the following guidance to the user:
 
 To process all BREAKDOWN tasks and create fine-grained implementation tasks:
 
-/agent-foreman:run
+/agent-foreman-run
 
 Alternatively, to process a specific module:
 
-/agent-foreman:run {module}.BREAKDOWN
+/agent-foreman-run {module}.BREAKDOWN
 ```
 
 ### What Happens During Run
 
-The `/agent-foreman:run` command uses the standard Bash workflow for each task:
+The `/agent-foreman-run` command uses the standard Bash workflow for each task:
 
 ```bash
 # For each BREAKDOWN task, executes:

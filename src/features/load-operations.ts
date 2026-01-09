@@ -3,11 +3,12 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { glob } from "glob";
 import type { Feature, FeatureList, FeatureIndex } from "../types/index.js";
 import { validateFeatureList } from "../schemas/index.js";
 import {
   loadFeatureIndex,
-  loadSingleFeature,
+  parseFeatureMarkdown,
   autoMigrateIfNeeded,
 } from "../storage/index.js";
 import { FEATURE_LIST_PATH, TASKS_DIR } from "./constants.js";
@@ -20,7 +21,7 @@ import { syncIndexFromFeatures } from "./sync-operations.js";
  * Strategy:
  * 1. Try new format (index.json) first
  * 2. Auto-migrate if old format detected
- * 3. Load all features from markdown files
+ * 3. Load all features from markdown files (source of truth)
  * 4. Fall back to legacy format if neither exists
  */
 export async function loadFeatureList(basePath: string): Promise<FeatureList | null> {
@@ -28,10 +29,10 @@ export async function loadFeatureList(basePath: string): Promise<FeatureList | n
   const index = await loadFeatureIndex(basePath);
 
   if (index) {
-    // Load all features from markdown files
-    const features = await loadAllFeaturesFromMarkdown(basePath, index);
+    // Scan all features from markdown files (filesystem is source of truth)
+    const features = await scanTaskFiles(basePath);
 
-    // Auto-sync: fix index.json if status differs from .md files
+    // Auto-sync: update index.json to match .md files (add new, remove orphan, update status)
     await syncIndexFromFeatures(basePath, features, index);
 
     return {
@@ -51,7 +52,7 @@ export async function loadFeatureList(basePath: string): Promise<FeatureList | n
     // After migration, try loading from new format
     const migratedIndex = await loadFeatureIndex(basePath);
     if (migratedIndex) {
-      const features = await loadAllFeaturesFromMarkdown(basePath, migratedIndex);
+      const features = await scanTaskFiles(basePath);
 
       // Auto-sync: fix index.json if status differs from .md files
       await syncIndexFromFeatures(basePath, features, migratedIndex);
@@ -69,6 +70,60 @@ export async function loadFeatureList(basePath: string): Promise<FeatureList | n
     // Neither format exists
     return null;
   }
+}
+
+/**
+ * Scan filesystem for task files
+ * Finds all ai/tasks/**\/*.md files and parses them into Features
+ */
+async function scanTaskFiles(basePath: string): Promise<Feature[]> {
+  const tasksDir = path.join(basePath, TASKS_DIR);
+  
+  // Ensure tasks dir exists
+  try {
+    await fs.access(tasksDir);
+  } catch {
+    return [];
+  }
+
+  // Find all markdown files in tasks directory
+  // Ignore spec files as they are not tasks
+  const files = await glob(`${TASKS_DIR}/**/*.md`, {
+    cwd: basePath,
+    ignore: [`${TASKS_DIR}/spec/**/*.md`],
+    nodir: true,
+  });
+
+  const features: Feature[] = [];
+  
+  // Load files in parallel
+  const loadPromises = files.map(async (file) => {
+    try {
+      const absolutePath = path.join(basePath, file);
+      const content = await fs.readFile(absolutePath, "utf-8");
+      const feature = parseFeatureMarkdown(content);
+      
+      // Calculate filePath relative to TASKS_DIR (ai/tasks)
+      // file is "ai/tasks/subdir/foo.md" -> "subdir/foo.md"
+      feature.filePath = path.relative(TASKS_DIR, file);
+      
+      return feature;
+    } catch (err) {
+      console.warn(`Failed to load task file ${file}:`, err);
+      return null;
+    }
+  });
+
+  const results = await Promise.all(loadPromises);
+  
+  // Filter out nulls
+  for (const result of results) {
+    if (result) {
+      features.push(result);
+    }
+  }
+
+  return features;
 }
 
 /**
@@ -93,46 +148,6 @@ async function loadLegacyFeatureList(basePath: string): Promise<FeatureList | nu
   }
 }
 
-/**
- * Load all features from markdown files based on index
- */
-async function loadAllFeaturesFromMarkdown(
-  basePath: string,
-  index: FeatureIndex
-): Promise<Feature[]> {
-  const features: Feature[] = [];
-  const featureIds = Object.keys(index.features);
-
-  // Load features in parallel for better performance
-  const loadPromises = featureIds.map(async (id) => {
-    const indexEntry = index.features[id];
-    // Use unified resolver - it handles filePath, module, and fallback scanning
-    const feature = await loadSingleFeature(basePath, id, indexEntry);
-    if (feature) {
-      return feature;
-    }
-    // If markdown file is missing, create minimal feature from index
-    return {
-      id,
-      description: indexEntry.description,
-      module: indexEntry.module,
-      priority: indexEntry.priority,
-      status: indexEntry.status,
-      acceptance: [],
-      dependsOn: [],
-      supersedes: [],
-      tags: [],
-      version: 1,
-      origin: "manual" as const,
-      notes: "",
-    };
-  });
-
-  const loadedFeatures = await Promise.all(loadPromises);
-  features.push(...loadedFeatures);
-
-  return features;
-}
 
 /**
  * Check if feature list exists

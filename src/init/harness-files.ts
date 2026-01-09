@@ -21,7 +21,7 @@ import type { aiResultToSurvey } from "../scanner/index.js";
 import { generateOrMergeInitScript } from "./init-script-merge.js";
 import { ensureComprehensiveGitignore } from "../gitignore/index.js";
 import { copyRulesToProject, hasRulesInstalled } from "../rules/index.js";
-import { generateMinimalClaudeMd } from "../prompts.js";
+import { generateMinimalClaudeMd, generateMinimalAgentsMd } from "../prompts.js";
 import { createSpinner } from "../ui/index.js";
 
 /**
@@ -35,6 +35,7 @@ export interface InitContext {
   survey: ReturnType<typeof aiResultToSurvey>;
   featureList: FeatureList;
   capabilities?: ExtendedCapabilities;
+  agentUsed?: string;
 }
 
 /**
@@ -137,6 +138,62 @@ async function setupClaudeRules(
 }
 
 /**
+ * Setup OpenCode rules files in .opencode/rules/ directory
+ *
+ * This generates artifacts compatible with OpenCode:
+ * - .opencode/rules/*.md
+ * - AGENTS.md (instead of CLAUDE.md)
+ * - opencode.json
+ */
+async function setupOpenCodeRules(
+  cwd: string,
+  goal: string,
+  force: boolean = false
+): Promise<void> {
+  const agentsMdPath = path.join(cwd, "AGENTS.md");
+  const configPath = path.join(cwd, "opencode.json");
+
+  // Step 1: Copy rules to .opencode/rules/
+  const rulesResult = await copyRulesToProject(cwd, { force, targetDir: ".opencode/rules" });
+
+  if (rulesResult.created > 0) {
+    console.log(chalk.green(`✓ Created ${rulesResult.created} rule files in .opencode/rules/`));
+  }
+  if (rulesResult.skipped > 0 && !force) {
+    console.log(chalk.gray(`  Skipped ${rulesResult.skipped} existing rule files (use --force to overwrite)`));
+  }
+
+  // Step 2: Create or update AGENTS.md
+  try {
+    const exists = await fs.readFile(agentsMdPath, "utf-8").then(() => true).catch(() => false);
+    if (!exists) {
+      const agentsMd = generateMinimalAgentsMd(goal);
+      await fs.writeFile(agentsMdPath, agentsMd);
+      console.log(chalk.green("✓ Generated AGENTS.md"));
+    } else {
+      console.log(chalk.gray("  AGENTS.md already exists"));
+    }
+  } catch {
+    // Ignore error
+  }
+
+  // Step 3: Create opencode.json if missing
+  try {
+    const configExists = await fs.readFile(configPath, "utf-8").then(() => true).catch(() => false);
+    if (!configExists) {
+      const config = {
+        instructions: [".opencode/rules/*.md"],
+        "$schema": "https://opencode.ai/config.json"
+      };
+      await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+      console.log(chalk.green("✓ Generated opencode.json"));
+    }
+  } catch {
+    // Ignore error
+  }
+}
+
+/**
  * Step 6a: Detect and cache project capabilities
  * Returns capabilities that will be used for init.sh generation
  */
@@ -199,11 +256,32 @@ export async function generateInitScript(ctx: InitContext): Promise<void> {
 }
 
 /**
- * Step 8: Setup Claude rules and CLAUDE.md
+ * Step 8: Setup Rules (Claude or OpenCode)
  */
-export async function generateClaudeRules(ctx: InitContext): Promise<void> {
+export async function generateRules(ctx: InitContext): Promise<void> {
   const forceRules = ctx.mode === "new";
-  await setupClaudeRules(ctx.cwd, ctx.goal, forceRules);
+
+  // Heuristic to determine if we should generate OpenCode artifacts
+  // 1. Agent used was 'opencode'
+  // 2. .opencode directory already exists (from install --opencode)
+  // 3. User explicitly requested it (future flag?)
+  
+  let useOpenCode = ctx.agentUsed === "opencode";
+  
+  if (!useOpenCode) {
+    try {
+      const stats = await fs.stat(path.join(ctx.cwd, ".opencode"));
+      useOpenCode = stats.isDirectory();
+    } catch {
+      // .opencode doesn't exist
+    }
+  }
+
+  if (useOpenCode) {
+    await setupOpenCodeRules(ctx.cwd, ctx.goal, forceRules);
+  } else {
+    await setupClaudeRules(ctx.cwd, ctx.goal, forceRules);
+  }
 }
 
 /**
@@ -243,10 +321,11 @@ export async function generateHarnessFiles(
   survey: ReturnType<typeof aiResultToSurvey>,
   featureList: FeatureList,
   goal: string,
-  mode: InitMode
+  mode: InitMode,
+  agentUsed?: string
 ): Promise<void> {
   // Create context for dependency injection
-  const ctx: InitContext = { cwd, goal, mode, survey, featureList };
+  const ctx: InitContext = { cwd, goal, mode, survey, featureList, agentUsed };
 
   // Step 6a: Detect project capabilities (creates ai/capabilities.json)
   await generateCapabilities(ctx);
@@ -257,8 +336,8 @@ export async function generateHarnessFiles(
   // Step 7: Generate/merge init.sh
   await generateInitScript(ctx);
 
-  // Step 8: Setup Claude rules using the NEW static file approach
-  await generateClaudeRules(ctx);
+  // Step 8: Setup Rules (Claude or OpenCode)
+  await generateRules(ctx);
 
   // Step 9: Write progress log entry
   await generateProgressLog(ctx);

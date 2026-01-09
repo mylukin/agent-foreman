@@ -295,7 +295,7 @@ Git safety measures:
 
 ## Plugin System
 
-agent-foreman integrates with Claude Code as a plugin:
+agent-foreman integrates with Claude Code and OpenCode as plugins:
 
 ```text
 plugins/agent-foreman/
@@ -305,12 +305,17 @@ plugins/agent-foreman/
 │   ├── init-harness/
 │   ├── feature-next/
 │   └── feature-run/
-└── commands/               # 5 slash commands
-    ├── analyze.md
-    ├── init.md
-    ├── next.md
-    ├── run.md
-    └── status.md
+├── commands/               # 5 slash commands (Claude)
+│   ├── analyze.md
+│   ├── init.md
+│   ├── next.md
+│   ├── run.md
+│   └── status.md
+├── opencode/               # OpenCode integration
+│   └── command/
+│       └── agent-foreman.md
+├── opencode-plugin.js      # OpenCode plugin (tools)
+└── README_OPENCODE.md      # OpenCode installation guide
 ```
 
 ---
@@ -342,6 +347,17 @@ Framework: Vitest with v8 coverage
 2. **Selective Testing** - Run only related tests with `--quick` mode
 3. **Intelligent Diff Truncation** - Keep AI prompts within limits
 4. **Parallel Tool Calls** - Where dependencies allow
+
+---
+
+## Known Issues & Risks
+
+### `init.sh` Syntax Errors
+When using an AI agent (especially Gemini or less capable models) to generate the `init.sh` script, the agent may hallucinate placeholder syntax (e.g., `<number>`) that is invalid in Bash. This can cause syntax errors when running `./ai/init.sh`.
+
+**Mitigation:**
+- Manually inspect `ai/init.sh` after generation.
+- Future versions may include automated bash validation to prevent invalid scripts from being written.
 
 ---
 

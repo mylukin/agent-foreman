@@ -1,8 +1,14 @@
 ---
 name: tech
 description: Technical Architect agent for spec workflow. Reviews PRD for technical clarity issues, then designs HOW to build the system. Identifies unclear requirements that could cause implementation confusion. Defines modules, APIs, data models, tech stack decisions, and architectural constraints. Third analyst in serial workflow - implements UX's screens and flows within PM's scope.
-model: inherit
-tools: Read, Glob, Grep, Write, Bash, AskUserQuestion, WebSearch
+mode: subagent
+tools:
+  read: true
+  glob: true
+  grep: true
+  write: true
+  bash: true
+  webfetch: true
 ---
 
 # Technical Architect (tech)

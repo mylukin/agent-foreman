@@ -4,7 +4,7 @@
  */
 
 // Harness documentation prompts (minimal - rules are in .claude/rules/)
-export { generateMinimalClaudeMd } from "./harness.js";
+export { generateMinimalClaudeMd, generateMinimalAgentsMd } from "./harness.js";
 
 // Git-related prompts
 export { generateCommitMessage } from "./git.js";
