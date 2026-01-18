@@ -112,8 +112,6 @@ describe('feature-name', () => {
 
 **Before running `agent-foreman check`, you MUST self-review your work.**
 
-> 在运行 check 之前，必须先自审你的工作。
-
 1. **Re-read ALL acceptance criteria** from `agent-foreman next` output
 2. **Verify EACH criterion** is satisfied in your implementation:
    ```text

@@ -2,9 +2,6 @@
 
 This guide helps AI agents recognize and avoid common workflow violations through self-checking patterns.
 
-> This guide helps AI agents recognize and avoid common workflow violations through self-checking patterns.
-> 本指南帮助 AI 代理通过自检模式识别并避免常见的工作流违规行为。
-
 ---
 
 ## Red Flags Self-Check
@@ -47,8 +44,6 @@ This guide helps AI agents recognize and avoid common workflow violations throug
 ## Evidence vs Claims (Iron Law)
 
 **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE**
-
-> 没有新鲜的验证证据，不得声称完成。
 
 This is non-negotiable. Violating the letter is violating the spirit.
 
