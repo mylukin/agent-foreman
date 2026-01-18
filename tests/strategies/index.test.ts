@@ -3,7 +3,7 @@
  * Universal Verification Strategy (UVS) Phase 3
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { Feature } from "../../src/types.js";
+import type { Feature } from "../../src/types/index.js";
 import type { VerificationStrategy, FileVerificationStrategy } from "../../src/verifier/types/index.js";
 import {
   initializeStrategies,
@@ -86,15 +86,16 @@ describe("Strategy Registry Index", () => {
       "manual",
       "ai",
       "composite",
+      "behavior",
     ];
 
     it.each(expectedTypes)("should have '%s' executor registered", (type) => {
       expect(defaultRegistry.has(type as any)).toBe(true);
     });
 
-    it("should have all 9 strategy types registered", () => {
+    it("should have all 10 strategy types registered", () => {
       const registeredTypes = getRegisteredStrategyTypes();
-      expect(registeredTypes).toHaveLength(9);
+      expect(registeredTypes).toHaveLength(10);
       for (const type of expectedTypes) {
         expect(registeredTypes).toContain(type);
       }

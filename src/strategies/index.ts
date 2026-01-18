@@ -23,6 +23,7 @@ import { CommandStrategyExecutor, commandStrategyExecutor } from "./command-stra
 import { ManualStrategyExecutor, manualStrategyExecutor } from "./manual-strategy.js";
 import { AIStrategyExecutor, aiStrategyExecutor } from "./ai-strategy.js";
 import { CompositeStrategyExecutor, compositeStrategyExecutor } from "./composite-strategy.js";
+import { BehaviorStrategyExecutor, behaviorStrategyExecutor } from "./behavior-strategy.js";
 
 // Flag to track if strategies have been initialized
 let strategiesInitialized = false;
@@ -52,6 +53,7 @@ export function initializeStrategies(): StrategyRegistry {
     "manual",
     "ai",
     "composite",
+    "behavior",
   ];
 
   for (const type of expectedTypes) {
@@ -117,6 +119,7 @@ export {
   ManualStrategyExecutor,
   AIStrategyExecutor,
   CompositeStrategyExecutor,
+  BehaviorStrategyExecutor,
 };
 
 // Export all singleton executor instances
@@ -130,9 +133,17 @@ export {
   manualStrategyExecutor,
   aiStrategyExecutor,
   compositeStrategyExecutor,
+  behaviorStrategyExecutor,
 };
 
 // Export extended strategy types
 export type { ExtendedAiVerificationStrategy, AIAgentInterface } from "./ai-strategy.js";
 export type { ExtendedCompositeVerificationStrategy, NestedStrategyResult } from "./composite-strategy.js";
 export type { UserInputInterface } from "./manual-strategy.js";
+export type {
+  LogSource,
+  LogCollectionResult,
+  LogCollectionOptions,
+  BehaviorVerificationResult,
+  CustomBehaviorPattern,
+} from "./behavior-strategy.js";

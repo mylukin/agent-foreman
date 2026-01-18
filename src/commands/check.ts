@@ -25,6 +25,10 @@ import {
 import { runLayeredCheck } from "../verifier/layered-check.js";
 import { appendProgressLog, createVerifyEntry } from "../progress-log.js";
 import { verifyTDDGate } from "../test-gate.js";
+import {
+  runBehaviorCheck,
+  formatBehaviorCheckForTask,
+} from "../verifier/behavior-check.js";
 
 /**
  * Run the check command
@@ -38,6 +42,7 @@ import { verifyTDDGate } from "../test-gate.js";
  * @param skipE2E - Skip E2E tests entirely
  * @param e2eMode - E2E test mode
  * @param full - Run full verification (all tests + build + E2E)
+ * @param skipBehavior - Skip behavior/anti-pattern check
  */
 export async function runCheck(
   featureId?: string,
@@ -48,7 +53,8 @@ export async function runCheck(
   testPattern?: string,
   skipE2E: boolean = false,
   e2eMode?: "full" | "smoke" | "tags" | "skip",
-  full: boolean = false
+  full: boolean = false,
+  skipBehavior: boolean = false
 ): Promise<void> {
   const cwd = process.cwd();
 
@@ -64,6 +70,7 @@ export async function runCheck(
       verbose,
       ai,
       tddMode,
+      skipBehavior,
     });
     return;
   }
@@ -186,6 +193,48 @@ export async function runCheck(
       );
     }
     console.log("");
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Behavior Gate: Check for workflow anti-pattern violations
+  // ─────────────────────────────────────────────────────────────────
+  if (!skipBehavior) {
+    const behaviorResult = await runBehaviorCheck(cwd, { verbose });
+
+    if (behaviorResult.logFound && behaviorResult.detectionResult.hasViolations) {
+      console.log(
+        chalk.bold.yellow(
+          "\n═══════════════════════════════════════════════════════════════"
+        )
+      );
+      console.log(
+        chalk.bold.yellow(
+          "                  BEHAVIOR ANALYSIS"
+        )
+      );
+      console.log(
+        chalk.bold.yellow(
+          "═══════════════════════════════════════════════════════════════\n"
+        )
+      );
+
+      console.log(formatBehaviorCheckForTask(behaviorResult));
+
+      if (!behaviorResult.passed) {
+        console.log(
+          chalk.red("\n   ✗ BEHAVIOR GATE FAILED: Critical workflow violations detected")
+        );
+        console.log(chalk.bold.yellow("\n   Workflow Compliance Required:"));
+        console.log(chalk.gray("   1. Review the violations above"));
+        console.log(chalk.gray("   2. Follow the correct workflow: next → implement → check → done"));
+        console.log(chalk.gray("   3. Use CLI commands instead of reading/editing files directly"));
+        console.log(chalk.gray(`   4. Run 'agent-foreman check ${targetFeatureId}' again`));
+        console.log("");
+        process.exit(1);
+      }
+
+      console.log("");
+    }
   }
 
   console.log(chalk.bold.blue("\n═══════════════════════════════════════════════════════════════"));

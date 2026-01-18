@@ -23,6 +23,7 @@ import { runAutomatedChecks } from "./check-executor.js";
 import { analyzeWithAI } from "./ai-analysis.js";
 import { createStepProgress } from "../progress.js";
 import { getTaskImpact, type TaskImpact } from "./task-impact.js";
+import { runBehaviorCheck, displayBehaviorCheckResult } from "./behavior-check.js";
 
 const execAsync = promisify(exec);
 
@@ -58,6 +59,8 @@ export interface LayeredCheckOptions {
   tddMode?: "strict" | "recommended" | "disabled";
   /** Skip Layer 2 task impact detection */
   skipTaskImpact?: boolean;
+  /** Skip behavior/anti-pattern check */
+  skipBehavior?: boolean;
 }
 
 /**
@@ -116,7 +119,7 @@ export async function runLayeredCheck(
   cwd: string,
   options: LayeredCheckOptions = {}
 ): Promise<LayeredCheckResult> {
-  const { verbose = false, ai = false, tddMode, skipTaskImpact = false } = options;
+  const { verbose = false, ai = false, tddMode, skipTaskImpact = false, skipBehavior = false } = options;
   const startTime = Date.now();
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -267,6 +270,17 @@ export async function runLayeredCheck(
     console.log(chalk.red(`│ ⚡ FAST CHECK FAILED (${(totalDuration / 1000).toFixed(1)}s)`));
   }
   console.log(chalk.bold.cyan("╰──────────────────────────────────────────────────────╯\n"));
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BEHAVIOR CHECK: Anti-pattern detection (optional)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (!skipBehavior) {
+    const behaviorResult = await runBehaviorCheck(cwd, { verbose });
+    displayBehaviorCheckResult(behaviorResult, verbose);
+
+    // Don't fail fast check for behavior violations - just warn
+    // Critical violations will be caught in task-based verification
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // LAYER 2: Task Impact Detection

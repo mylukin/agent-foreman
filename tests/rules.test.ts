@@ -26,8 +26,8 @@ describe("Rules Module", () => {
   });
 
   describe("RULE_TEMPLATES", () => {
-    it("should contain 8 rule templates", () => {
-      expect(RULE_TEMPLATES).toHaveLength(8);
+    it("should contain 9 rule templates", () => {
+      expect(RULE_TEMPLATES).toHaveLength(9);
     });
 
     it("should have templates in correct order", () => {
@@ -71,7 +71,7 @@ describe("Rules Module", () => {
   describe("getAllRuleTemplates", () => {
     it("should return all templates as a map", () => {
       const templates = getAllRuleTemplates();
-      expect(templates.size).toBe(8);
+      expect(templates.size).toBe(9);
 
       for (const name of RULE_TEMPLATES) {
         expect(templates.has(name)).toBe(true);
@@ -84,9 +84,9 @@ describe("Rules Module", () => {
     it("should copy all rule templates to project", async () => {
       const result = await copyRulesToProject(testDir);
 
-      expect(result.created).toBe(8);
+      expect(result.created).toBe(9);
       expect(result.skipped).toBe(0);
-      expect(result.createdFiles).toHaveLength(8);
+      expect(result.createdFiles).toHaveLength(9);
 
       // Verify files exist
       const rulesDir = path.join(testDir, ".claude", "rules");
@@ -107,7 +107,7 @@ describe("Rules Module", () => {
       // Second copy should skip
       const result = await copyRulesToProject(testDir);
       expect(result.created).toBe(0);
-      expect(result.skipped).toBe(8);
+      expect(result.skipped).toBe(9);
     });
 
     it("should overwrite with force option", async () => {
@@ -121,7 +121,7 @@ describe("Rules Module", () => {
 
       // Force copy should overwrite
       const result = await copyRulesToProject(testDir, { force: true });
-      expect(result.created).toBe(8);
+      expect(result.created).toBe(9);
       expect(result.skipped).toBe(0);
 
       // Verify file was overwritten
@@ -153,7 +153,7 @@ describe("Rules Module", () => {
   describe("verifyRuleTemplates", () => {
     it("should report all templates as available", () => {
       const result = verifyRuleTemplates();
-      expect(result.available).toHaveLength(8);
+      expect(result.available).toHaveLength(9);
       expect(result.missing).toHaveLength(0);
     });
   });
