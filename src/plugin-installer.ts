@@ -349,10 +349,12 @@ function installMarketplaceFiles(): void {
         ],
         agents: [
           "./agents/foreman.md",
-          "./agents/foreman-pm.md",
-          "./agents/foreman-ux.md",
-          "./agents/foreman-tech.md",
-          "./agents/foreman-qa.md"
+          "./agents/pm.md",
+          "./agents/ux.md",
+          "./agents/tech.md",
+          "./agents/qa.md",
+          "./agents/breakdown-writer.md",
+          "./agents/implementer.md"
         ],
         skills: [
           "./skills/project-analyze",
