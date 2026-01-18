@@ -1,8 +1,7 @@
 ---
 name: breakdown-writer
 description: Spec breakdown agent for foreman-spec workflow. Reads all spec files (PM, UX, TECH, QA), synthesizes OVERVIEW.md, creates BREAKDOWN task files for all modules, and updates index.json. Returns structured result to orchestrator.
-model: inherit
-tools: Read, Glob, Grep, Write, Bash
+allowed-tools: [Read, Glob, Grep, Write, Bash]
 ---
 
 # Spec Breakdown Writer (breakdown-writer)

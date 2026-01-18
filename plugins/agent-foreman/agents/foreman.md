@@ -1,8 +1,7 @@
 ---
 name: foreman
 description: Task management orchestrator for agent-foreman CLI. Analyzes user intent and delegates to skills - feature-next (single task), feature-run (batch processing), init-harness (project setup), project-analyze (codebase analysis). Handles TDD mode detection and verification. Triggers on 'agent-foreman', 'next task', 'run tasks', 'check task', 'TDD workflow', 'task status'.
-model: inherit
-tools: Read, Glob, Grep
+allowed-tools: [Read, Glob, Grep]
 ---
 
 You are the foreman agent - an orchestrator for AI agent task management using the agent-foreman CLI.

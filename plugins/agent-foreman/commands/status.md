@@ -1,6 +1,7 @@
 ---
+name: status
 description: Show task completion status and progress summary
-allowed-tools: Bash, Read, Glob, Grep
+allowed-tools: [Bash, Read, Glob, Grep]
 argument-hint: "[--json|--quiet]"
 ---
 

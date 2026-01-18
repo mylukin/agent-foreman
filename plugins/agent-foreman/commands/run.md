@@ -1,6 +1,7 @@
 ---
+name: run
 description: Auto-complete all pending tasks or work on specific task
-allowed-tools: Bash, Read, Glob, Grep, Write, Edit, Skill
+allowed-tools: [Bash, Read, Glob, Grep, Write, Edit, Skill]
 argument-hint: "[task_id]"
 ---
 

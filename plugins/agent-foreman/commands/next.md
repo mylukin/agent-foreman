@@ -1,6 +1,7 @@
 ---
+name: next
 description: Get next task and implement with TDD workflow
-allowed-tools: Bash, Read, Glob, Grep, Write, Edit, Skill
+allowed-tools: [Bash, Read, Glob, Grep, Write, Edit, Skill]
 argument-hint: "[task_id] [--check|--dry-run|--json|--quiet]"
 ---
 

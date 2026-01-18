@@ -1,8 +1,7 @@
 ---
 name: implementer
 description: Task implementation agent for feature-run workflow. Executes the next-implement-check cycle for a single task. Handles TDD workflow (RED-GREEN-REFACTOR) when strict mode is active. Returns structured results for orchestrator to process.
-model: inherit
-tools: Read, Glob, Grep, Write, Edit, Bash, WebSearch
+allowed-tools: [Read, Glob, Grep, Write, Edit, Bash, WebSearch]
 ---
 
 # Task Implementer (implementer)

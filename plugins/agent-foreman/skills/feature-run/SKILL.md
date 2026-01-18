@@ -1,6 +1,8 @@
 ---
 name: feature-run
 description: Executes unattended batch processing of all pending tasks with autonomous decision-making. Use when running all tasks automatically, batch processing without supervision, completing entire feature backlog, or working on a specific task by ID. Triggers on 'run all tasks', 'complete all features', 'batch processing', 'unattended mode', 'auto-complete tasks', 'run feature'.
+allowed-tools: [Bash, Read, Glob, Grep, Write, Edit, Task]
+user-invocable: true
 ---
 
 # Task Run

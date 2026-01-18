@@ -1,6 +1,8 @@
 ---
 name: foreman-spec
 description: Multi-role requirement analysis and task breakdown workflow using 4 specialized AI agents (PM, UX, Tech, QA). Each agent conducts web research before analysis to gather industry best practices, case studies, and current trends. Supports Quick Mode (parallel, ~3 min, one Q&A session) and Deep Mode (serial, ~8 min, Q&A after EACH agent so answers inform subsequent analysis). Triggers on 'foreman-spec', 'spec feature', 'break down requirement', 'define tasks', 'spec this'.
+allowed-tools: [Read, Write, Glob, Grep, AskUserQuestion, Bash, Task]
+user-invocable: true
 ---
 
 # Spec Workflow (V8 - Research-Enhanced)

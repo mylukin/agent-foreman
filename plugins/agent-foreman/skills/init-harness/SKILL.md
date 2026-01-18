@@ -1,6 +1,8 @@
 ---
 name: init-harness
 description: Creates AI agent task management structure with feature backlog (ai/tasks/), TDD enforcement, and progress tracking. Use when setting up agent-foreman, initializing feature-driven development, creating task backlog, or enabling TDD mode. Triggers on 'init harness', 'setup feature tracking', 'create feature backlog', 'enable strict TDD', 'initialize agent-foreman'.
+allowed-tools: [Bash, Read, Glob, Grep, Write, Edit]
+user-invocable: true
 ---
 
 # ⚡ Init Harness

@@ -1,6 +1,7 @@
 ---
+name: spec
 description: Multi-Expert Council for transforming requirements into fine-grained task files
-allowed-tools: Read, Write, Glob, Grep, AskUserQuestion, Bash, Task, Skill
+allowed-tools: [Read, Write, Glob, Grep, AskUserQuestion, Bash, Task, Skill]
 argument-hint: "<requirement description>"
 ---
 

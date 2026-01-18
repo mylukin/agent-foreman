@@ -1,8 +1,7 @@
 ---
 name: qa
 description: QA Manager agent for spec workflow. Designs HOW to verify the system. Defines test strategy, risk assessment, quality gates, and acceptance criteria verification. Fourth (final) analyst in serial workflow - has complete context from PM, UX, and Tech.
-model: inherit
-tools: Read, Glob, Grep, Write, AskUserQuestion, WebSearch
+allowed-tools: [Read, Glob, Grep, Write, AskUserQuestion, WebSearch]
 ---
 
 # QA Manager (qa)

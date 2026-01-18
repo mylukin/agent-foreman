@@ -1,6 +1,8 @@
 ---
 name: feature-next
 description: Implements a single task following the next → implement → check → done workflow with TDD support. Use when working on one specific task, implementing a single feature from the backlog, or following TDD red-green-refactor cycle. Triggers on 'next task', 'next feature', 'implement feature', 'work on feature', 'single task mode', 'what should I work on'.
+allowed-tools: [Bash, Read, Glob, Grep, Write, Edit]
+user-invocable: true
 ---
 
 # Task Next

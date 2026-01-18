@@ -1,6 +1,7 @@
 ---
+name: analyze
 description: Scan codebase and generate ARCHITECTURE.md documentation
-allowed-tools: Bash, Read, Glob, Grep, Skill
+allowed-tools: [Bash, Read, Glob, Grep, Skill]
 argument-hint: "[path] [--verbose]"
 ---
 
