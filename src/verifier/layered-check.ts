@@ -6,6 +6,7 @@
  * Layers:
  * 1. Fast deterministic checks (typecheck + lint + selective tests)
  * 2. Task impact notification (file → task mapping)
+ * 2.5. Spec compliance check (opt-in via --ai) - verifies acceptance criteria
  * 3. AI task verification (opt-in via --ai)
  */
 
@@ -24,6 +25,11 @@ import { analyzeWithAI } from "./ai-analysis.js";
 import { createStepProgress } from "../progress.js";
 import { getTaskImpact, type TaskImpact } from "./task-impact.js";
 import { runBehaviorCheck, displayBehaviorCheckResult } from "./behavior-check.js";
+import {
+  checkSpecCompliance,
+  displaySpecComplianceResult,
+  type SpecComplianceResult,
+} from "./spec-compliance.js";
 
 const execAsync = promisify(exec);
 
@@ -87,6 +93,9 @@ export interface LayeredCheckResult {
 
   // Layer 2: Task impact
   affectedTasks: TaskImpact[];
+
+  // Layer 2.5: Spec compliance (optional, enabled with --ai)
+  specCompliance?: SpecComplianceResult[];
 
   // Layer 3: AI verification (optional)
   taskVerification?: Array<{
@@ -304,6 +313,51 @@ export async function runLayeredCheck(
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // LAYER 2.5: Spec Compliance Check (opt-in via --ai)
+  // Two-stage verification: Does implementation match acceptance criteria EXACTLY?
+  // ═══════════════════════════════════════════════════════════════════════════
+  let specCompliance: SpecComplianceResult[] | undefined;
+
+  if (ai && affectedTasks.length > 0) {
+    console.log(chalk.bold.magenta("╭─ 📋 SPEC COMPLIANCE CHECK ────────────────────────────╮"));
+    console.log(chalk.gray("│ Verifying acceptance criteria match...               │"));
+    console.log(chalk.gray("│                                                      │"));
+
+    specCompliance = [];
+    const featureList = await loadFeatureList(cwd);
+
+    if (featureList) {
+      // Get git diff once for all checks
+      const { stdout: diff } = await execAsync("git diff HEAD", {
+        cwd,
+        maxBuffer: 10 * 1024 * 1024,
+      }).catch(() => ({ stdout: "" }));
+
+      for (const impact of affectedTasks) {
+        const feature = featureList.features.find((f) => f.id === impact.taskId);
+        if (feature) {
+          const result = await checkSpecCompliance(cwd, feature, diff, changedFiles, { verbose });
+          specCompliance.push(result);
+          displaySpecComplianceResult(result, verbose);
+        }
+      }
+    }
+
+    // Summary
+    const compliantCount = specCompliance.filter((r) => r.compliant).length;
+    const nonCompliantCount = specCompliance.length - compliantCount;
+
+    console.log(chalk.gray("│                                                      │"));
+    if (nonCompliantCount > 0) {
+      console.log(chalk.yellow(`│ ⚠ ${nonCompliantCount} task(s) NOT compliant with spec`));
+      console.log(chalk.gray("│   Review acceptance criteria before proceeding       │"));
+    } else if (compliantCount > 0) {
+      console.log(chalk.green(`│ ✓ All ${compliantCount} task(s) compliant with spec`));
+    }
+    console.log(chalk.bold.magenta("╰──────────────────────────────────────────────────────╯\n"));
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // LAYER 3: AI Task Verification (opt-in)
   // ═══════════════════════════════════════════════════════════════════════════
   let taskVerification: LayeredCheckResult["taskVerification"];
@@ -360,6 +414,7 @@ export async function runLayeredCheck(
     changedFiles,
     checks,
     affectedTasks,
+    specCompliance,
     taskVerification,
     duration: Date.now() - startTime,
     passed,

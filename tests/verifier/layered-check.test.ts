@@ -29,6 +29,10 @@ vi.mock("../../src/verifier/ai-analysis.js", () => ({
   analyzeWithAI: vi.fn(),
 }));
 
+vi.mock("../../src/agents.js", () => ({
+  callAnyAvailableAgent: vi.fn(),
+}));
+
 vi.mock("../../src/verifier/task-impact.js", () => ({
   getTaskImpact: vi.fn(),
 }));
@@ -39,6 +43,7 @@ vi.mock("../../src/progress.js", () => ({
     update: vi.fn(),
     complete: vi.fn(),
   })),
+  isTTY: vi.fn(() => false),
 }));
 
 import { loadFeatureList } from "../../src/features/index.js";
@@ -47,6 +52,7 @@ import { getChangedFiles, discoverTestsForFeature } from "../../src/testing/inde
 import { runAutomatedChecks } from "../../src/verifier/check-executor.js";
 import { analyzeWithAI } from "../../src/verifier/ai-analysis.js";
 import { getTaskImpact } from "../../src/verifier/task-impact.js";
+import { callAnyAvailableAgent } from "../../src/agents.js";
 
 const mockedLoadFeatureList = vi.mocked(loadFeatureList);
 const mockedDetectCapabilities = vi.mocked(detectCapabilities);
@@ -55,6 +61,7 @@ const mockedDiscoverTestsForFeature = vi.mocked(discoverTestsForFeature);
 const mockedRunAutomatedChecks = vi.mocked(runAutomatedChecks);
 const mockedAnalyzeWithAI = vi.mocked(analyzeWithAI);
 const mockedGetTaskImpact = vi.mocked(getTaskImpact);
+const mockedCallAnyAvailableAgent = vi.mocked(callAnyAvailableAgent);
 
 // Suppress console output during tests
 let consoleLogSpy: ReturnType<typeof vi.spyOn>;
@@ -87,6 +94,18 @@ describe("Layered Check Mode", () => {
     mockedRunAutomatedChecks.mockResolvedValue([]);
     mockedGetTaskImpact.mockResolvedValue([]);
     mockedLoadFeatureList.mockResolvedValue(null);
+
+    // Mock for spec compliance check (Layer 2.5)
+    mockedCallAnyAvailableAgent.mockResolvedValue({
+      success: true,
+      output: JSON.stringify({
+        criteriaResults: [],
+        overEngineering: { detected: false, extras: [], reasoning: "" },
+        missingCriteria: [],
+        summary: "COMPLIANT",
+      }),
+      agentUsed: "test-agent",
+    });
   });
 
   afterEach(() => {

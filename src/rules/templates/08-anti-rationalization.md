@@ -44,6 +44,60 @@ This guide helps AI agents recognize and avoid common workflow violations throug
 
 ---
 
+## Evidence vs Claims (Iron Law)
+
+**NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE**
+
+> 没有新鲜的验证证据，不得声称完成。
+
+This is non-negotiable. Violating the letter is violating the spirit.
+
+### What Counts as Evidence
+
+| Claim | Evidence Required | NOT Evidence |
+|-------|-------------------|--------------|
+| "Tests pass" | `34/34 passed` shown in current output | "Should pass", "I ran them earlier", confidence |
+| "Build succeeds" | `exit code: 0` shown in current output | "Linter passed", "No errors shown" |
+| "Check passes" | `agent-foreman check` output shows PASS | "I'm confident", self-assessment |
+| "Task complete" | `agent-foreman done` executed successfully | "I implemented everything" |
+| "Lint clean" | Linter output: 0 errors in current run | "Build passed", extrapolation |
+| "Bug fixed" | Test original symptom: now passes | "Code changed", "Should be fixed" |
+
+### The Gate Function
+
+```text
+BEFORE claiming any status or expressing satisfaction:
+
+1. IDENTIFY: What command proves this claim?
+2. RUN: Execute the command (fresh, complete)
+3. READ: Check output and exit code
+4. VERIFY: Does output confirm the claim?
+   - If NO -> State actual status with evidence
+   - If YES -> State claim WITH evidence
+5. ONLY THEN: Make the claim
+
+Skip any step = claim is invalid
+```
+
+### Forbidden Claim Patterns
+
+| Phrase | Why Invalid | Replace With |
+|--------|-------------|--------------|
+| "Should work now" | No verification run | Run command, show output |
+| "I'm confident it passes" | Confidence is not evidence | Run `agent-foreman check`, show result |
+| "Looks correct" | Visual inspection is not verification | Run tests, show pass count |
+| "I already ran it" | Previous run is not fresh evidence | Run again, show current output |
+| "The linter passed" | Linter is not tests or build | Run the specific verification needed |
+| "I tested it manually" | Manual is not automated verification | Run `agent-foreman check` |
+
+### Rule
+
+**Output must appear in THIS response, not previous responses.**
+
+If you haven't seen the verification output in your current message, you cannot claim success.
+
+---
+
 ## Pre-Flight Checklist
 
 Before implementing ANY task, verify these conditions:
