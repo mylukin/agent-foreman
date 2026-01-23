@@ -1,5 +1,22 @@
 # agent-foreman
 
+> ⚠️ **已停止维护**: 本项目不再维护。请迁移至 [ralph-dev](https://github.com/mylukin/ralph-dev) - 一个更简洁的版本。
+
+---
+
+## 🚨 迁移通知
+
+由于本项目过于复杂，已停止维护。新的简化版本已发布：
+
+**👉 [https://github.com/mylukin/ralph-dev](https://github.com/mylukin/ralph-dev)**
+
+请迁移至 `ralph-dev` 以获得持续的支持和更新。
+
+---
+
+<details>
+<summary><b>历史文档（归档）</b></summary>
+
 > 让 AI 不再半途而废，一次交付完整功能
 
 [![npm version](https://img.shields.io/npm/v/agent-foreman.svg)](https://www.npmjs.com/package/agent-foreman)
@@ -184,3 +201,5 @@ Lukin ([@mylukin](https://github.com/mylukin))
 ---
 
 灵感来源：Anthropic 博客 [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+
+</details>

@@ -1,5 +1,22 @@
 # agent-foreman
 
+> ⚠️ **DEPRECATED**: This project is no longer maintained. Please migrate to [ralph-dev](https://github.com/mylukin/ralph-dev) - a simplified and improved version.
+
+---
+
+## 🚨 Migration Notice
+
+This project has been deprecated due to its complexity. A new, simplified version is now available:
+
+**👉 [https://github.com/mylukin/ralph-dev](https://github.com/mylukin/ralph-dev)**
+
+Please migrate to `ralph-dev` for continued support and updates.
+
+---
+
+<details>
+<summary><b>Legacy Documentation (archived)</b></summary>
+
 > Stop AI agents from half-building features. Ship complete code in one session.
 
 [![npm version](https://img.shields.io/npm/v/agent-foreman.svg)](https://www.npmjs.com/package/agent-foreman)
@@ -184,3 +201,5 @@ Lukin ([@mylukin](https://github.com/mylukin))
 ---
 
 Inspired by Anthropic's blog post: [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+
+</details>
