@@ -78,3 +78,13 @@ export {
 
 // Core - Main verification function
 export { verifyFeature } from "./core.js";
+
+// Spec Compliance (Two-Stage Review - Layer 2.5)
+export {
+  checkSpecCompliance,
+  displaySpecComplianceResult,
+  runSpecComplianceChecks,
+  type SpecComplianceResult,
+  type CriterionComplianceResult,
+  type OverEngineeringResult,
+} from "./spec-compliance.js";

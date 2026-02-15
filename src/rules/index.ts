@@ -49,6 +49,7 @@ export const RULE_TEMPLATES = [
   "05-tdd",
   "06-progress-log",
   "07-strict-enforcement",
+  "08-anti-rationalization",
 ] as const;
 
 export type RuleTemplateName = (typeof RULE_TEMPLATES)[number];

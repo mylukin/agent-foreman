@@ -6,8 +6,8 @@
 
 ### Required Workflow Sequence
 
-```
-next → implement → check → done
+```text
+next → implement → self-review → check → done
 ```
 
 **This sequence is MANDATORY. Every step must be executed in this exact order.**
@@ -17,8 +17,9 @@ next → implement → check → done
 | ❌ DO NOT | ✅ INSTEAD |
 |-----------|------------|
 | Skip `next` and go straight to implementation | Always run `agent-foreman next` first |
+| Skip self-review and go straight to `check` | Always self-review before check |
 | Skip `check` and go straight to `done` | Always run `agent-foreman check` before `done` |
-| Invent your own workflow steps | Follow exactly: `next → implement → check → done` |
+| Invent your own workflow steps | Follow exactly: `next → implement → self-review → check → done` |
 | Add extra verification steps | Use only the commands in the workflow |
 | Reorder workflow steps | Execute in exact sequence |
 | Ask user "should I run check?" | Just run the command as defined |
@@ -107,6 +108,26 @@ describe('feature-name', () => {
    ```
 4. **Tests MUST remain passing** throughout refactoring
 
+### STEP 4.5: Self-Review (MANDATORY Before Check)
+
+**Before running `agent-foreman check`, you MUST self-review your work.**
+
+1. **Re-read ALL acceptance criteria** from `agent-foreman next` output
+2. **Verify EACH criterion** is satisfied in your implementation:
+   ```text
+   □ Criterion 1: [How is it satisfied?]
+   □ Criterion 2: [How is it satisfied?]
+   □ Criterion 3: [How is it satisfied?]
+   ```
+3. **Check for common issues:**
+   - Missing edge cases?
+   - Incomplete implementation?
+   - Over-engineering (features not requested)?
+   - Tests actually testing the right thing?
+4. **Fix any issues found** before proceeding
+
+**Why:** Finding your own bugs is faster than waiting for verification to catch them.
+
 ### STEP 5: Verify and Complete
 
 ```bash
@@ -131,6 +152,11 @@ agent-foreman next <task_id>
 
 # STEP 2: Implement task
 # (satisfy ALL acceptance criteria shown)
+
+# STEP 2.5: Self-Review (MANDATORY)
+# Re-read acceptance criteria, verify each is satisfied
+# Check for: missing edge cases, over-engineering, incomplete work
+# Fix any issues BEFORE proceeding to check
 
 # STEP 3: Verify implementation (required)
 agent-foreman check <task_id>
@@ -157,6 +183,11 @@ agent-foreman next
 # STEP 3: Implement task
 # (satisfy ALL acceptance criteria shown)
 
+# STEP 3.5: Self-Review (MANDATORY)
+# Re-read acceptance criteria, verify each is satisfied
+# Check for: missing edge cases, over-engineering, incomplete work
+# Fix any issues BEFORE proceeding to check
+
 # STEP 4: Verify implementation (required)
 agent-foreman check <task_id>
 
@@ -176,7 +207,8 @@ agent-foreman done <task_id>
 | Rule | Action |
 |------|--------|
 | TDD mode strict? | MUST follow TDD Workflow (RED → GREEN → REFACTOR) |
-| No skipping | Always: status → next → implement → check → done |
+| No skipping | Always: next → implement → self-review → check → done |
+| Self-review mandatory | Verify ALL criteria before running check |
 | One at a time | Complete current before next |
 | No editing criteria | Implement exactly as specified |
 | Never kill processes | Let commands finish naturally |

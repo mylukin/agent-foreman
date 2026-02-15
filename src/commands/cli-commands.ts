@@ -249,7 +249,8 @@ export function registerCheckCommand(yargs: Argv): Argv {
         .option("skip-checks", { alias: "s", type: "boolean", default: false, describe: "Skip automated checks, AI only" })
         .option("quick", { type: "boolean", default: true, describe: "Run only related tests (for task mode)" })
         .option("test-pattern", { type: "string", describe: "Explicit test pattern to use" })
-        .option("skip-e2e", { type: "boolean", default: false, describe: "Skip E2E tests entirely" }),
+        .option("skip-e2e", { type: "boolean", default: false, describe: "Skip E2E tests entirely" })
+        .option("skip-behavior", { type: "boolean", default: false, describe: "Skip behavior/anti-pattern check" }),
     async (argv) => {
       // Determine test mode based on flags
       const testMode = argv.full ? "full" : "quick";
@@ -263,7 +264,8 @@ export function registerCheckCommand(yargs: Argv): Argv {
         argv.testPattern,
         argv.skipE2e,
         e2eMode,
-        argv.full
+        argv.full,
+        argv.skipBehavior
       );
     }
   );

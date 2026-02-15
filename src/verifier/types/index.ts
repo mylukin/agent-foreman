@@ -56,5 +56,6 @@ export type {
   ManualVerificationStrategy,
   AiVerificationStrategy,
   CompositeVerificationStrategy,
+  BehaviorVerificationStrategy,
   VerificationStrategy,
 } from "./strategies.js";

@@ -15,7 +15,8 @@ export type VerificationStrategyType =
   | "command" // Custom command execution
   | "manual" // Human review/approval
   | "ai" // AI-powered verification
-  | "composite"; // AND/OR combinations of strategies
+  | "composite" // AND/OR combinations of strategies
+  | "behavior"; // Agent behavior/workflow violation detection
 
 /**
  * Base interface for all verification strategies
@@ -225,6 +226,33 @@ export interface CompositeVerificationStrategy extends BaseVerificationStrategy 
 }
 
 /**
+ * Behavior verification strategy
+ * Detects workflow violations in agent logs/transcripts
+ */
+export interface BehaviorVerificationStrategy extends BaseVerificationStrategy {
+  type: "behavior";
+  /** Source of logs to analyze */
+  logSource?: "session" | "file" | "stdin";
+  /** Path to log file (when logSource is "file") */
+  logPath?: string;
+  /** Minimum severity to report (default: "warning") */
+  minSeverity?: "critical" | "warning" | "info";
+  /** Categories of anti-patterns to check */
+  categories?: Array<
+    "workflow-bypass" | "file-reading" | "manual-edit" | "algorithm-local" | "status-guess"
+  >;
+  /** Whether to fail fast on first critical violation (default: true) */
+  failFast?: boolean;
+  /** Custom patterns to check (in addition to built-in) */
+  customPatterns?: Array<{
+    id: string;
+    pattern: string;
+    severity: "critical" | "warning" | "info";
+    message: string;
+  }>;
+}
+
+/**
  * Union type of all verification strategies
  * Use this type for strategy arrays in Feature
  */
@@ -237,4 +265,5 @@ export type VerificationStrategy =
   | CommandVerificationStrategy
   | ManualVerificationStrategy
   | AiVerificationStrategy
-  | CompositeVerificationStrategy;
+  | CompositeVerificationStrategy
+  | BehaviorVerificationStrategy;
